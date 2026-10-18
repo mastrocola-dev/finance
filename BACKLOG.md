@@ -4,7 +4,7 @@ Ordered. The agent takes the first unblocked item under **Next**. Items marked *
 
 ## Next
 
-- **F07b MCP write tools, part 2**: `update_reserve` (balance and target, audited, never below zero), `propose_decision` (status `proposed`, `proposed_by` the calling member, origin `claude`) and `confirm_decision` (one `decision_confirmation` per member; the decision becomes `confirmed` only when every active member confirmed; the proposer's own confirmation counts; reject/withdraw paths). Reuse `writing()` in `src/mcp/server.ts` and add commands next to `src/ledger/record.ts`
+- **F07c MCP read tools for reserves and decisions**: `list_reserves` (balance, target, progress) and `list_decisions` (status filter, default `proposed`, with `confirmedBy` and `awaiting`) reusing `src/ledger/reserves.ts` and `src/ledger/decisions.ts`, so Claude can find decision ids and reserve names without asking the members
 - **F08 Forecast**: generate planned entries of a month from active recurring expenses, idempotent
 - **F09 HTTP API**: REST over the same ledger module for the future app; JSON errors; tests
 - **F10 Spreadsheet import**: `.xlsx` with one sheet per month (income, fixed expenses with installment number, variable expenses, totals) into the ledger; fixture is an invented workbook
@@ -36,11 +36,16 @@ Ordered. The agent takes the first unblocked item under **Next**. Items marked *
 - **L19 Paid date bounds**: `mark_paid` and `create_entry` accept any valid `paid_on`, even in the future or long before `due_on`; decide whether to reject `paid_on` after `today`
 - **L20 Duplicate writes**: a retried `create_entry` creates a second entry; consider an optional client key or a warning when an active entry with the same month, description and amount exists
 - **L21 Stdio member lifetime**: stdio resolves `FINANCE_MEMBER` once at start; a member closed later keeps writing until restart. Resolve per call if members get closed in practice
+- **L23 Confirmation audit id**: `decision_confirmation` has no `id`, so its `audit_log.entity_id` is null and the link lives only in `after->>'decision_id'`; consider storing the decision id as `entity_id` for confirmations
+- **L24 Members closed mid-decision**: a decision is re-evaluated only on `confirm_decision`; if a member is closed while it is proposed and everyone else already confirmed, it stays proposed until someone confirms again. Re-evaluate open decisions when a member is closed
+- **L25 Proposer auto-confirm**: proposing does not confirm; the proposer must call `confirm_decision` too (a Claude-made proposal is not taken as the member's consent). Author may prefer auto-confirm for proposals the member makes in person
 - **L22 Write tool shapes**: write tools return the `list_entries` read model (camelCase) while inputs are snake_case; keep this convention for F07b/F09 or pick one and record it in the ADR-008 proposal
 
 ## Needs author
 
 ## Done
+
+- **F07b MCP write tools, part 2**: `update_reserve` (by name, balance >= 0 and/or positive target, audited), `propose_decision` (status `proposed`, `proposed_by` the caller, origin `claude`), `confirm_decision` (one `decision_confirmation` per member, closes as `confirmed` when no active member is awaiting, row lock serializes concurrent confirmations), `reject_decision` (another member only) and `withdraw_decision` (proposer only); read models `findReserve` and `findDecision` (`confirmedBy`, `awaiting`); 5 new tests
 
 - **F07 MCP write tools, part 1**: `create_entry` and `mark_paid` over stdio and HTTP; `src/ledger/record.ts` (`createEntry` resolving category by name and direction, account nickname, member name or `joint`; `markPaid` refusing paid or closed entries) through audited `write()` as `claude` for the calling member, origin `claude`; `createServer(database, member?)` takes a pool (`Database` type) and leases one client per write; HTTP factory reads `x-member` from `ctx.requestInfo`; stdio uses a pool (L15 done) and `FINANCE_MEMBER`, refusing to start for an unknown member; writes refused without a caller; `findEntry` returns the written entry; 9 new tests. Rest split into F07b
 

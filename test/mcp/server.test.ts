@@ -41,7 +41,7 @@ describe('mcp read tools', () => {
     const readOnly = tools.filter(({ annotations }) => annotations?.readOnlyHint === true).map(({ name }) => name)
     const writing = tools.filter(({ annotations }) => annotations?.readOnlyHint === false && annotations.destructiveHint === false).map(({ name }) => name)
     assert.deepEqual(readOnly.sort(), ['list_debts', 'list_entries', 'month_summary'])
-    assert.deepEqual(writing.sort(), ['create_entry', 'mark_paid'])
+    assert.deepEqual(writing.sort(), ['confirm_decision', 'create_entry', 'mark_paid', 'propose_decision', 'reject_decision', 'update_reserve', 'withdraw_decision'])
   })
 
   test('month_summary serializes cents as strings with BRL display', async () => {

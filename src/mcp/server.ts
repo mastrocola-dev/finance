@@ -4,9 +4,11 @@ import * as z from 'zod'
 import type { Database } from '../db/connection.ts'
 import type { Actor } from '../db/write.ts'
 import { listDebts } from '../ledger/debts.ts'
+import { findDecision } from '../ledger/decisions.ts'
 import { findEntry, listEntries, states } from '../ledger/entries.ts'
 import type { Member } from '../ledger/members.ts'
-import { createEntry, markPaid } from '../ledger/record.ts'
+import { confirmDecision, createEntry, markPaid, proposeDecision, rejectDecision, updateReserve, withdrawDecision } from '../ledger/record.ts'
+import { findReserve } from '../ledger/reserves.ts'
 import { compareMonths } from '../ledger/summary.ts'
 import { result } from './json.ts'
 
@@ -120,6 +122,66 @@ export const createServer = (client: Database, member?: Member) => {
       return result(await findEntry(client, paid, input.today))
     },
   )
+
+  server.registerTool(
+    'update_reserve',
+    {
+      title: 'Update reserve',
+      description: 'Set the current balance and/or the target of a reserve, found by name. The balance never goes below zero. Only records the new figures; never moves money.',
+      inputSchema: z.object({
+        reserve: z.string().describe('Reserve name'),
+        balance_cents: z.int().nonnegative().optional().describe('New balance in cents of BRL'),
+        target_cents: z.int().positive().optional().describe('New target in cents of BRL'),
+      }),
+      annotations: writes,
+    },
+    async (input) => {
+      await writing((connection, actor) =>
+        updateReserve(connection, actor, input.reserve, {
+          balance: input.balance_cents === undefined ? undefined : BigInt(input.balance_cents),
+          target: input.target_cents === undefined ? undefined : BigInt(input.target_cents),
+        }),
+      )
+      return result(await findReserve(client, input.reserve))
+    },
+  )
+
+  server.registerTool(
+    'propose_decision',
+    {
+      title: 'Propose joint decision',
+      description: 'Propose a joint decision on behalf of the calling member. It stays proposed until every active member confirms it with confirm_decision, the proposer included. Never executes a payment.',
+      inputSchema: z.object({
+        title: z.string().trim().min(1),
+        description: z.string().optional(),
+        amount_cents: z.int().positive().optional().describe('Amount involved in cents of BRL'),
+      }),
+      annotations: writes,
+    },
+    async (input) => {
+      const proposed = await writing((connection, actor) =>
+        proposeDecision(connection, actor, {
+          title: input.title,
+          description: input.description,
+          amount: input.amount_cents === undefined ? undefined : BigInt(input.amount_cents),
+        }),
+      )
+      return result(await findDecision(client, proposed))
+    },
+  )
+
+  const answers = [
+    ['confirm_decision', 'Confirm joint decision', 'Record that the calling member confirms a proposed decision. It becomes confirmed only when every active member has confirmed.', confirmDecision],
+    ['reject_decision', 'Reject joint decision', 'Reject a decision proposed by another member; it is closed as rejected.', rejectDecision],
+    ['withdraw_decision', 'Withdraw joint decision', 'Withdraw a decision the calling member proposed; it is closed as withdrawn.', withdrawDecision],
+  ] as const
+
+  for (const [name, title, description, answer] of answers) {
+    server.registerTool(name, { title, description, inputSchema: z.object({ id }), annotations: writes }, async (input) => {
+      const answered = await writing((connection, actor) => answer(connection, actor, BigInt(input.id)))
+      return result(await findDecision(client, answered))
+    })
+  }
 
   return server
 }
