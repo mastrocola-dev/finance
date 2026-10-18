@@ -24,9 +24,9 @@ describe('streamable http adapter', () => {
   let pool: ReturnType<typeof connectPool>
   let server: Awaited<ReturnType<typeof serveHttp>>
 
-  const connectClient = async (member = 'Marcio') => {
+  const connectClient = async (member?: string) => {
     const mcp = new Client({ name: 'test', version: '0.0.0' })
-    await mcp.connect(new StreamableHTTPClientTransport(new URL(server.url), { requestInit: { headers: { 'x-member': member } } }))
+    await mcp.connect(new StreamableHTTPClientTransport(new URL(server.url), { requestInit: { headers: member ? { 'x-member': member } : {} } }))
     return mcp
   }
 
@@ -47,10 +47,10 @@ describe('streamable http adapter', () => {
     assert.match(server.url, /^http:\/\/127\.0\.0\.1:\d+\/mcp$/)
   })
 
-  test('serves the read tools', async () => {
-    const mcp = await connectClient()
+  test('serves the read and write tools', async () => {
+    const mcp = await connectClient('Marcio')
     const { tools } = await mcp.listTools()
-    assert.deepEqual(tools.map(({ name }) => name).sort(), ['list_debts', 'list_entries', 'month_summary'])
+    assert.deepEqual(tools.map(({ name }) => name).sort(), ['create_entry', 'list_debts', 'list_entries', 'mark_paid', 'month_summary'])
     const { content } = await mcp.callTool({ name: 'list_debts', arguments: {} })
     const [first] = content as { text: string }[]
     assert.equal(JSON.parse(first?.text ?? '[]').length, 2)
@@ -64,6 +64,19 @@ describe('streamable http adapter', () => {
     const expenses = results.map(({ content }) => JSON.parse((content as { text: string }[])[0]?.text ?? '{}').month.expenses.total.cents)
     assert.deepEqual(expenses, ['1009500', '1023800', '1009500', '1023800'])
     await Promise.all(clients.map((mcp) => mcp.close()))
+  })
+
+  test('writes on behalf of the x-member header and refuses without it', async () => {
+    const entry = { month: '2026-10', due_on: '2026-10-28', description: 'Pharmacy', direction: 'expense', amount_cents: 4590, category: 'health', member: 'Gabriela', today: seedToday }
+    const [gabriela, anonymous] = await Promise.all([connectClient(' gabriela '), connectClient()])
+    const refused = await anonymous.callTool({ name: 'create_entry', arguments: entry })
+    assert.equal(refused.isError, true)
+    const created = await gabriela.callTool({ name: 'create_entry', arguments: entry })
+    assert.notEqual(created.isError, true)
+    const { id } = JSON.parse((created.content as { text: string }[])[0]?.text ?? '{}')
+    const { rows } = await pool.query('select a.author, m.name from audit_log a join member m on m.id = a.member_id where a.entity = $1 and a.entity_id = $2', ['entry', id])
+    assert.deepEqual(rows, [{ author: 'claude', name: 'Gabriela' }])
+    await Promise.all([gabriela.close(), anonymous.close()])
   })
 
   test('accepts requests without a member header', async () => {

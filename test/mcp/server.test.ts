@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict'
 import { after, before, describe, test } from 'node:test'
 import { Client, InMemoryTransport } from '@modelcontextprotocol/client'
+import { connectPool } from '../../src/db/connection.ts'
 import { seed, seedToday } from '../../src/db/seed.ts'
 import { createServer } from '../../src/mcp/server.ts'
 import { testDatabase } from '../db/database.ts'
@@ -9,6 +10,7 @@ type Money = { cents: string; brl: string }
 
 describe('mcp read tools', () => {
   let db: Awaited<ReturnType<typeof testDatabase>>
+  let pool: ReturnType<typeof connectPool>
   let mcp: Client
 
   const call = async (name: string, args: Record<string, unknown> = {}) => {
@@ -21,21 +23,25 @@ describe('mcp read tools', () => {
   before(async () => {
     db = await testDatabase()
     await seed(db.client)
+    pool = connectPool(db.url)
     const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair()
-    await createServer(db.client).connect(serverTransport)
+    await createServer(pool).connect(serverTransport)
     mcp = new Client({ name: 'test', version: '0.0.0' })
     await mcp.connect(clientTransport)
   })
 
   after(async () => {
     await mcp.close()
+    await pool.end()
     await db.drop()
   })
 
-  test('lists only read-only tools', async () => {
+  test('marks read tools read-only and write tools not', async () => {
     const { tools } = await mcp.listTools()
-    assert.deepEqual(tools.map(({ name }) => name).sort(), ['list_debts', 'list_entries', 'month_summary'])
-    assert.ok(tools.every(({ annotations }) => annotations?.readOnlyHint === true))
+    const readOnly = tools.filter(({ annotations }) => annotations?.readOnlyHint === true).map(({ name }) => name)
+    const writing = tools.filter(({ annotations }) => annotations?.readOnlyHint === false && annotations.destructiveHint === false).map(({ name }) => name)
+    assert.deepEqual(readOnly.sort(), ['list_debts', 'list_entries', 'month_summary'])
+    assert.deepEqual(writing.sort(), ['create_entry', 'mark_paid'])
   })
 
   test('month_summary serializes cents as strings with BRL display', async () => {

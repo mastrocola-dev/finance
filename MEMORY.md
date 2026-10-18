@@ -26,6 +26,8 @@ Rewritten by every run, at most 60 lines. Only what the next run needs and canno
 - F06b: no `@modelcontextprotocol/node` (it pulls hono); own bridge in `src/http/node.ts`. `createMcpHandler` default `legacy: 'stateless'`, so plain JSON-RPC POSTs without `initialize` work (tests use that)
 - F06b: `x-member` is optional for reads; when present it must name an active member (case-insensitive, trimmed) or the answer is 403 before the SDK sees the request
 - F06b: only localhost Host/Origin accepted even if `MCP_HOST` is changed (L17)
+- F07: write tools are always registered (listing stable); they throw (tool error) without a calling member. `createServer(database, member?)` needs a `Database` (`Queryable` + `connect()` → `PoolClient`), so tests use `connectPool(db.url)` instead of `db.client`
+- F07: author `claude` + calling member's id; entry `origin` derives from actor (`claude` → claude, `import` → import, else manual); `mark_paid` default date is `paid_on ?? today ?? localToday()`; write tools return the read model via `findEntry`
 - Dependencies: `@modelcontextprotocol/server` 2.3.1, `zod` 4.6.7, `pg`; dev `@modelcontextprotocol/client` 2.3.1
 
 ## Notes for next items
@@ -34,12 +36,14 @@ Rewritten by every run, at most 60 lines. Only what the next run needs and canno
 - Reads take `Queryable` (`Pick<ClientBase, 'query'>` in `src/db/connection.ts`), so a `pg.Pool` or a client both work; `connectPool(url)` builds the pool
 - Read side: `src/ledger/summary.ts` (`monthSummary`, `compareMonths`, `competenceOf`, `shiftMonth`, `localToday`, `assertDate`), `entries.ts`, `debts.ts`, `members.ts` (`findMember`), `money.ts` (`formatBrl`, `money`)
 - MCP: `createServer(client)` in `src/mcp/server.ts`; `result(value)` in `src/mcp/json.ts`; stdio `src/mcp/stdio.ts`; HTTP `src/mcp/http.ts` (`mcpHttp(client)` → `{ fetch, close }`, `serveHttp(client, port, host)` → `{ url, close }`, port 0 for tests)
-- F07 member wiring: the factory passed to `createMcpHandler` gets `ctx.requestInfo` (the web `Request`); read `x-member` there and resolve with `findMember`
+- Write commands live in `src/ledger/record.ts` (`createEntry`, `markPaid`); MCP handlers wrap them in `writing((connection, actor) => ...)` inside `createServer`, which leases and releases a pool client. F07b adds reserve/decision commands the same way
+- HTTP factory: `createMcpHandler(async ({ requestInfo }) => createServer(client, member))` resolves `x-member` per request; stdio resolves `FINANCE_MEMBER` once at start
+- Seed categories are matched case-insensitively (`groceries`, `health`, `salary` exist); `decision_confirmation` has PK (decision_id, member_id) and is immutable; `decision` check: `status = 'proposed'` iff `closed_at is null`
 - SDK 2.x: `Client`, `InMemoryTransport`, `StreamableHTTPClientTransport` from `@modelcontextprotocol/client` (headers via `{ requestInit: { headers } }`); `StdioClientTransport` from `@modelcontextprotocol/client/stdio`; zod failures and thrown errors come back as `isError: true` results
 - Raw HTTP tests use `node:http` `request` because fetch cannot override the Host header
 - Seed 2026-10 as of `seedToday`: 16 active entries; income 2030000 (paid 1770000, pending 260000); expenses 13 entries 1023800 (paid 818300, pending 183300, late 22200); 2026-09 expenses 1009500 all paid; two debts; members Marcio and Gabriela
 - To get a seeded test DB: `testDatabase()` then `seed(db.client)` (about 0.3 s); `db.url` for a pool
 - `pg` returns `bigint` as `BigInt` (including ids), `date` as `YYYY-MM-DD` string, `timestamptz` as `Date`, `numeric` as string; `count(*)` needs `::int`
 - `import.meta.main` is used for CLI entry points
-- Tests: 62 passing after F06b
+- Tests: 71 passing after F07 part 1
 - Failing-test run streak: 0

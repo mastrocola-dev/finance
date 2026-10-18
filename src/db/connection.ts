@@ -5,6 +5,8 @@ pg.types.setTypeParser(pg.types.builtins.DATE, (value) => value)
 
 export type Queryable = Pick<pg.ClientBase, 'query'>
 
+export type Database = Queryable & Pick<pg.Pool, 'connect'>
+
 export const databaseUrl = process.env.DATABASE_URL ?? 'postgres://postgres@localhost:5432/finance'
 
 export const connect = async (url = databaseUrl) => {

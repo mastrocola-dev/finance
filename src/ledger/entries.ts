@@ -29,8 +29,7 @@ export type Entry = {
   installmentNumber: number | null
 }
 
-const query = `
-  select * from (
+const select = `
     select e.id, e.competence::text as competence, e.due_on::text as "dueOn", e.description, e.direction, e.amount_cents as amount,
       c.name as category, a.nickname as account, m.name as member, e.status,
       case when e.status = 'paid' then 'paid' when e.status = 'late' or e.due_on < $2 then 'late' else 'pending' end as state,
@@ -38,7 +37,10 @@ const query = `
     from entry e
     join category c on c.id = e.category_id
     left join account a on a.id = e.account_id
-    left join member m on m.id = e.member_id
+    left join member m on m.id = e.member_id`
+
+const query = `
+  select * from (${select}
     where e.closed_at is null and e.competence = $1
       and ($3::text is null or e.direction = $3)
       and ($4::text is null or lower(c.name) = lower($4))
@@ -53,3 +55,5 @@ export const listEntries = async (client: Queryable, filters: EntryFilters, toda
   const { rows } = await client.query<Entry>(query, [competenceOf(month), assertDate(today), direction ?? null, category ?? null, account ?? null, member ?? null, state ?? null])
   return rows
 }
+
+export const findEntry = async (client: Queryable, id: bigint, today = localToday()) => (await client.query<Entry>(`${select} where e.id = $1 and e.closed_at is null`, [id, assertDate(today)])).rows[0]

@@ -4,7 +4,7 @@ Ordered. The agent takes the first unblocked item under **Next**. Items marked *
 
 ## Next
 
-- **F07 MCP write tools**: `create_entry`, `mark_paid`, `update_reserve`, `propose_decision`, `confirm_decision`; author recorded as `claude` on behalf of the calling member. HTTP: member from the `x-member` header (already validated by `mcpHttp`; read it in the factory from `ctx.requestInfo` and pass it to `createServer`); writes need a dedicated `pool.connect()` client per call because `write()` issues `begin`; stdio: member from an env variable (for example `FINANCE_MEMBER`), tools refuse writes when absent
+- **F07b MCP write tools, part 2**: `update_reserve` (balance and target, audited, never below zero), `propose_decision` (status `proposed`, `proposed_by` the calling member, origin `claude`) and `confirm_decision` (one `decision_confirmation` per member; the decision becomes `confirmed` only when every active member confirmed; the proposer's own confirmation counts; reject/withdraw paths). Reuse `writing()` in `src/mcp/server.ts` and add commands next to `src/ledger/record.ts`
 - **F08 Forecast**: generate planned entries of a month from active recurring expenses, idempotent
 - **F09 HTTP API**: REST over the same ledger module for the future app; JSON errors; tests
 - **F10 Spreadsheet import**: `.xlsx` with one sheet per month (income, fixed expenses with installment number, variable expenses, totals) into the ledger; fixture is an invented workbook
@@ -23,7 +23,6 @@ Ordered. The agent takes the first unblocked item under **Next**. Items marked *
 
 - **L13 JSON money convention**: `src/mcp/json.ts` turns every bigint except a key named `id` into `{ cents, brl }`; any future non-money bigint (foreign ids, counts) must be cast in SQL or the rule must become an explicit key list. Decide before F07/F09 expose more shapes
 - **L14 Tool output size**: `month_summary` always returns both months plus differences, and `list_entries` has no limit; fine for a household month, revisit with a `limit` or a compact mode if Claude context use grows
-- **L15 Stdio connection**: the stdio server keeps one `pg.Client` for its lifetime with no reconnect; a dropped database connection ends the process. Switch it to `connectPool()` (reads accept any `Queryable`)
 - **L11 Stored late status**: summary derives late from `planned` + `due_on < today`, while `entry.status = 'late'` is also stored; decide whether `late` stays a stored status or becomes derived only, and whether F08/F07 should flip planned to late
 - **L12 Summary by member**: per-member totals and the 50/50 share of joint expenses (who owes whom) on top of `monthSummary`
 
@@ -34,9 +33,16 @@ Ordered. The agent takes the first unblocked item under **Next**. Items marked *
 - **L17 Remote exposure**: `mcpHttp` accepts only localhost Host/Origin and trusts `x-member` without authentication; the Azure stage needs Entra ID, configurable allowed hostnames and TLS before binding anything but loopback
 - **L18 Shared HTTP bridge**: `src/http/node.ts` (`listen`, `nodeHandler`) is generic; F09 should reuse it and add a request body limit for non-MCP routes (the MCP handler already caps at 4 MiB)
 
+- **L19 Paid date bounds**: `mark_paid` and `create_entry` accept any valid `paid_on`, even in the future or long before `due_on`; decide whether to reject `paid_on` after `today`
+- **L20 Duplicate writes**: a retried `create_entry` creates a second entry; consider an optional client key or a warning when an active entry with the same month, description and amount exists
+- **L21 Stdio member lifetime**: stdio resolves `FINANCE_MEMBER` once at start; a member closed later keeps writing until restart. Resolve per call if members get closed in practice
+- **L22 Write tool shapes**: write tools return the `list_entries` read model (camelCase) while inputs are snake_case; keep this convention for F07b/F09 or pick one and record it in the ADR-008 proposal
+
 ## Needs author
 
 ## Done
+
+- **F07 MCP write tools, part 1**: `create_entry` and `mark_paid` over stdio and HTTP; `src/ledger/record.ts` (`createEntry` resolving category by name and direction, account nickname, member name or `joint`; `markPaid` refusing paid or closed entries) through audited `write()` as `claude` for the calling member, origin `claude`; `createServer(database, member?)` takes a pool (`Database` type) and leases one client per write; HTTP factory reads `x-member` from `ctx.requestInfo`; stdio uses a pool (L15 done) and `FINANCE_MEMBER`, refusing to start for an unknown member; writes refused without a caller; `findEntry` returns the written entry; 9 new tests. Rest split into F07b
 
 - **F06b Streamable HTTP adapter**: `src/mcp/http.ts` `mcpHttp(client)` wraps the SDK `createMcpHandler` (modern plus stateless legacy) with localhost Host/Origin validation, `/mcp` path only, and `x-member` checked against active members (`src/ledger/members.ts` `findMember`, 403 when unknown); `serveHttp` binds `MCP_HOST` (default 127.0.0.1) and `MCP_PORT` (default 3100); `src/http/node.ts` is a dependency-free `node:http` to fetch bridge with JSON 500s; reads take a `Queryable` so a `pg.Pool` (`connectPool`, L01 done for HTTP) serves concurrent requests; `npm run mcp:http`; 10 tests
 

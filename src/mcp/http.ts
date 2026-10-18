@@ -1,5 +1,5 @@
 import { createMcpHandler, hostHeaderValidationResponse, localhostAllowedHostnames, localhostAllowedOrigins, originValidationResponse } from '@modelcontextprotocol/server'
-import { connectPool, type Queryable } from '../db/connection.ts'
+import { connectPool, type Database } from '../db/connection.ts'
 import { listen } from '../http/node.ts'
 import { findMember } from '../ledger/members.ts'
 import { createServer } from './server.ts'
@@ -9,8 +9,13 @@ export const memberHeader = 'x-member'
 
 const error = (message: string, status: number) => Response.json({ error: message }, { status })
 
-export const mcpHttp = (client: Queryable) => {
-  const mcp = createMcpHandler(() => createServer(client))
+const memberOf = async (client: Database, request?: Request) => {
+  const name = request?.headers.get(memberHeader)
+  return name ? findMember(client, name) : undefined
+}
+
+export const mcpHttp = (client: Database) => {
+  const mcp = createMcpHandler(async ({ requestInfo }) => createServer(client, await memberOf(client, requestInfo)))
   const fetch = async (request: Request) => {
     const rejected = hostHeaderValidationResponse(request, localhostAllowedHostnames()) ?? originValidationResponse(request, localhostAllowedOrigins())
     if (rejected) return rejected
@@ -22,7 +27,7 @@ export const mcpHttp = (client: Queryable) => {
   return { fetch, close: mcp.close }
 }
 
-export const serveHttp = async (client: Queryable, port = Number(process.env.MCP_PORT ?? 3100), host = process.env.MCP_HOST ?? '127.0.0.1') => {
+export const serveHttp = async (client: Database, port = Number(process.env.MCP_PORT ?? 3100), host = process.env.MCP_HOST ?? '127.0.0.1') => {
   const handler = mcpHttp(client)
   const server = await listen(handler.fetch, port, host)
   const close = async () => {

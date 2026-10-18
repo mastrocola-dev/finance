@@ -23,3 +23,5 @@ Copy `.env.example` to `.env` and adjust it; every script loads `.env` when pres
 `npm run mcp:stdio` serves the read tools `month_summary`, `list_entries` and `list_debts` over stdio against `DATABASE_URL`. Amounts are cents as strings with a BRL display, for example `{ "cents": "123456", "brl": "R$ 1.234,56" }`.
 
 `npm run mcp:http` serves the same tools over streamable HTTP at `http://127.0.0.1:3100/mcp` (`MCP_HOST`, `MCP_PORT`; `DATABASE_POOL_MAX` sets the pool size, default 5). Only localhost Host and Origin headers are accepted. An optional `x-member` header names the calling member; an unknown or closed member is answered `403`.
+
+Write tools `create_entry` (planned or already paid income or expense, member name or `joint`) and `mark_paid` record facts on behalf of the calling member, audited as `claude` with that member; they never execute a payment. Over HTTP the caller is the `x-member` header, over stdio the `FINANCE_MEMBER` variable (the server refuses to start when it names no active member). Without a caller every write is refused.
