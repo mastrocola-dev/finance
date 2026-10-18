@@ -8,6 +8,7 @@
   "scripts": {
     "db:migrate": "node src/db/migrate.ts",
     "db:reset": "node src/db/reset.ts",
+    "db:seed": "node src/db/seed.ts",
     "typecheck": "tsc",
     "check": "biome ci && tsc",
     "fix": "biome check --write",

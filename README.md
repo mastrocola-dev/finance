@@ -9,9 +9,10 @@ Requires Node 24 and PostgreSQL 16.
 ```sh
 npm ci
 npm run db:reset
+npm run db:seed
 npm test
 npm run check
 npm run fix
 ```
 
-`DATABASE_URL` defaults to `postgres://postgres@localhost:5432/finance`. `npm run db:migrate` applies pending migrations from `db/migrations`; `npm run db:reset` drops and recreates the database. Tests create and drop their own `finance_test_*` databases on the same server.
+`DATABASE_URL` defaults to `postgres://postgres@localhost:5432/finance`. `npm run db:migrate` applies pending migrations from `db/migrations`; `npm run db:reset` drops and recreates the database; `npm run db:seed` fills an empty database with an invented household (twelve months up to 2026-10, as if today were 2026-10-18). Tests create and drop their own `finance_test_*` databases on the same server.

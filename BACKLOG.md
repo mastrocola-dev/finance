@@ -4,7 +4,6 @@ Ordered. The agent takes the first unblocked item under **Next**. Items marked *
 
 ## Next
 
-- **F04 Fictional seed**: deterministic household with twelve months of income, recurring expenses, entries, two debts, one reserve, one goal
 - **F05 Month summary**: income, expenses by category, paid, pending and late totals, comparison with another month; tests with the seed
 - **F06 MCP read tools**: `month_summary`, `list_entries` (filters: month, category, account, member, status), `list_debts`; stdio and streamable HTTP adapters; tests through an in-memory MCP client
 - **F07 MCP write tools**: `create_entry`, `mark_paid`, `update_reserve`, `propose_decision`, `confirm_decision`; author recorded as `claude` on behalf of the calling member
@@ -20,6 +19,10 @@ Ordered. The agent takes the first unblocked item under **Next**. Items marked *
 - **L05 Nested writes**: `write()` issues `begin` on the given client; calling it inside another `write()` on the same client would nest. Decide on savepoints or a guard when MCP/HTTP adapters compose writes (F07/F09)
 - **L06 Audit JSON numbers**: `audit_log.before/after` store bigint cents as JSON numbers; exact in PostgreSQL but JS readers lose precision above 2^53 cents. Fine for household amounts; revisit only if audit is read back into BigInt
 
+- **L07 Seed clock**: the seed freezes "today" at 2026-10-18 (`seedToday`); once F05/F08 compute late or pending from the real date, pass the reference date in explicitly so summaries over the seed stay stable
+- **L08 Debt balance**: seeded `balance_cents` is the nominal sum of remaining installments, not amortized principal; decide whether `balance_cents` means payoff amount or remaining installments and record it in the ADR-008 proposal
+- **L09 Seed with decisions**: add one proposed and one confirmed joint decision to the seed once F07 exists, so demo mode (F11) can show the confirmation flow
+
 - **L01 Pool**: replace the single `pg.Client` in `src/db/connection.ts` with a `pg.Pool` once HTTP and MCP adapters run concurrently (F06/F09)
 - **L02 Down path**: migrations are forward-only; document the policy (new migration to revert) in the ADR-008 proposal
 - **L03 CI**: GitHub Actions workflow with a PostgreSQL service running `npm run check` and `npm test` (needs author approval: touches GitHub settings only through a workflow file)
@@ -27,6 +30,8 @@ Ordered. The agent takes the first unblocked item under **Next**. Items marked *
 ## Needs author
 
 ## Done
+
+- **F04 Fictional seed**: `npm run db:seed` (`src/db/seed.ts`) plants, in one audited `system` write, two members 50/50, five accounts, ten categories, two salaries, seven recurring expenses (one in 10 installments), two debts, one reserve and one goal, plus 177 entries from 2025-11 to 2026-10 as of a fixed 2026-10-18 (past paid, current month paid/late/planned); refuses a non-empty database; 9 tests including determinism
 
 - **F03 Audited writes**: `src/db/write.ts` with `write(client, actor, work)` giving `create`/`update`/`close` (no delete); one transaction per call, audit row written in the same statement via `to_jsonb` before/after; entity allowlist, `id`/`created_at`/`closed_at` not writable, closed rows locked; active members' `share_percent` must sum to 100 at commit; `int8` parsed as `BigInt` and `date` kept as `YYYY-MM-DD` string
 
