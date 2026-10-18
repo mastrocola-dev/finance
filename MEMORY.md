@@ -22,23 +22,24 @@ Rewritten by every run, at most 60 lines. Only what the next run needs and canno
 - Migrations are forward-only, one transaction each; share sum of 100 enforced in `write()` at commit
 - F04: seed in English, invented institutions; fixed `seedToday` 2026-10-18 (months 2025-11..2026-10); only Electricity in 2026-10 is stored `late`; debt `balance_cents` = installment × remaining (L08)
 - F05: summary groups by `competence`, active entries only; paid = `paid`, pending = `planned` due on/after today, late = stored `late` or `planned` past due (L11)
-- F06: MCP output is JSON text only (no `outputSchema`/`structuredContent`); every bigint becomes `{ cents, brl }` except key `id` (string) (L13); domain read models use camelCase keys
-- F06: `month_summary` always returns `compareMonths` (both months plus difference); `list_entries` filters match names case-insensitively: category name, account nickname, member name or `joint`; `state` is derived (paid, pending, late), `status` is the stored one
-- F06: tools are annotated `readOnlyHint: true`; F11 demo mode can reuse `createServer` as is until write tools exist
-- Dependencies added: `@modelcontextprotocol/server` 2.3.1 and `zod` 4.6.7 (runtime), `@modelcontextprotocol/client` 2.3.1 (dev, tests only)
+- F06: MCP output is JSON text only; every bigint becomes `{ cents, brl }` except key `id` (string) (L13); read models use camelCase keys; tools annotated `readOnlyHint: true`
+- F06b: no `@modelcontextprotocol/node` (it pulls hono); own bridge in `src/http/node.ts`. `createMcpHandler` default `legacy: 'stateless'`, so plain JSON-RPC POSTs without `initialize` work (tests use that)
+- F06b: `x-member` is optional for reads; when present it must name an active member (case-insensitive, trimmed) or the answer is 403 before the SDK sees the request
+- F06b: only localhost Host/Origin accepted even if `MCP_HOST` is changed (L17)
+- Dependencies: `@modelcontextprotocol/server` 2.3.1, `zod` 4.6.7, `pg`; dev `@modelcontextprotocol/client` 2.3.1
 
 ## Notes for next items
 
-- All ledger writes go through `write(client, actor, (ledger) => ...)` from `src/db/write.ts`; never insert with raw SQL outside migrations and tests
-- Read side: `src/ledger/summary.ts` (`monthSummary`, `compareMonths`, `competenceOf`, `shiftMonth`, `localToday`, `assertDate`), `entries.ts` (`listEntries`), `debts.ts` (`listDebts`), `money.ts` (`formatBrl`, `money`); all take a `pg` `ClientBase`
-- MCP: `createServer(client)` in `src/mcp/server.ts`; `result(value)` in `src/mcp/json.ts` builds the tool result; stdio entry `src/mcp/stdio.ts` uses `serveStdio(factory)` from `@modelcontextprotocol/server/stdio`
-- SDK 2.x: `InMemoryTransport.createLinkedPair()` and `Client` come from `@modelcontextprotocol/client`; `StdioClientTransport` from `@modelcontextprotocol/client/stdio`; zod validation failures and thrown errors come back as `isError: true` results, not rejections
-- F06b: check the server package exports for streamable HTTP (`createMcpHandler`, `PerRequestHTTPServerTransport` are exported from the root); bind 127.0.0.1 by default
-- F07: author `claude` with the calling member's `member_id`; needs the member from the `x-member` header (HTTP) or an env/default for stdio — decide and record
-- Seed 2026-10 as of `seedToday`: 16 active entries; income 3 entries 2030000 (paid 1770000, pending 260000); expenses 13 entries 1023800 (paid 818300, pending 183300, late 22200); 2026-09 expenses 1009500 all paid; two debts (Car financing joint, Personal loan Gabriela)
-- To get a seeded test DB: `testDatabase()` then `seed(db.client)` (about 0.3 s)
-- `pg` returns `bigint` as `BigInt` (including ids), `date` as `YYYY-MM-DD` string, `timestamptz` as `Date`, `numeric` as string; `count(*)` needs `::int`, `sum()` of bigint is `numeric` unless cast
-- Tests use `test/db/database.ts` (`testDatabase()`): fresh `finance_test_<uuid>` database per suite, dropped `with (force)` in `after`
+- All ledger writes go through `write(client, actor, (ledger) => ...)` from `src/db/write.ts`; it issues `begin` on the given client, so it needs a real client (`await pool.connect()` then `release()`), never the pool itself
+- Reads take `Queryable` (`Pick<ClientBase, 'query'>` in `src/db/connection.ts`), so a `pg.Pool` or a client both work; `connectPool(url)` builds the pool
+- Read side: `src/ledger/summary.ts` (`monthSummary`, `compareMonths`, `competenceOf`, `shiftMonth`, `localToday`, `assertDate`), `entries.ts`, `debts.ts`, `members.ts` (`findMember`), `money.ts` (`formatBrl`, `money`)
+- MCP: `createServer(client)` in `src/mcp/server.ts`; `result(value)` in `src/mcp/json.ts`; stdio `src/mcp/stdio.ts`; HTTP `src/mcp/http.ts` (`mcpHttp(client)` → `{ fetch, close }`, `serveHttp(client, port, host)` → `{ url, close }`, port 0 for tests)
+- F07 member wiring: the factory passed to `createMcpHandler` gets `ctx.requestInfo` (the web `Request`); read `x-member` there and resolve with `findMember`
+- SDK 2.x: `Client`, `InMemoryTransport`, `StreamableHTTPClientTransport` from `@modelcontextprotocol/client` (headers via `{ requestInit: { headers } }`); `StdioClientTransport` from `@modelcontextprotocol/client/stdio`; zod failures and thrown errors come back as `isError: true` results
+- Raw HTTP tests use `node:http` `request` because fetch cannot override the Host header
+- Seed 2026-10 as of `seedToday`: 16 active entries; income 2030000 (paid 1770000, pending 260000); expenses 13 entries 1023800 (paid 818300, pending 183300, late 22200); 2026-09 expenses 1009500 all paid; two debts; members Marcio and Gabriela
+- To get a seeded test DB: `testDatabase()` then `seed(db.client)` (about 0.3 s); `db.url` for a pool
+- `pg` returns `bigint` as `BigInt` (including ids), `date` as `YYYY-MM-DD` string, `timestamptz` as `Date`, `numeric` as string; `count(*)` needs `::int`
 - `import.meta.main` is used for CLI entry points
-- Tests: 52 passing after F06
+- Tests: 62 passing after F06b
 - Failing-test run streak: 0

@@ -1,6 +1,6 @@
 import { McpServer } from '@modelcontextprotocol/server'
-import type { ClientBase } from 'pg'
 import * as z from 'zod'
+import type { Queryable } from '../db/connection.ts'
 import { listDebts } from '../ledger/debts.ts'
 import { listEntries, states } from '../ledger/entries.ts'
 import { compareMonths } from '../ledger/summary.ts'
@@ -10,7 +10,7 @@ const month = z.string().describe('Month as YYYY-MM')
 const today = z.string().optional().describe('Reference date YYYY-MM-DD for pending and late; defaults to today in America/Sao_Paulo')
 const readOnly = { readOnlyHint: true, openWorldHint: false }
 
-export const createServer = (client: ClientBase) => {
+export const createServer = (client: Queryable) => {
   const server = new McpServer({ name: 'finance', version: '0.1.0' })
 
   server.registerTool(

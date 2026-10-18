@@ -4,8 +4,7 @@ Ordered. The agent takes the first unblocked item under **Next**. Items marked *
 
 ## Next
 
-- **F06b Streamable HTTP adapter**: serve `createServer` over streamable HTTP (`node:http`, local port from env, safe default `127.0.0.1`), `x-member` header read into the request context for F07, `pg.Pool` per L01 since requests run concurrently; test with the client's HTTP transport
-- **F07 MCP write tools**: `create_entry`, `mark_paid`, `update_reserve`, `propose_decision`, `confirm_decision`; author recorded as `claude` on behalf of the calling member
+- **F07 MCP write tools**: `create_entry`, `mark_paid`, `update_reserve`, `propose_decision`, `confirm_decision`; author recorded as `claude` on behalf of the calling member. HTTP: member from the `x-member` header (already validated by `mcpHttp`; read it in the factory from `ctx.requestInfo` and pass it to `createServer`); writes need a dedicated `pool.connect()` client per call because `write()` issues `begin`; stdio: member from an env variable (for example `FINANCE_MEMBER`), tools refuse writes when absent
 - **F08 Forecast**: generate planned entries of a month from active recurring expenses, idempotent
 - **F09 HTTP API**: REST over the same ledger module for the future app; JSON errors; tests
 - **F10 Spreadsheet import**: `.xlsx` with one sheet per month (income, fixed expenses with installment number, variable expenses, totals) into the ledger; fixture is an invented workbook
@@ -24,17 +23,22 @@ Ordered. The agent takes the first unblocked item under **Next**. Items marked *
 
 - **L13 JSON money convention**: `src/mcp/json.ts` turns every bigint except a key named `id` into `{ cents, brl }`; any future non-money bigint (foreign ids, counts) must be cast in SQL or the rule must become an explicit key list. Decide before F07/F09 expose more shapes
 - **L14 Tool output size**: `month_summary` always returns both months plus differences, and `list_entries` has no limit; fine for a household month, revisit with a `limit` or a compact mode if Claude context use grows
-- **L15 Stdio connection**: the stdio server keeps one `pg.Client` for its lifetime with no reconnect; a dropped database connection ends the process. Covered by L01 when the pool arrives
+- **L15 Stdio connection**: the stdio server keeps one `pg.Client` for its lifetime with no reconnect; a dropped database connection ends the process. Switch it to `connectPool()` (reads accept any `Queryable`)
 - **L11 Stored late status**: summary derives late from `planned` + `due_on < today`, while `entry.status = 'late'` is also stored; decide whether `late` stays a stored status or becomes derived only, and whether F08/F07 should flip planned to late
 - **L12 Summary by member**: per-member totals and the 50/50 share of joint expenses (who owes whom) on top of `monthSummary`
 
-- **L01 Pool**: replace the single `pg.Client` in `src/db/connection.ts` with a `pg.Pool` once HTTP and MCP adapters run concurrently (F06/F09)
 - **L02 Down path**: migrations are forward-only; document the policy (new migration to revert) in the ADR-008 proposal
 - **L03 CI**: GitHub Actions workflow with a PostgreSQL service running `npm run check` and `npm test` (needs author approval: touches GitHub settings only through a workflow file)
+
+- **L16 Read snapshot**: over the pool, `compareMonths` runs its two month queries on possibly different connections; a write landing between them gives a mixed view. Run multi-query reads in one `repeatable read` transaction if that matters
+- **L17 Remote exposure**: `mcpHttp` accepts only localhost Host/Origin and trusts `x-member` without authentication; the Azure stage needs Entra ID, configurable allowed hostnames and TLS before binding anything but loopback
+- **L18 Shared HTTP bridge**: `src/http/node.ts` (`listen`, `nodeHandler`) is generic; F09 should reuse it and add a request body limit for non-MCP routes (the MCP handler already caps at 4 MiB)
 
 ## Needs author
 
 ## Done
+
+- **F06b Streamable HTTP adapter**: `src/mcp/http.ts` `mcpHttp(client)` wraps the SDK `createMcpHandler` (modern plus stateless legacy) with localhost Host/Origin validation, `/mcp` path only, and `x-member` checked against active members (`src/ledger/members.ts` `findMember`, 403 when unknown); `serveHttp` binds `MCP_HOST` (default 127.0.0.1) and `MCP_PORT` (default 3100); `src/http/node.ts` is a dependency-free `node:http` to fetch bridge with JSON 500s; reads take a `Queryable` so a `pg.Pool` (`connectPool`, L01 done for HTTP) serves concurrent requests; `npm run mcp:http`; 10 tests
 
 - **F06 MCP read tools (stdio)**: `src/mcp/server.ts` `createServer(client)` with read-only tools `month_summary` (comparison with previous or chosen month), `list_entries` (month plus direction, category, account nickname, member or `joint`, derived state paid/pending/late, optional `today`) and `list_debts`; `src/ledger/entries.ts`, `src/ledger/debts.ts`, `src/ledger/money.ts` (`formatBrl`, L10 done); `src/mcp/json.ts` serializes cents as `{ cents, brl }` and ids as strings; `npm run mcp:stdio`; 11 tests through in-memory and stdio clients. Streamable HTTP split into F06b
 

@@ -1,4 +1,4 @@
-import type { ClientBase } from 'pg'
+import type { Queryable } from '../db/connection.ts'
 
 export type Debt = {
   id: bigint
@@ -27,4 +27,4 @@ const query = `
   where d.closed_at is null
   order by d.balance_cents desc, d.id`
 
-export const listDebts = async (client: ClientBase) => (await client.query<Debt>(query)).rows
+export const listDebts = async (client: Queryable) => (await client.query<Debt>(query)).rows

@@ -1,4 +1,4 @@
-import type { ClientBase } from 'pg'
+import type { Queryable } from '../db/connection.ts'
 import { assertDate, competenceOf, localToday } from './summary.ts'
 
 export const states = ['paid', 'pending', 'late'] as const
@@ -48,7 +48,7 @@ const query = `
   where $7::text is null or state = $7
   order by "dueOn", id`
 
-export const listEntries = async (client: ClientBase, filters: EntryFilters, today = localToday()) => {
+export const listEntries = async (client: Queryable, filters: EntryFilters, today = localToday()) => {
   const { month, direction, category, account, member, state } = filters
   const { rows } = await client.query<Entry>(query, [competenceOf(month), assertDate(today), direction ?? null, category ?? null, account ?? null, member ?? null, state ?? null])
   return rows

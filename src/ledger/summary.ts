@@ -1,4 +1,4 @@
-import type { ClientBase } from 'pg'
+import type { Queryable } from '../db/connection.ts'
 
 export type Totals = { count: number; total: bigint; paid: bigint; pending: bigint; late: bigint }
 export type CategoryTotals = Totals & { category: string }
@@ -60,7 +60,7 @@ const side = (rows: Bucket[], direction: Direction): Side => {
   return { ...byCategory.reduce(add, empty()), byCategory }
 }
 
-export const monthSummary = async (client: ClientBase, month: string, today = localToday()): Promise<MonthSummary> => {
+export const monthSummary = async (client: Queryable, month: string, today = localToday()): Promise<MonthSummary> => {
   const competence = competenceOf(month)
   const { rows } = await client.query<Bucket>(buckets, [competence, assertDate(today)])
   const income = side(rows, 'income')
@@ -81,7 +81,7 @@ const categoryDifferences = (month: Side, other: Side) => {
     .sort((a, b) => (a.difference === b.difference ? a.category.localeCompare(b.category) : a.difference > b.difference ? -1 : 1))
 }
 
-export const compareMonths = async (client: ClientBase, month: string, other = shiftMonth(month, -1), today = localToday()): Promise<Comparison> => {
+export const compareMonths = async (client: Queryable, month: string, other = shiftMonth(month, -1), today = localToday()): Promise<Comparison> => {
   const current = await monthSummary(client, month, today)
   const previous = await monthSummary(client, other, today)
   return {

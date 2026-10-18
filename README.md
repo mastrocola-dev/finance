@@ -21,3 +21,5 @@ Copy `.env.example` to `.env` and adjust it; every script loads `.env` when pres
 ## Claude connector
 
 `npm run mcp:stdio` serves the read tools `month_summary`, `list_entries` and `list_debts` over stdio against `DATABASE_URL`. Amounts are cents as strings with a BRL display, for example `{ "cents": "123456", "brl": "R$ 1.234,56" }`.
+
+`npm run mcp:http` serves the same tools over streamable HTTP at `http://127.0.0.1:3100/mcp` (`MCP_HOST`, `MCP_PORT`; `DATABASE_POOL_MAX` sets the pool size, default 5). Only localhost Host and Origin headers are accepted. An optional `x-member` header names the calling member; an unknown or closed member is answered `403`.
