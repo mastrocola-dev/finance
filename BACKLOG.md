@@ -4,7 +4,6 @@ Ordered. The agent takes the first unblocked item under **Next**. Items marked *
 
 ## Next
 
-- **F03 Audited writes**: repository layer where every write is one transaction with its audit row; no delete path. Tests for audit content and rollback. Also: parse `int8` as `BigInt` (pg returns strings today) and enforce that active members' `share_percent` sums to 100 when writing members
 - **F04 Fictional seed**: deterministic household with twelve months of income, recurring expenses, entries, two debts, one reserve, one goal
 - **F05 Month summary**: income, expenses by category, paid, pending and late totals, comparison with another month; tests with the seed
 - **F06 MCP read tools**: `month_summary`, `list_entries` (filters: month, category, account, member, status), `list_debts`; stdio and streamable HTTP adapters; tests through an in-memory MCP client
@@ -17,6 +16,10 @@ Ordered. The agent takes the first unblocked item under **Next**. Items marked *
 
 ## Later
 
+- **L04 Test helper discovery**: `node --test` also runs `test/db/database.ts` as a test file; rename helpers outside the default glob or set an explicit pattern in `npm test`
+- **L05 Nested writes**: `write()` issues `begin` on the given client; calling it inside another `write()` on the same client would nest. Decide on savepoints or a guard when MCP/HTTP adapters compose writes (F07/F09)
+- **L06 Audit JSON numbers**: `audit_log.before/after` store bigint cents as JSON numbers; exact in PostgreSQL but JS readers lose precision above 2^53 cents. Fine for household amounts; revisit only if audit is read back into BigInt
+
 - **L01 Pool**: replace the single `pg.Client` in `src/db/connection.ts` with a `pg.Pool` once HTTP and MCP adapters run concurrently (F06/F09)
 - **L02 Down path**: migrations are forward-only; document the policy (new migration to revert) in the ADR-008 proposal
 - **L03 CI**: GitHub Actions workflow with a PostgreSQL service running `npm run check` and `npm test` (needs author approval: touches GitHub settings only through a workflow file)
@@ -24,6 +27,8 @@ Ordered. The agent takes the first unblocked item under **Next**. Items marked *
 ## Needs author
 
 ## Done
+
+- **F03 Audited writes**: `src/db/write.ts` with `write(client, actor, work)` giving `create`/`update`/`close` (no delete); one transaction per call, audit row written in the same statement via `to_jsonb` before/after; entity allowlist, `id`/`created_at`/`closed_at` not writable, closed rows locked; active members' `share_percent` must sum to 100 at commit; `int8` parsed as `BigInt` and `date` kept as `YYYY-MM-DD` string
 
 - **F02 Schema**: `db:migrate`/`db:reset`, forward-only runner with advisory lock and `schema_migration`, `001-ledger.sql` with all ledger tables plus `decision_confirmation`, delete/truncate guards, append-only audit log, last-four and digit-run constraints, database time zone; `check` now runs `tsc` too
 - **F01 Skeleton**: `package.json` (scripts `test`, `check`, `fix`, `typecheck`), Biome 2.5.14 and TypeScript config copied from `mcp-docs`, `.nvmrc` 24, README

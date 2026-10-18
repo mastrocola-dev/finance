@@ -1,5 +1,8 @@
 import pg from 'pg'
 
+pg.types.setTypeParser(pg.types.builtins.INT8, BigInt)
+pg.types.setTypeParser(pg.types.builtins.DATE, (value) => value)
+
 export const databaseUrl = process.env.DATABASE_URL ?? 'postgres://postgres@localhost:5432/finance'
 
 export const connect = async (url = databaseUrl) => {
