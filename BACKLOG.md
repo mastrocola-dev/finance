@@ -4,8 +4,7 @@ Ordered. The agent takes the first unblocked item under **Next**. Items marked *
 
 ## Next
 
-- **F01 Skeleton**: `package.json` (scripts `test`, `check`, `fix`, `db:migrate`, `db:seed`, `db:reset`), Biome pinned, `tsconfig.json` for editor checks only, `.nvmrc` 24, `.editorconfig`, `.gitignore`, `README.md` with how to run locally
-- **F02 Schema**: migration runner and `001-ledger.sql`: member, account (last four digits constraint), category, income, recurring_expense, entry (status planned, paid, late; origin manual, claude, import), debt, reserve, goal, decision, audit_log. Tests that apply migrations to an empty database
+- **F02 Schema**: scripts `db:migrate`, `db:reset` and connection from `DATABASE_URL` (default `postgres://postgres@localhost:5432/finance`); migration runner and `001-ledger.sql`: member, account (last four digits constraint), category, income, recurring_expense, entry (status planned, paid, late; origin manual, claude, import), debt, reserve, goal, decision, audit_log. Tests that apply migrations to an empty database
 - **F03 Audited writes**: repository layer where every write is one transaction with its audit row; no delete path. Tests for audit content and rollback
 - **F04 Fictional seed**: deterministic household with twelve months of income, recurring expenses, entries, two debts, one reserve, one goal
 - **F05 Month summary**: income, expenses by category, paid, pending and late totals, comparison with another month; tests with the seed
@@ -22,3 +21,5 @@ Ordered. The agent takes the first unblocked item under **Next**. Items marked *
 ## Needs author
 
 ## Done
+
+- **F01 Skeleton**: `package.json` (scripts `test`, `check`, `fix`, `typecheck`), Biome 2.5.14 and TypeScript config copied from `mcp-docs`, `.nvmrc` 24, README

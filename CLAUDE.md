@@ -5,7 +5,7 @@ Household finance ledger for two people (Marcio and Gabriela) and Claude. This r
 ## Run loop
 
 1. `git fetch origin && git checkout poc && git pull --rebase origin poc`. Never commit to `main`, never merge, never force-push
-2. Start PostgreSQL: `pg_ctlcluster 16 main start`, then `npm ci` and `npm run db:reset` once the scripts exist
+2. Prepare the session: `npm i -g node@24` when `node -v` is below 24; `pg_ctlcluster 16 main start`; `npm ci`; `npm run db:reset` once the script exists
 3. Pick the first item in `BACKLOG.md` under **Next** that is not blocked. Work on that item only
 4. Implement it with tests; `npm test` and `npm run check` must pass
 5. Review your own diff as a stranger would: correctness, missing tests, security rules below, naming, dead code. Fix what you find now; write what you will not fix as new backlog items

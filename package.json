@@ -1,0 +1,19 @@
+{
+  "name": "finance",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=24"
+  },
+  "scripts": {
+    "typecheck": "tsc",
+    "check": "biome ci",
+    "fix": "biome check --write",
+    "test": "node --test"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "2.5.14",
+    "@types/node": "^24.19.0",
+    "typescript": "^7.0.2"
+  }
+}
