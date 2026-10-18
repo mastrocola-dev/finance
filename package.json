@@ -14,7 +14,8 @@
     "typecheck": "tsc",
     "check": "biome ci && tsc",
     "fix": "biome check --write",
-    "test": "node --env-file-if-exists=.env --test"
+    "test": "node --env-file-if-exists=.env --test",
+    "test:coverage": "node --env-file-if-exists=.env --test --experimental-test-coverage --test-coverage-exclude='test/**' 'test/**/*.test.ts'"
   },
   "devDependencies": {
     "@biomejs/biome": "2.5.14",
