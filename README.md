@@ -8,7 +8,10 @@ Requires Node 24 and PostgreSQL 16.
 
 ```sh
 npm ci
+npm run db:reset
 npm test
 npm run check
 npm run fix
 ```
+
+`DATABASE_URL` defaults to `postgres://postgres@localhost:5432/finance`. `npm run db:migrate` applies pending migrations from `db/migrations`; `npm run db:reset` drops and recreates the database. Tests create and drop their own `finance_test_*` databases on the same server.
