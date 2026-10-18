@@ -29,7 +29,7 @@ export const shiftMonth = (month: string, count: number) => {
   return new Date(Date.UTC(Number(competence.slice(0, 4)), Number(competence.slice(5, 7)) - 1 + count, 1)).toISOString().slice(0, 10)
 }
 
-const assertDate = (date: string) => {
+export const assertDate = (date: string) => {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(date) || Number.isNaN(Date.parse(date))) throw new Error(`today must be YYYY-MM-DD, got ${date}`)
   return date
 }

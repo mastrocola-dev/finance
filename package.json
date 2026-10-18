@@ -9,6 +9,7 @@
     "db:migrate": "node src/db/migrate.ts",
     "db:reset": "node src/db/reset.ts",
     "db:seed": "node src/db/seed.ts",
+    "mcp:stdio": "node src/mcp/stdio.ts",
     "typecheck": "tsc",
     "check": "biome ci && tsc",
     "fix": "biome check --write",
@@ -16,11 +17,14 @@
   },
   "devDependencies": {
     "@biomejs/biome": "2.5.14",
+    "@modelcontextprotocol/client": "^2.3.1",
     "@types/node": "^24.19.0",
     "@types/pg": "^8.23.1",
     "typescript": "^7.0.2"
   },
   "dependencies": {
-    "pg": "^8.23.1"
+    "@modelcontextprotocol/server": "^2.3.1",
+    "pg": "^8.23.1",
+    "zod": "^4.6.7"
   }
 }

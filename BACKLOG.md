@@ -4,7 +4,7 @@ Ordered. The agent takes the first unblocked item under **Next**. Items marked *
 
 ## Next
 
-- **F06 MCP read tools**: `month_summary` (wraps `monthSummary`/`compareMonths`, cents serialized as strings plus BRL display), `list_entries` (filters: month, category, account, member, status), `list_debts`; stdio and streamable HTTP adapters; tests through an in-memory MCP client
+- **F06b Streamable HTTP adapter**: serve `createServer` over streamable HTTP (`node:http`, local port from env, safe default `127.0.0.1`), `x-member` header read into the request context for F07, `pg.Pool` per L01 since requests run concurrently; test with the client's HTTP transport
 - **F07 MCP write tools**: `create_entry`, `mark_paid`, `update_reserve`, `propose_decision`, `confirm_decision`; author recorded as `claude` on behalf of the calling member
 - **F08 Forecast**: generate planned entries of a month from active recurring expenses, idempotent
 - **F09 HTTP API**: REST over the same ledger module for the future app; JSON errors; tests
@@ -22,7 +22,9 @@ Ordered. The agent takes the first unblocked item under **Next**. Items marked *
 - **L08 Debt balance**: seeded `balance_cents` is the nominal sum of remaining installments, not amortized principal; decide whether `balance_cents` means payoff amount or remaining installments and record it in the ADR-008 proposal
 - **L09 Seed with decisions**: add one proposed and one confirmed joint decision to the seed once F07 exists, so demo mode (F11) can show the confirmation flow
 
-- **L10 BRL formatting**: `src/ledger/money.ts` with `formatBrl(cents)` giving `R$ 1.234,56` (negative too) for MCP/HTTP output; small, take it with F06 if it fits
+- **L13 JSON money convention**: `src/mcp/json.ts` turns every bigint except a key named `id` into `{ cents, brl }`; any future non-money bigint (foreign ids, counts) must be cast in SQL or the rule must become an explicit key list. Decide before F07/F09 expose more shapes
+- **L14 Tool output size**: `month_summary` always returns both months plus differences, and `list_entries` has no limit; fine for a household month, revisit with a `limit` or a compact mode if Claude context use grows
+- **L15 Stdio connection**: the stdio server keeps one `pg.Client` for its lifetime with no reconnect; a dropped database connection ends the process. Covered by L01 when the pool arrives
 - **L11 Stored late status**: summary derives late from `planned` + `due_on < today`, while `entry.status = 'late'` is also stored; decide whether `late` stays a stored status or becomes derived only, and whether F08/F07 should flip planned to late
 - **L12 Summary by member**: per-member totals and the 50/50 share of joint expenses (who owes whom) on top of `monthSummary`
 
@@ -33,6 +35,8 @@ Ordered. The agent takes the first unblocked item under **Next**. Items marked *
 ## Needs author
 
 ## Done
+
+- **F06 MCP read tools (stdio)**: `src/mcp/server.ts` `createServer(client)` with read-only tools `month_summary` (comparison with previous or chosen month), `list_entries` (month plus direction, category, account nickname, member or `joint`, derived state paid/pending/late, optional `today`) and `list_debts`; `src/ledger/entries.ts`, `src/ledger/debts.ts`, `src/ledger/money.ts` (`formatBrl`, L10 done); `src/mcp/json.ts` serializes cents as `{ cents, brl }` and ids as strings; `npm run mcp:stdio`; 11 tests through in-memory and stdio clients. Streamable HTTP split into F06b
 
 - **F05 Month summary**: `src/ledger/summary.ts` with `monthSummary(client, month, today)` (income and expenses: count, total, paid, pending, late, by category ordered by total; balance) and `compareMonths(client, month, other = previous, today)` (income, expenses, balance and per-category differences); late = stored `late` or `planned` past due on the reference date; `today` defaults to the date in America/Sao_Paulo; 12 tests over the seed
 
