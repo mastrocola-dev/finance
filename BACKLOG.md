@@ -4,7 +4,6 @@ Ordered. The agent takes the first unblocked item under **Next**. Items marked *
 
 ## Next
 
-- **F07c MCP read tools for reserves and decisions**: `list_reserves` (balance, target, progress) and `list_decisions` (status filter, default `proposed`, with `confirmedBy` and `awaiting`) reusing `src/ledger/reserves.ts` and `src/ledger/decisions.ts`, so Claude can find decision ids and reserve names without asking the members
 - **F08 Forecast**: generate planned entries of a month from active recurring expenses, idempotent
 - **F09 HTTP API**: REST over the same ledger module for the future app; JSON errors; tests
 - **F10 Spreadsheet import**: `.xlsx` with one sheet per month (income, fixed expenses with installment number, variable expenses, totals) into the ledger; fixture is an invented workbook
@@ -39,11 +38,15 @@ Ordered. The agent takes the first unblocked item under **Next**. Items marked *
 - **L23 Confirmation audit id**: `decision_confirmation` has no `id`, so its `audit_log.entity_id` is null and the link lives only in `after->>'decision_id'`; consider storing the decision id as `entity_id` for confirmations
 - **L24 Members closed mid-decision**: a decision is re-evaluated only on `confirm_decision`; if a member is closed while it is proposed and everyone else already confirmed, it stays proposed until someone confirms again. Re-evaluate open decisions when a member is closed
 - **L25 Proposer auto-confirm**: proposing does not confirm; the proposer must call `confirm_decision` too (a Claude-made proposal is not taken as the member's consent). Author may prefer auto-confirm for proposals the member makes in person
+- **L26 Decision history paging**: `list_decisions` takes `limit` (default 20, max 100) but no cursor; add a `before` id or date if the closed history grows past what one call should return
+- **L27 Reserve progress format**: `progressPercent` is a numeric string with one decimal (`'60.0'`, PostgreSQL `round`), like `monthlyRatePercent`; `missing` is `{ cents, brl }` or null without a target. Record the percent convention in the ADR-008 proposal
 - **L22 Write tool shapes**: write tools return the `list_entries` read model (camelCase) while inputs are snake_case; keep this convention for F07b/F09 or pick one and record it in the ADR-008 proposal
 
 ## Needs author
 
 ## Done
+
+- **F07c MCP read tools for reserves and decisions**: `list_reserves` (`listReserves`: balance, target, `missing` to target, `progressPercent`, both null without target; `findReserve` shares the query so `update_reserve` returns them too) and `list_decisions` (`listDecisions(client, status = 'proposed', limit = 20)`, status `all` for every status, newest first, with `confirmedBy` and `awaiting`); README lists every tool; 5 new tests
 
 - **F07b MCP write tools, part 2**: `update_reserve` (by name, balance >= 0 and/or positive target, audited), `propose_decision` (status `proposed`, `proposed_by` the caller, origin `claude`), `confirm_decision` (one `decision_confirmation` per member, closes as `confirmed` when no active member is awaiting, row lock serializes concurrent confirmations), `reject_decision` (another member only) and `withdraw_decision` (proposer only); read models `findReserve` and `findDecision` (`confirmedBy`, `awaiting`); 5 new tests
 

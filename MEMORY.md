@@ -28,6 +28,7 @@ Rewritten by every run, at most 60 lines. Only what the next run needs and canno
 - F06b: only localhost Host/Origin accepted even if `MCP_HOST` is changed (L17)
 - F07: write tools are always registered (listing stable); they throw (tool error) without a calling member. `createServer(database, member?)` needs a `Database` (`Queryable` + `connect()` → `PoolClient`), so tests use `connectPool(db.url)` instead of `db.client`
 - F07: author `claude` + calling member's id; entry `origin` derives from actor (`claude` → claude, `import` → import, else manual); `mark_paid` default date is `paid_on ?? today ?? localToday()`; write tools return the read model via `findEntry`
+- F07c: `list_decisions` status default `proposed`, `all` for every status, newest first, `limit` 1..100 default 20 (L26); `list_reserves` adds `missing` and `progressPercent` (numeric text, one decimal), both null without target (L27)
 - F07b: decisions answered by three tools (`confirm_decision`, `reject_decision`, `withdraw_decision`) registered from one table in `server.ts`; proposing does not auto-confirm (L25); reject only by a non-proposer, withdraw only by the proposer; reserves found by name (case-insensitive)
 - Dependencies: `@modelcontextprotocol/server` 2.3.1, `zod` 4.6.7, `pg`; dev `@modelcontextprotocol/client` 2.3.1
 
@@ -37,7 +38,7 @@ Rewritten by every run, at most 60 lines. Only what the next run needs and canno
 - Reads take `Queryable` (`Pick<ClientBase, 'query'>` in `src/db/connection.ts`), so a `pg.Pool` or a client both work; `connectPool(url)` builds the pool
 - Read side: `src/ledger/summary.ts` (`monthSummary`, `compareMonths`, `competenceOf`, `shiftMonth`, `localToday`, `assertDate`), `entries.ts`, `debts.ts`, `members.ts` (`findMember`), `money.ts` (`formatBrl`, `money`)
 - MCP: `createServer(client)` in `src/mcp/server.ts`; `result(value)` in `src/mcp/json.ts`; stdio `src/mcp/stdio.ts`; HTTP `src/mcp/http.ts` (`mcpHttp(client)` → `{ fetch, close }`, `serveHttp(client, port, host)` → `{ url, close }`, port 0 for tests)
-- Write commands live in `src/ledger/record.ts` (`createEntry`, `markPaid`, `updateReserve`, `proposeDecision`, `confirmDecision`, `rejectDecision`, `withdrawDecision`); MCP handlers wrap them in `writing((connection, actor) => ...)` inside `createServer`, which leases and releases a pool client. Read models `findReserve(name)` in `reserves.ts`, `findDecision(id)` in `decisions.ts` (F07c lists them)
+- Write commands live in `src/ledger/record.ts` (`createEntry`, `markPaid`, `updateReserve`, `proposeDecision`, `confirmDecision`, `rejectDecision`, `withdrawDecision`); MCP handlers wrap them in `writing((connection, actor) => ...)` inside `createServer`, which leases and releases a pool client. Read models `findReserve(name)`/`listReserves` in `reserves.ts`, `findDecision(id)`/`listDecisions(status, limit)` and `statuses` in `decisions.ts`, sharing one `select` each
 - HTTP factory: `createMcpHandler(async ({ requestInfo }) => createServer(client, member))` resolves `x-member` per request; stdio resolves `FINANCE_MEMBER` once at start
 - Seed reserve: `Emergency fund` (balance 1800000, target 3000000); no decisions in the seed yet (L09)
 - Seed categories are matched case-insensitively (`groceries`, `health`, `salary` exist); `decision_confirmation` has PK (decision_id, member_id) and is immutable; `decision` check: `status = 'proposed'` iff `closed_at is null`
@@ -47,5 +48,6 @@ Rewritten by every run, at most 60 lines. Only what the next run needs and canno
 - To get a seeded test DB: `testDatabase()` then `seed(db.client)` (about 0.3 s); `db.url` for a pool
 - `pg` returns `bigint` as `BigInt` (including ids), `date` as `YYYY-MM-DD` string, `timestamptz` as `Date`, `numeric` as string; `count(*)` needs `::int`
 - `import.meta.main` is used for CLI entry points
-- Tests: 76 passing after F07b (`test/mcp/plan.test.ts` covers reserves and decisions; tool name lists asserted in `server.test.ts` and `http.test.ts`)
+- Tests: 81 passing after F07c (`test/mcp/plan.test.ts` covers reserve and decision writes and lists, tests share state in order; tool name lists asserted in `server.test.ts` and `http.test.ts`)
+- Next: F08 Forecast; take the reference date explicitly (L07) and decide L11 (flip planned to late or not) there
 - Failing-test run streak: 0

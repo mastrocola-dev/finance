@@ -3,6 +3,7 @@ import { after, before, describe, test } from 'node:test'
 import { Client, InMemoryTransport } from '@modelcontextprotocol/client'
 import { connectPool } from '../../src/db/connection.ts'
 import { seed, seedToday } from '../../src/db/seed.ts'
+import { write } from '../../src/db/write.ts'
 import { createServer } from '../../src/mcp/server.ts'
 import { testDatabase } from '../db/database.ts'
 
@@ -40,7 +41,7 @@ describe('mcp read tools', () => {
     const { tools } = await mcp.listTools()
     const readOnly = tools.filter(({ annotations }) => annotations?.readOnlyHint === true).map(({ name }) => name)
     const writing = tools.filter(({ annotations }) => annotations?.readOnlyHint === false && annotations.destructiveHint === false).map(({ name }) => name)
-    assert.deepEqual(readOnly.sort(), ['list_debts', 'list_entries', 'month_summary'])
+    assert.deepEqual(readOnly.sort(), ['list_debts', 'list_decisions', 'list_entries', 'list_reserves', 'month_summary'])
     assert.deepEqual(writing.sort(), ['confirm_decision', 'create_entry', 'mark_paid', 'propose_decision', 'reject_decision', 'update_reserve', 'withdraw_decision'])
   })
 
@@ -88,6 +89,36 @@ describe('mcp read tools', () => {
     const total = late.reduce((sum: bigint, { amount }: { amount: Money }) => sum + BigInt(amount.cents), 0n)
     assert.equal(total, 22200n + 183300n)
     assert.deepEqual(pending, [])
+  })
+
+  test('list_reserves shows balance, target, missing amount and progress', async () => {
+    const [reserve, ...rest] = (await call('list_reserves')).json()
+    assert.equal(rest.length, 0)
+    assert.equal(reserve.name, 'Emergency fund')
+    assert.equal(typeof reserve.id, 'string')
+    assert.deepEqual(reserve.balance, { cents: '1800000', brl: 'R$ 18.000,00' })
+    assert.deepEqual(reserve.target, { cents: '3000000', brl: 'R$ 30.000,00' })
+    assert.deepEqual(reserve.missing, { cents: '1200000', brl: 'R$ 12.000,00' })
+    assert.equal(reserve.progressPercent, '60.0')
+  })
+
+  test('list_reserves leaves missing and progress null without a target', async () => {
+    const connection = await pool.connect()
+    try {
+      await write(connection, { author: 'system' }, (ledger) => ledger.create('reserve', { name: 'Car maintenance', balance_cents: 50000n }))
+    } finally {
+      connection.release()
+    }
+    const [car] = (await call('list_reserves')).json()
+    assert.equal(car.name, 'Car maintenance')
+    assert.deepEqual(car.balance, { cents: '50000', brl: 'R$ 500,00' })
+    assert.equal(car.target, null)
+    assert.equal(car.missing, null)
+    assert.equal(car.progressPercent, null)
+  })
+
+  test('list_decisions is empty over the seed', async () => {
+    assert.deepEqual((await call('list_decisions')).json(), [])
   })
 
   test('list_debts lists active debts with installments left', async () => {

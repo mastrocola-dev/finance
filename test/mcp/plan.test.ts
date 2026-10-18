@@ -127,4 +127,24 @@ describe('mcp reserve and decision tools', () => {
     const { rows } = await pool.query('select count(*)::int as count from decision_confirmation where decision_id = $1', [pending.id])
     assert.equal(rows[0].count, 0)
   })
+
+  test('list_decisions filters by status, newest first, with confirmations and awaited members', async () => {
+    const titles = async (args: Record<string, unknown>) => (await call(anonymous, 'list_decisions', args)).json().map(({ title }: { title: string }) => title)
+    const [pending, ...others] = (await call(anonymous, 'list_decisions', {})).json()
+    assert.deepEqual(others, [])
+    assert.equal(pending.title, 'Solar panels')
+    assert.equal(pending.status, 'proposed')
+    assert.deepEqual(pending.awaiting, ['Marcio', 'Gabriela'])
+    assert.deepEqual(await titles({ status: 'confirmed' }), ['New fridge'])
+    assert.deepEqual(await titles({ status: 'all' }), ['Solar panels', 'Weekend trip', 'Car upgrade', 'New fridge'])
+    assert.deepEqual(await titles({ status: 'all', limit: 2 }), ['Solar panels', 'Weekend trip'])
+    for (const args of [{ status: 'open' }, { limit: 0 }, { limit: 101 }]) assert.equal((await call(anonymous, 'list_decisions', args)).isError, true, JSON.stringify(args))
+  })
+
+  test('list_reserves reflects update_reserve', async () => {
+    const [reserve] = (await call(anonymous, 'list_reserves', {})).json()
+    assert.deepEqual(reserve.balance, { cents: '0', brl: 'R$ 0,00' })
+    assert.deepEqual(reserve.missing, { cents: '3600000', brl: 'R$ 36.000,00' })
+    assert.equal(reserve.progressPercent, '0.0')
+  })
 })

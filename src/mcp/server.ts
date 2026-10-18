@@ -4,11 +4,11 @@ import * as z from 'zod'
 import type { Database } from '../db/connection.ts'
 import type { Actor } from '../db/write.ts'
 import { listDebts } from '../ledger/debts.ts'
-import { findDecision } from '../ledger/decisions.ts'
+import { findDecision, listDecisions, statuses } from '../ledger/decisions.ts'
 import { findEntry, listEntries, states } from '../ledger/entries.ts'
 import type { Member } from '../ledger/members.ts'
 import { confirmDecision, createEntry, markPaid, proposeDecision, rejectDecision, updateReserve, withdrawDecision } from '../ledger/record.ts'
-import { findReserve } from '../ledger/reserves.ts'
+import { findReserve, listReserves } from '../ledger/reserves.ts'
 import { compareMonths } from '../ledger/summary.ts'
 import { result } from './json.ts'
 
@@ -70,6 +70,30 @@ export const createServer = (client: Database, member?: Member) => {
       annotations: readOnly,
     },
     async () => result(await listDebts(client)),
+  )
+
+  server.registerTool(
+    'list_reserves',
+    {
+      title: 'List reserves',
+      description: 'Active reserves with balance, target, amount missing to the target and progress percent. Use the name with update_reserve.',
+      annotations: readOnly,
+    },
+    async () => result(await listReserves(client)),
+  )
+
+  server.registerTool(
+    'list_decisions',
+    {
+      title: 'List joint decisions',
+      description: 'Joint decisions, newest first, with who confirmed and who is still awaited. Status defaults to proposed; "all" lists every status. Use the id with confirm_decision, reject_decision or withdraw_decision.',
+      inputSchema: z.object({
+        status: z.enum([...statuses, 'all']).default('proposed'),
+        limit: z.int().min(1).max(100).default(20),
+      }),
+      annotations: readOnly,
+    },
+    async (input) => result(await listDecisions(client, input.status, input.limit)),
   )
 
   server.registerTool(
