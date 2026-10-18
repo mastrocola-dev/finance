@@ -4,8 +4,7 @@ Ordered. The agent takes the first unblocked item under **Next**. Items marked *
 
 ## Next
 
-- **F05 Month summary**: income, expenses by category, paid, pending and late totals, comparison with another month; tests with the seed
-- **F06 MCP read tools**: `month_summary`, `list_entries` (filters: month, category, account, member, status), `list_debts`; stdio and streamable HTTP adapters; tests through an in-memory MCP client
+- **F06 MCP read tools**: `month_summary` (wraps `monthSummary`/`compareMonths`, cents serialized as strings plus BRL display), `list_entries` (filters: month, category, account, member, status), `list_debts`; stdio and streamable HTTP adapters; tests through an in-memory MCP client
 - **F07 MCP write tools**: `create_entry`, `mark_paid`, `update_reserve`, `propose_decision`, `confirm_decision`; author recorded as `claude` on behalf of the calling member
 - **F08 Forecast**: generate planned entries of a month from active recurring expenses, idempotent
 - **F09 HTTP API**: REST over the same ledger module for the future app; JSON errors; tests
@@ -19,9 +18,13 @@ Ordered. The agent takes the first unblocked item under **Next**. Items marked *
 - **L05 Nested writes**: `write()` issues `begin` on the given client; calling it inside another `write()` on the same client would nest. Decide on savepoints or a guard when MCP/HTTP adapters compose writes (F07/F09)
 - **L06 Audit JSON numbers**: `audit_log.before/after` store bigint cents as JSON numbers; exact in PostgreSQL but JS readers lose precision above 2^53 cents. Fine for household amounts; revisit only if audit is read back into BigInt
 
-- **L07 Seed clock**: the seed freezes "today" at 2026-10-18 (`seedToday`); once F05/F08 compute late or pending from the real date, pass the reference date in explicitly so summaries over the seed stay stable
+- **L07 Seed clock**: F05 takes the reference date explicitly (tests pass `seedToday`); F08 and the MCP/HTTP adapters must do the same (optional `today` input) so results over the seed stay stable
 - **L08 Debt balance**: seeded `balance_cents` is the nominal sum of remaining installments, not amortized principal; decide whether `balance_cents` means payoff amount or remaining installments and record it in the ADR-008 proposal
 - **L09 Seed with decisions**: add one proposed and one confirmed joint decision to the seed once F07 exists, so demo mode (F11) can show the confirmation flow
+
+- **L10 BRL formatting**: `src/ledger/money.ts` with `formatBrl(cents)` giving `R$ 1.234,56` (negative too) for MCP/HTTP output; small, take it with F06 if it fits
+- **L11 Stored late status**: summary derives late from `planned` + `due_on < today`, while `entry.status = 'late'` is also stored; decide whether `late` stays a stored status or becomes derived only, and whether F08/F07 should flip planned to late
+- **L12 Summary by member**: per-member totals and the 50/50 share of joint expenses (who owes whom) on top of `monthSummary`
 
 - **L01 Pool**: replace the single `pg.Client` in `src/db/connection.ts` with a `pg.Pool` once HTTP and MCP adapters run concurrently (F06/F09)
 - **L02 Down path**: migrations are forward-only; document the policy (new migration to revert) in the ADR-008 proposal
@@ -30,6 +33,8 @@ Ordered. The agent takes the first unblocked item under **Next**. Items marked *
 ## Needs author
 
 ## Done
+
+- **F05 Month summary**: `src/ledger/summary.ts` with `monthSummary(client, month, today)` (income and expenses: count, total, paid, pending, late, by category ordered by total; balance) and `compareMonths(client, month, other = previous, today)` (income, expenses, balance and per-category differences); late = stored `late` or `planned` past due on the reference date; `today` defaults to the date in America/Sao_Paulo; 12 tests over the seed
 
 - **F04 Fictional seed**: `npm run db:seed` (`src/db/seed.ts`) plants, in one audited `system` write, two members 50/50, five accounts, ten categories, two salaries, seven recurring expenses (one in 10 installments), two debts, one reserve and one goal, plus 177 entries from 2025-11 to 2026-10 as of a fixed 2026-10-18 (past paid, current month paid/late/planned); refuses a non-empty database; 9 tests including determinism
 
