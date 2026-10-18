@@ -6,7 +6,7 @@ Rewritten by every run, at most 60 lines. Only what the next run needs and canno
 
 - Node 22 is preinstalled; `npm i -g node@24` then `hash -r` gives v24
 - PostgreSQL 16: `pg_ctlcluster 16 main start`
-- Local auth: `su postgres -c "psql -c \"alter user postgres password 'local'\""` and export `DATABASE_URL=postgres://postgres:local@localhost:5432/finance` for `db:reset`, `db:seed`, `test` and `check`. Session-only, never in the repo
+- Local auth: `su postgres -c "psql -c \"alter user postgres password 'local'\""` then `cp .env.example .env` (scripts load it via `--env-file-if-exists`; `.env` is gitignored). Without it the default URL has no password and `npm test` hangs
 - Run setup commands one per Bash call; long chained commands were refused by the classifier
 - npm, PyPI and Ubuntu apt are reachable; Docker Hub, mcr.microsoft.com and packages.microsoft.com are not
 - No `add_repo`/`register_repo_root` tools exist in these runs; the repo is already cloned at /home/claude/finance (detached on main), `git fetch origin && git checkout poc` works

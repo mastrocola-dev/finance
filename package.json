@@ -6,14 +6,14 @@
     "node": ">=24"
   },
   "scripts": {
-    "db:migrate": "node src/db/migrate.ts",
-    "db:reset": "node src/db/reset.ts",
-    "db:seed": "node src/db/seed.ts",
-    "mcp:stdio": "node src/mcp/stdio.ts",
+    "db:migrate": "node --env-file-if-exists=.env src/db/migrate.ts",
+    "db:reset": "node --env-file-if-exists=.env src/db/reset.ts",
+    "db:seed": "node --env-file-if-exists=.env src/db/seed.ts",
+    "mcp:stdio": "node --env-file-if-exists=.env src/mcp/stdio.ts",
     "typecheck": "tsc",
     "check": "biome ci && tsc",
     "fix": "biome check --write",
-    "test": "node --test"
+    "test": "node --env-file-if-exists=.env --test"
   },
   "devDependencies": {
     "@biomejs/biome": "2.5.14",
