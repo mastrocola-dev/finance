@@ -4,7 +4,6 @@ Ordered. The agent takes the first unblocked item under **Next**. Items marked *
 
 ## Next
 
-- **F11 Demo mode**: read-only MCP server bound to the seed database, no write tools registered
 - **F12 Proposal for ADR-008**: `docs/adr-008-proposal.md` describing what was built, decisions taken, and what the Azure stage needs
 
 ## Later
@@ -47,6 +46,7 @@ Ordered. The agent takes the first unblocked item under **Next**. Items marked *
 - **L30 Forecast of closed references**: forecast plans sources whose member, account or category is closed; filter them or close the source when its member is closed
 - **L31 Forecast amounts**: variable bills (Electricity) are planned at the registered amount; consider the average of the last three paid entries
 - **L35 Malformed reserve name**: `PATCH /api/reserves/:name` calls `decodeURIComponent`, so a malformed percent sequence answers `500` instead of `400`; validate the segment with zod or catch `URIError` in `src/http/api.ts`
+- **L39 Demo seed check**: `mcp:demo` does not verify that `DEMO_DATABASE_URL` holds the seed; refuse to start when `audit_log` has no `system` seed row if the demo must never show an empty ledger
 - **L22 Write tool shapes**: write tools return the `list_entries` read model (camelCase) while inputs are snake_case; keep this convention for F07b/F09 or pick one and record it in the ADR-008 proposal
 
 ## Needs author
@@ -54,6 +54,8 @@ Ordered. The agent takes the first unblocked item under **Next**. Items marked *
 - **F10b layout choices**: built as the default: the installment column is optional (8th header cell, fixed lines only); a `total` row (kind `total`, amount = income minus expenses of the sheet) is checked against the lines when present; a month can be imported once (refused when it already holds import entries). Confirm these before F10c or any replace flow
 
 ## Done
+
+- **F11 Demo mode**: `src/mcp/demo.ts` `createDemoServer(client)` registers only the read tools (shared `src/mcp/read.ts`, schema in `src/mcp/schema.ts`); stdio entry `npm run mcp:demo` over `DEMO_DATABASE_URL` (default `DATABASE_URL`) with the pool opened `default_transaction_read_only=on` (`connectPool(url, true)`), so writes fail at the database too; 4 new tests (117 in total)
 
 - **F10b Spreadsheet import into the ledger**: `src/import/month.ts` `importMonth(client, actor, month, entries)` writes the entries in one audited `import` transaction (advisory lock per month, all or nothing, refuses a month already holding import entries); `src/ledger/record.ts` `entryValues` shared with `createEntry`; `src/import/sheet.ts` accepts an optional `installment` column (fixed lines only, positive whole number) and an optional `total` row checked against the net of the lines; existing fixture unchanged; 6 new tests (113 in total). API/MCP entry point not added (L36)
 

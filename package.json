@@ -12,6 +12,7 @@
     "api:http": "node --env-file-if-exists=.env src/http/api.ts",
     "mcp:http": "node --env-file-if-exists=.env src/mcp/http.ts",
     "mcp:stdio": "node --env-file-if-exists=.env src/mcp/stdio.ts",
+    "mcp:demo": "node --env-file-if-exists=.env src/mcp/demo.ts",
     "typecheck": "tsc",
     "check": "biome ci && tsc",
     "fix": "biome check --write",

@@ -15,4 +15,9 @@ export const connect = async (url = databaseUrl) => {
   return client
 }
 
-export const connectPool = (url = databaseUrl) => new pg.Pool({ connectionString: url, max: Number(process.env.DATABASE_POOL_MAX ?? 5) })
+export const connectPool = (url = databaseUrl, readOnly = false) =>
+  new pg.Pool({
+    connectionString: url,
+    max: Number(process.env.DATABASE_POOL_MAX ?? 5),
+    ...(readOnly ? { options: '-c default_transaction_read_only=on' } : {}),
+  })

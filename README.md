@@ -24,6 +24,8 @@ Copy `.env.example` to `.env` and adjust it; every script loads `.env` when pres
 
 `npm run mcp:http` serves the same tools over streamable HTTP at `http://127.0.0.1:3100/mcp` (`MCP_HOST`, `MCP_PORT`; `DATABASE_POOL_MAX` sets the pool size, default 5). Only localhost Host and Origin headers are accepted. An optional `x-member` header names the calling member; an unknown or closed member is answered `403`.
 
+`npm run mcp:demo` serves the same read tools over stdio against `DEMO_DATABASE_URL` (default `DATABASE_URL`), with the connection opened read-only so no write can reach the database; it registers no write tools.
+
 Write tools `create_entry` (planned or already paid income or expense, member name or `joint`) and `mark_paid`, `forecast_month` (plans a month from the active recurring expenses and incomes, idempotent), `update_reserve`, and the joint decision tools `propose_decision`, `confirm_decision`, `reject_decision` and `withdraw_decision` record facts on behalf of the calling member, audited as `claude` with that member; they never execute a payment. Over HTTP the caller is the `x-member` header, over stdio the `FINANCE_MEMBER` variable (the server refuses to start when it names no active member). Without a caller every write is refused. A decision stays `proposed` until every active member confirms it.
 
 ## HTTP API

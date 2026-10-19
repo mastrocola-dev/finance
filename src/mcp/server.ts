@@ -3,25 +3,19 @@ import type { PoolClient } from 'pg'
 import * as z from 'zod'
 import type { Database } from '../db/connection.ts'
 import type { Actor } from '../db/write.ts'
-import { listDebts } from '../ledger/debts.ts'
-import { findDecision, listDecisions, statuses } from '../ledger/decisions.ts'
-import { findEntry, listEntries, states } from '../ledger/entries.ts'
+import { findDecision } from '../ledger/decisions.ts'
+import { findEntry } from '../ledger/entries.ts'
 import { forecastMonth } from '../ledger/forecast.ts'
 import type { Member } from '../ledger/members.ts'
 import { confirmDecision, createEntry, markPaid, proposeDecision, rejectDecision, updateReserve, withdrawDecision } from '../ledger/record.ts'
-import { findReserve, listReserves } from '../ledger/reserves.ts'
-import { compareMonths } from '../ledger/summary.ts'
+import { findReserve } from '../ledger/reserves.ts'
 import { result } from './json.ts'
-
-const month = z.string().describe('Month as YYYY-MM')
-const today = z.string().optional().describe('Reference date YYYY-MM-DD for pending and late; defaults to today in America/Sao_Paulo')
-const date = z.string().describe('Date as YYYY-MM-DD')
-const id = z.string().regex(/^\d+$/, 'id must be digits')
-const readOnly = { readOnlyHint: true, openWorldHint: false }
-const writes = { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false }
+import { registerReads } from './read.ts'
+import { date, id, month, today, writes } from './schema.ts'
 
 export const createServer = (client: Database, member?: Member) => {
   const server = new McpServer({ name: 'finance', version: '0.1.0' })
+  registerReads(server, client)
 
   const writing = async <T>(work: (connection: PoolClient, actor: Actor) => Promise<T>) => {
     if (!member) throw new Error('writes need a calling member: x-member header over HTTP or FINANCE_MEMBER over stdio')
@@ -32,70 +26,6 @@ export const createServer = (client: Database, member?: Member) => {
       connection.release()
     }
   }
-
-  server.registerTool(
-    'month_summary',
-    {
-      title: 'Month summary',
-      description: 'Income and expenses of a month by category with paid, pending and late totals, compared with another month (previous by default). Amounts are cents as strings plus BRL display.',
-      inputSchema: z.object({ month, compare_with: month.optional(), today }),
-      annotations: readOnly,
-    },
-    async (input) => result(await compareMonths(client, input.month, input.compare_with, input.today)),
-  )
-
-  server.registerTool(
-    'list_entries',
-    {
-      title: 'List entries',
-      description: 'Active entries of a month ordered by due date. Optional filters: direction, category name, account nickname, member name or "joint", state (paid, pending, late). A null member means a joint entry.',
-      inputSchema: z.object({
-        month,
-        direction: z.enum(['income', 'expense']).optional(),
-        category: z.string().optional(),
-        account: z.string().optional(),
-        member: z.string().optional(),
-        state: z.enum(states).optional(),
-        today,
-      }),
-      annotations: readOnly,
-    },
-    async ({ today, ...filters }) => result(await listEntries(client, filters, today)),
-  )
-
-  server.registerTool(
-    'list_debts',
-    {
-      title: 'List debts',
-      description: 'Active debts with principal, balance, monthly rate and installments. A null member means a joint debt.',
-      annotations: readOnly,
-    },
-    async () => result(await listDebts(client)),
-  )
-
-  server.registerTool(
-    'list_reserves',
-    {
-      title: 'List reserves',
-      description: 'Active reserves with balance, target, amount missing to the target and progress percent. Use the name with update_reserve.',
-      annotations: readOnly,
-    },
-    async () => result(await listReserves(client)),
-  )
-
-  server.registerTool(
-    'list_decisions',
-    {
-      title: 'List joint decisions',
-      description: 'Joint decisions, newest first, with who confirmed and who is still awaited. Status defaults to proposed; "all" lists every status. Use the id with confirm_decision, reject_decision or withdraw_decision.',
-      inputSchema: z.object({
-        status: z.enum([...statuses, 'all']).default('proposed'),
-        limit: z.int().min(1).max(100).default(20),
-      }),
-      annotations: readOnly,
-    },
-    async (input) => result(await listDecisions(client, input.status, input.limit)),
-  )
 
   server.registerTool(
     'create_entry',
