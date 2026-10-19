@@ -4,7 +4,7 @@ Ordered. The agent takes the first unblocked item under **Next**. Items marked *
 
 ## Next
 
-- **F10 Spreadsheet import**: `.xlsx` with one sheet per month (income, fixed expenses with installment number, variable expenses, totals) into the ledger; fixture is an invented workbook
+- **F10b Spreadsheet import into the ledger**: `importMonth` writes the entries from `readMonthSheet` (F10a) through `createEntry` inside one audited transaction per sheet (all or nothing), actor `import`; API/MCP entry point optional; add the installment number column (fixed expenses) and a totals row check against the summed lines; fixture stays invented
 - **F11 Demo mode**: read-only MCP server bound to the seed database, no write tools registered
 - **F12 Proposal for ADR-008**: `docs/adr-008-proposal.md` describing what was built, decisions taken, and what the Azure stage needs
 
@@ -50,6 +50,8 @@ Ordered. The agent takes the first unblocked item under **Next**. Items marked *
 ## Needs author
 
 ## Done
+
+- **F10a Spreadsheet reader**: `src/import/sheet.ts` `readMonthSheet(file, month)` reads the sheet named `YYYY-MM` with `read-excel-file` (pinned 9.3.12) and maps rows with header `kind, description, category, account, member, due_on, amount` (kind `income`, `fixed`, `variable`; amount as a numeric cell in BRL, up to 2 decimals; due_on as text in the month; blank rows skipped) into `NewEntry[]`; errors name the line; invented fixture `test/fixtures/2026-10-import.xlsx`; 4 new tests (107 in total). Not yet wired to the ledger (F10b)
 
 - **F09b HTTP API writes, part 2**: `PATCH /api/reserves/:name` (balance and/or target, the name is percent-decoded), `POST /api/decisions`, `POST /api/decisions/:id/confirm|reject|withdraw` and `POST /api/months/:month/forecast` over the existing `record.ts`/`forecast.ts` commands, as the `x-member` caller (401 without it, before the handler); README lists the routes; 4 new tests (103 in total)
 
