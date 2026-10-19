@@ -35,5 +35,9 @@ Write tools `create_entry` (planned or already paid income or expense, member na
 - `GET /api/debts`, `GET /api/reserves`, `GET /api/decisions` (`status`, `limit`)
 - `POST /api/entries` with the `create_entry` fields, answered `201`
 - `POST /api/entries/:id/paid` with an optional `paid_on`
+- `PATCH /api/reserves/:name` with `balance_cents` and/or `target_cents`
+- `POST /api/decisions` with `title`, optional `description` and `amount_cents`, answered `201`
+- `POST /api/decisions/:id/confirm|reject|withdraw`
+- `POST /api/months/:month/forecast`, planning the month's recurring entries once (`today`)
 
 Writes need an `x-member` header naming an active member and are audited as that member; they never execute a payment. Errors are JSON `{ "error": "..." }`: `400` invalid input (with `issues`), `401` write without a member, `403` unknown member or foreign host, `404`, `405`, `413` body over 64 KiB, `415` body not JSON, `422` refused by a ledger rule, `500` without details.

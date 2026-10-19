@@ -18,10 +18,12 @@ describe('http api', () => {
     return { status: response.status, body: await response.json() }
   }
 
-  const post = async (path: string, body: unknown, headers: Record<string, string> = { 'x-member': 'Marcio' }) => {
-    const response = await fetch(`${server.url}/api${path}`, { method: 'POST', headers: { 'content-type': 'application/json', ...headers }, body: typeof body === 'string' ? body : JSON.stringify(body) })
+  const send = async (method: string, path: string, body: unknown, headers: Record<string, string> = { 'x-member': 'Marcio' }) => {
+    const response = await fetch(`${server.url}/api${path}`, { method, headers: { 'content-type': 'application/json', ...headers }, body: typeof body === 'string' ? body : JSON.stringify(body) })
     return { status: response.status, headers: response.headers, body: await response.json() }
   }
+
+  const post = (path: string, body: unknown, headers?: Record<string, string>) => send('POST', path, body, headers)
 
   const audit = async (entityId: string) => (await pool.query<{ author: string; action: string; name: string }>('select a.author, a.action, m.name from audit_log a join member m on m.id = a.member_id where a.entity = $1 and a.entity_id = $2 order by a.id', ['entry', entityId])).rows
 
@@ -120,5 +122,55 @@ describe('http api', () => {
     assert.equal(plain.status, 415)
     const { rows } = await pool.query<{ count: number }>("select count(*)::int as count from entry where description = 'Farmers market'")
     assert.equal(rows[0]?.count, 1)
+  })
+
+  test('updates a reserve as the calling member, audited', async () => {
+    const patched = await send('PATCH', '/reserves/Emergency%20fund', { balance_cents: 250000 })
+    assert.equal(patched.status, 200)
+    assert.deepEqual(patched.body.balance, { cents: '250000', brl: 'R$ 2.500,00' })
+    assert.equal(patched.body.missing.cents, '2750000')
+    const { rows } = await pool.query<{ author: string; name: string }>("select a.author, m.name from audit_log a join member m on m.id = a.member_id where a.entity = 'reserve' order by a.id desc limit 1")
+    assert.deepEqual(rows[0], { author: 'member', name: 'Marcio' })
+    assert.equal((await send('PATCH', '/reserves/Emergency%20fund', { balance_cents: -1 })).status, 422)
+    assert.equal((await send('PATCH', '/reserves/Nowhere', { balance_cents: 1 })).status, 422)
+    assert.equal((await send('PATCH', '/reserves/Emergency%20fund', {}, {})).status, 401)
+  })
+
+  test('proposes a decision and closes it once every member confirms', async () => {
+    const proposed = await post('/decisions', { title: 'Move to a bigger flat', amount_cents: 50000000 })
+    assert.equal(proposed.status, 201)
+    assert.equal(proposed.body.status, 'proposed')
+    assert.equal(proposed.body.proposedBy, 'Marcio')
+    assert.deepEqual(proposed.body.amount, { cents: '50000000', brl: 'R$ 500.000,00' })
+    const first = await post(`/decisions/${proposed.body.id}/confirm`, {})
+    assert.deepEqual(first.body.confirmedBy, ['Marcio'])
+    assert.deepEqual(first.body.awaiting, ['Gabriela'])
+    const second = await post(`/decisions/${proposed.body.id}/confirm`, {}, { 'x-member': 'Gabriela' })
+    assert.equal(second.body.status, 'confirmed')
+    assert.equal((await post(`/decisions/${proposed.body.id}/reject`, {}, { 'x-member': 'Gabriela' })).status, 422)
+  })
+
+  test('rejects and withdraws decisions only as the right member', async () => {
+    assert.equal((await post('/decisions', { title: ' ' })).status, 400)
+    const rejectable = await post('/decisions', { title: 'Change the school' })
+    assert.equal((await post(`/decisions/${rejectable.body.id}/reject`, {})).status, 422)
+    const rejected = await post(`/decisions/${rejectable.body.id}/reject`, {}, { 'x-member': 'Gabriela' })
+    assert.equal(rejected.body.status, 'rejected')
+    const withdrawable = await post('/decisions', { title: 'Hold the trip' })
+    assert.equal((await post(`/decisions/${withdrawable.body.id}/withdraw`, {}, { 'x-member': 'Gabriela' })).status, 422)
+    const withdrawn = await post(`/decisions/${withdrawable.body.id}/withdraw`, {})
+    assert.equal(withdrawn.body.status, 'withdrawn')
+  })
+
+  test('forecasts a month once, planned as the calling member', async () => {
+    const first = await post(`/months/2026-11/forecast?today=${seedToday}`, {})
+    assert.equal(first.status, 200)
+    assert.equal(first.body.month, '2026-11-01')
+    assert.ok(first.body.created.length > 0)
+    assert.equal(first.body.created[0].status, 'planned')
+    const again = await post(`/months/2026-11/forecast?today=${seedToday}`, {})
+    assert.deepEqual(again.body.created, [])
+    assert.equal(again.body.skipped, first.body.created.length + first.body.skipped)
+    assert.equal((await post('/months/2026-11/forecast', {}, {})).status, 401)
   })
 })

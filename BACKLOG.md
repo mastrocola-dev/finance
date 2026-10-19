@@ -4,7 +4,6 @@ Ordered. The agent takes the first unblocked item under **Next**. Items marked *
 
 ## Next
 
-- **F09b HTTP API writes, part 2**: `PATCH /api/reserves/:name` (balance and/or target), `POST /api/decisions`, `POST /api/decisions/:id/confirm|reject|withdraw`, `POST /api/months/:month/forecast` over the existing `record.ts`/`forecast.ts` commands, as the calling member; reuse `route`, `writing` and `readJson` in `src/http/api.ts`; tests
 - **F10 Spreadsheet import**: `.xlsx` with one sheet per month (income, fixed expenses with installment number, variable expenses, totals) into the ledger; fixture is an invented workbook
 - **F11 Demo mode**: read-only MCP server bound to the seed database, no write tools registered
 - **F12 Proposal for ADR-008**: `docs/adr-008-proposal.md` describing what was built, decisions taken, and what the Azure stage needs
@@ -45,11 +44,14 @@ Ordered. The agent takes the first unblocked item under **Next**. Items marked *
 - **L29 Income without category**: `income.category_id` is nullable and `forecastMonth` silently leaves such incomes out (not counted in `skipped`); make it `not null` or report them
 - **L30 Forecast of closed references**: forecast plans sources whose member, account or category is closed; filter them or close the source when its member is closed
 - **L31 Forecast amounts**: variable bills (Electricity) are planned at the registered amount; consider the average of the last three paid entries
+- **L35 Malformed reserve name**: `PATCH /api/reserves/:name` calls `decodeURIComponent`, so a malformed percent sequence answers `500` instead of `400`; validate the segment with zod or catch `URIError` in `src/http/api.ts`
 - **L22 Write tool shapes**: write tools return the `list_entries` read model (camelCase) while inputs are snake_case; keep this convention for F07b/F09 or pick one and record it in the ADR-008 proposal
 
 ## Needs author
 
 ## Done
+
+- **F09b HTTP API writes, part 2**: `PATCH /api/reserves/:name` (balance and/or target, the name is percent-decoded), `POST /api/decisions`, `POST /api/decisions/:id/confirm|reject|withdraw` and `POST /api/months/:month/forecast` over the existing `record.ts`/`forecast.ts` commands, as the `x-member` caller (401 without it, before the handler); README lists the routes; 4 new tests (103 in total)
 
 - **F09 HTTP API, part 1**: `src/http/api.ts` `api(client)` fetch handler on `URLPattern` routes, served by `serveApi` (`API_HOST`/`API_PORT`, default 127.0.0.1:3200, `npm run api:http`) through the existing `src/http/node.ts` bridge (L18 done): `GET` summary, entries, debts, reserves, decisions and `POST /api/entries` (201), `POST /api/entries/:id/paid`, writes audited as `member` for the `x-member` caller; localhost Host/Origin only; JSON errors 400 (zod issues), 401, 403, 404, 405 with `Allow`, 413 (64 KiB, `src/http/body.ts` `readJson` streams and counts), 415, 422 for the new `RuleError` thrown by ledger rules, 500 without details; optional `today` query keeps results stable (L07); README section; 10 new tests. Rest split into F09b
 

@@ -4,11 +4,12 @@ import * as z from 'zod'
 import { connectPool, type Database } from '../db/connection.ts'
 import type { Actor } from '../db/write.ts'
 import { listDebts } from '../ledger/debts.ts'
-import { listDecisions, statuses } from '../ledger/decisions.ts'
+import { findDecision, listDecisions, statuses } from '../ledger/decisions.ts'
 import { findEntry, listEntries, states } from '../ledger/entries.ts'
+import { forecastMonth } from '../ledger/forecast.ts'
 import { findMember, type Member } from '../ledger/members.ts'
-import { createEntry, markPaid } from '../ledger/record.ts'
-import { listReserves } from '../ledger/reserves.ts'
+import { confirmDecision, createEntry, markPaid, proposeDecision, rejectDecision, updateReserve, withdrawDecision } from '../ledger/record.ts'
+import { findReserve, listReserves } from '../ledger/reserves.ts'
 import { RuleError } from '../ledger/rule.ts'
 import { compareMonths } from '../ledger/summary.ts'
 import { toJson } from '../mcp/json.ts'
@@ -48,6 +49,20 @@ const newEntry = z.object({
   member: z.string(),
   paid_on: date.optional(),
 })
+
+const reserveChanges = z.object({ balance_cents: z.int().optional(), target_cents: z.int().positive().optional() })
+
+const newDecision = z.object({
+  title: z.string().trim().min(1),
+  description: z.string().optional(),
+  amount_cents: z.int().positive().optional(),
+})
+
+const decisionAnswers = [
+  ['confirm', confirmDecision],
+  ['reject', rejectDecision],
+  ['withdraw', withdrawDecision],
+] as const
 
 const writing = async <T>({ client, member }: Context, work: (connection: PoolClient, actor: Actor) => Promise<T>) => {
   if (!member) throw new HttpError(401, `writes need the ${memberHeader} header`)
@@ -103,6 +118,44 @@ const routes = [
     const input = z.object({ paid_on: date.optional() }).parse(await readJson(context.request))
     const paid = await writing(context, (connection, actor) => markPaid(connection, actor, entry, input.paid_on ?? referenceDate(context)))
     return findEntry(context.client, paid, referenceDate(context))
+  }),
+  route('PATCH', '/reserves/:name', async (context) => {
+    const name = decodeURIComponent(context.params.name ?? '')
+    const input = reserveChanges.parse(await readJson(context.request))
+    await writing(context, (connection, actor) =>
+      updateReserve(connection, actor, name, {
+        balance: input.balance_cents === undefined ? undefined : BigInt(input.balance_cents),
+        target: input.target_cents === undefined ? undefined : BigInt(input.target_cents),
+      }),
+    )
+    return findReserve(context.client, name)
+  }),
+  route(
+    'POST',
+    '/decisions',
+    async (context) => {
+      const input = newDecision.parse(await readJson(context.request))
+      const proposed = await writing(context, (connection, actor) =>
+        proposeDecision(connection, actor, {
+          title: input.title,
+          description: input.description,
+          amount: input.amount_cents === undefined ? undefined : BigInt(input.amount_cents),
+        }),
+      )
+      return findDecision(context.client, proposed)
+    },
+    201,
+  ),
+  ...decisionAnswers.map(([action, answer]) =>
+    route('POST', `/decisions/:id/${action}`, async (context) => {
+      const answered = await writing(context, (connection, actor) => answer(connection, actor, BigInt(id.parse(context.params.id))))
+      return findDecision(context.client, answered)
+    }),
+  ),
+  route('POST', '/months/:month/forecast', async (context) => {
+    const forecast = await writing(context, (connection, actor) => forecastMonth(connection, actor, context.params.month ?? ''))
+    const created = await Promise.all(forecast.created.map((entry) => findEntry(context.client, entry, referenceDate(context))))
+    return { month: forecast.month, skipped: forecast.skipped, created }
   }),
 ]
 
