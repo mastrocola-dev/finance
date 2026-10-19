@@ -14,6 +14,7 @@ export type NewEntry = {
   account?: string
   member: string
   paidOn?: string
+  installment?: number
 }
 
 export const origins = { member: 'manual', claude: 'claude', import: 'import', system: 'manual' } as const
@@ -35,22 +36,26 @@ const memberId = async (client: Client, name: string) => {
   return member.id
 }
 
+export const entryValues = async (client: Client, entry: NewEntry) => {
+  if (entry.amount <= 0n) throw new RuleError('amount must be positive')
+  return {
+    competence: competenceOf(entry.month),
+    due_on: assertDate(entry.dueOn),
+    description: entry.description,
+    direction: entry.direction,
+    amount_cents: entry.amount,
+    category_id: await categoryId(client, entry.category, entry.direction),
+    account_id: entry.account ? await accountId(client, entry.account) : null,
+    member_id: await memberId(client, entry.member),
+    installment_number: entry.installment ?? null,
+    status: entry.paidOn ? 'paid' : 'planned',
+    paid_on: entry.paidOn ? assertDate(entry.paidOn) : null,
+  }
+}
+
 export const createEntry = (client: Client, actor: Actor, entry: NewEntry) =>
   write(client, actor, async (ledger) => {
-    if (entry.amount <= 0n) throw new RuleError('amount must be positive')
-    const row = await ledger.create('entry', {
-      competence: competenceOf(entry.month),
-      due_on: assertDate(entry.dueOn),
-      description: entry.description,
-      direction: entry.direction,
-      amount_cents: entry.amount,
-      category_id: await categoryId(client, entry.category, entry.direction),
-      account_id: entry.account ? await accountId(client, entry.account) : null,
-      member_id: await memberId(client, entry.member),
-      status: entry.paidOn ? 'paid' : 'planned',
-      paid_on: entry.paidOn ? assertDate(entry.paidOn) : null,
-      origin: origins[actor.author],
-    })
+    const row = await ledger.create('entry', { ...(await entryValues(client, entry)), origin: origins[actor.author] })
     return row.id as bigint
   })
 

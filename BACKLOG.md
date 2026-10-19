@@ -4,12 +4,14 @@ Ordered. The agent takes the first unblocked item under **Next**. Items marked *
 
 ## Next
 
-- **F10b Spreadsheet import into the ledger**: `importMonth` writes the entries from `readMonthSheet` (F10a) through `createEntry` inside one audited transaction per sheet (all or nothing), actor `import`; API/MCP entry point optional; add the installment number column (fixed expenses) and a totals row check against the summed lines; fixture stays invented
 - **F11 Demo mode**: read-only MCP server bound to the seed database, no write tools registered
 - **F12 Proposal for ADR-008**: `docs/adr-008-proposal.md` describing what was built, decisions taken, and what the Azure stage needs
 
 ## Later
 
+- **L36 Import entry point**: F10b has no API or MCP route; add one (author-only, reads the sheet from a configured path, never from request bodies) if the author wants to import from Claude
+- **L37 Replace an import**: a month imported once cannot be re-imported; a replace flow must close the import entries (nothing is deleted) and write the new ones in the same transaction
+- **L38 Import versus manual entries**: importing a month that already has manual entries creates duplicates; detect same month, description and amount before writing
 - **L04 Test helper discovery**: `node --test` also runs `test/db/database.ts` as a test file; rename helpers outside the default glob or set an explicit pattern in `npm test`
 - **L05 Nested writes**: `write()` issues `begin` on the given client; calling it inside another `write()` on the same client would nest. Decide on savepoints or a guard when MCP/HTTP adapters compose writes (F07/F09)
 - **L06 Audit JSON numbers**: `audit_log.before/after` store bigint cents as JSON numbers; exact in PostgreSQL but JS readers lose precision above 2^53 cents. Fine for household amounts; revisit only if audit is read back into BigInt
@@ -49,7 +51,11 @@ Ordered. The agent takes the first unblocked item under **Next**. Items marked *
 
 ## Needs author
 
+- **F10b layout choices**: built as the default: the installment column is optional (8th header cell, fixed lines only); a `total` row (kind `total`, amount = income minus expenses of the sheet) is checked against the lines when present; a month can be imported once (refused when it already holds import entries). Confirm these before F10c or any replace flow
+
 ## Done
+
+- **F10b Spreadsheet import into the ledger**: `src/import/month.ts` `importMonth(client, actor, month, entries)` writes the entries in one audited `import` transaction (advisory lock per month, all or nothing, refuses a month already holding import entries); `src/ledger/record.ts` `entryValues` shared with `createEntry`; `src/import/sheet.ts` accepts an optional `installment` column (fixed lines only, positive whole number) and an optional `total` row checked against the net of the lines; existing fixture unchanged; 6 new tests (113 in total). API/MCP entry point not added (L36)
 
 - **F10a Spreadsheet reader**: `src/import/sheet.ts` `readMonthSheet(file, month)` reads the sheet named `YYYY-MM` with `read-excel-file` (pinned 9.3.12) and maps rows with header `kind, description, category, account, member, due_on, amount` (kind `income`, `fixed`, `variable`; amount as a numeric cell in BRL, up to 2 decimals; due_on as text in the month; blank rows skipped) into `NewEntry[]`; errors name the line; invented fixture `test/fixtures/2026-10-import.xlsx`; 4 new tests (107 in total). Not yet wired to the ledger (F10b)
 

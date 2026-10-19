@@ -52,3 +52,33 @@ test('rejects a bad header, kind, date, amount or missing field with the line', 
 test('rejects a month without a sheet in the workbook', async () => {
   await assert.rejects(readMonthSheet('test/fixtures/2026-10-import.xlsx', '2026-09'))
 })
+
+test('reads an optional installment column for fixed lines only', () => {
+  const withInstallment = [...header, 'installment']
+  const entries = entriesFromRows([withInstallment, ['fixed', 'Sofa', 'Home', '', 'joint', '2026-10-12', 450, 3], ['fixed', 'Gym', 'Leisure', '', 'Marcio', '2026-10-07', 150, '']], '2026-10')
+  assert.deepEqual(
+    entries.map((entry) => entry.installment),
+    [3, undefined],
+  )
+  assert.throws(
+    () => entriesFromRows([withInstallment, ['variable', 'Fuel', 'Transport', '', 'Marcio', '2026-10-31', 50, 2]], '2026-10'),
+    (error) => error instanceof RuleError && error.message === 'line 2: installment is only for fixed lines',
+  )
+  assert.throws(
+    () => entriesFromRows([withInstallment, ['fixed', 'Sofa', 'Home', '', 'joint', '2026-10-12', 450, 1.5]], '2026-10'),
+    (error) => error instanceof RuleError && error.message === 'line 2: installment must be a positive whole number',
+  )
+})
+
+test('checks a total row against the net of the lines', () => {
+  const rows = [header, ['income', 'Salary', 'Salary', '', 'Marcio', '2026-10-05', 100], ['fixed', 'Rent', 'Housing', '', 'joint', '2026-10-10', 40]]
+  assert.equal(entriesFromRows([...rows, ['total', '', '', '', '', '', 60]], '2026-10').length, 2)
+  assert.throws(
+    () => entriesFromRows([...rows, ['total', '', '', '', '', '', 59]], '2026-10'),
+    (error) => error instanceof RuleError && error.message === 'line 4: total R$ 59,00 does not match the lines R$ 60,00',
+  )
+  assert.throws(
+    () => entriesFromRows([...rows, ['total', '', '', '', '', '', 60], ['total', '', '', '', '', '', 60]], '2026-10'),
+    (error) => error instanceof RuleError && error.message === 'line 5: only one total row is allowed',
+  )
+})
