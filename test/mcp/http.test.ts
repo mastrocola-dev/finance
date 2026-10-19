@@ -50,7 +50,7 @@ describe('streamable http adapter', () => {
   test('serves the read and write tools', async () => {
     const mcp = await connectClient('Marcio')
     const { tools } = await mcp.listTools()
-    assert.deepEqual(tools.map(({ name }) => name).sort(), ['confirm_decision', 'create_entry', 'list_debts', 'list_decisions', 'list_entries', 'list_reserves', 'mark_paid', 'month_summary', 'propose_decision', 'reject_decision', 'update_reserve', 'withdraw_decision'])
+    assert.deepEqual(tools.map(({ name }) => name).sort(), ['confirm_decision', 'create_entry', 'forecast_month', 'list_debts', 'list_decisions', 'list_entries', 'list_reserves', 'mark_paid', 'month_summary', 'propose_decision', 'reject_decision', 'update_reserve', 'withdraw_decision'])
     const { content } = await mcp.callTool({ name: 'list_debts', arguments: {} })
     const [first] = content as { text: string }[]
     assert.equal(JSON.parse(first?.text ?? '[]').length, 2)

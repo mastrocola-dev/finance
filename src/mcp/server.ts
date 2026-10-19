@@ -6,6 +6,7 @@ import type { Actor } from '../db/write.ts'
 import { listDebts } from '../ledger/debts.ts'
 import { findDecision, listDecisions, statuses } from '../ledger/decisions.ts'
 import { findEntry, listEntries, states } from '../ledger/entries.ts'
+import { forecastMonth } from '../ledger/forecast.ts'
 import type { Member } from '../ledger/members.ts'
 import { confirmDecision, createEntry, markPaid, proposeDecision, rejectDecision, updateReserve, withdrawDecision } from '../ledger/record.ts'
 import { findReserve, listReserves } from '../ledger/reserves.ts'
@@ -144,6 +145,21 @@ export const createServer = (client: Database, member?: Member) => {
     async (input) => {
       const paid = await writing((connection, actor) => markPaid(connection, actor, BigInt(input.id), input.paid_on ?? input.today))
       return result(await findEntry(client, paid, input.today))
+    },
+  )
+
+  server.registerTool(
+    'forecast_month',
+    {
+      title: 'Forecast month',
+      description: 'Plan the entries of a month from the active recurring expenses and incomes, at their registered amounts and due days. Sources that already have an entry in the month, even a closed one, are skipped, so calling it again changes nothing.',
+      inputSchema: z.object({ month, today }),
+      annotations: { ...writes, idempotentHint: true },
+    },
+    async (input) => {
+      const forecast = await writing((connection, actor) => forecastMonth(connection, actor, input.month))
+      const created = await Promise.all(forecast.created.map((entry) => findEntry(client, entry, input.today)))
+      return result({ month: forecast.month, skipped: forecast.skipped, created })
     },
   )
 

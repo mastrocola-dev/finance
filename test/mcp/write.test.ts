@@ -120,4 +120,17 @@ describe('mcp write tools', () => {
     const [still] = (await call(member, 'list_entries', { month: '2026-10', state: 'pending', today: seedToday })).json()
     assert.equal(still.id, pending.id)
   })
+
+  test('forecast_month plans a month once, audited as claude for the member', async () => {
+    assert.equal((await call(anonymous, 'forecast_month', { month: '2026-11' })).isError, true)
+    const forecast = (await call(member, 'forecast_month', { month: '2026-11', today: seedToday })).json()
+    assert.equal(forecast.month, '2026-11-01')
+    assert.equal(forecast.skipped, 0)
+    assert.equal(forecast.created.length, 9)
+    const sofa = forecast.created.find(({ description }: { description: string }) => description === 'Sofa')
+    assert.deepEqual([sofa.state, sofa.installmentNumber, sofa.amount.brl], ['pending', 10, 'R$ 450,00'])
+    assert.deepEqual(await audit(sofa.id), [{ author: 'claude', member_id: marcio.id, action: 'create' }])
+    const again = (await call(member, 'forecast_month', { month: '2026-11' })).json()
+    assert.deepEqual(again, { month: '2026-11-01', skipped: 9, created: [] })
+  })
 })

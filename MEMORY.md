@@ -30,6 +30,7 @@ Rewritten by every run, at most 60 lines. Only what the next run needs and canno
 - F07: author `claude` + calling member's id; entry `origin` derives from actor (`claude` → claude, `import` → import, else manual); `mark_paid` default date is `paid_on ?? today ?? localToday()`; write tools return the read model via `findEntry`
 - F07c: `list_decisions` status default `proposed`, `all` for every status, newest first, `limit` 1..100 default 20 (L26); `list_reserves` adds `missing` and `progressPercent` (numeric text, one decimal), both null without target (L27)
 - F07b: decisions answered by three tools (`confirm_decision`, `reject_decision`, `withdraw_decision`) registered from one table in `server.ts`; proposing does not auto-confirm (L25); reject only by a non-proposer, withdraw only by the proposer; reserves found by name (case-insensitive)
+- F08: forecast plans recurring expenses and incomes (not debts, L28); skips a source with any entry in the month, closed included; always `planned`, never flips to late (L11); global `pg_advisory_xact_lock(hashtext('forecast'))` serializes forecasts; `forecast_month` returns `{ month, skipped, created }`
 - Dependencies: `@modelcontextprotocol/server` 2.3.1, `zod` 4.6.7, `pg`; dev `@modelcontextprotocol/client` 2.3.1
 
 ## Notes for next items
@@ -38,6 +39,7 @@ Rewritten by every run, at most 60 lines. Only what the next run needs and canno
 - Reads take `Queryable` (`Pick<ClientBase, 'query'>` in `src/db/connection.ts`), so a `pg.Pool` or a client both work; `connectPool(url)` builds the pool
 - Read side: `src/ledger/summary.ts` (`monthSummary`, `compareMonths`, `competenceOf`, `shiftMonth`, `localToday`, `assertDate`), `entries.ts`, `debts.ts`, `members.ts` (`findMember`), `money.ts` (`formatBrl`, `money`)
 - MCP: `createServer(client)` in `src/mcp/server.ts`; `result(value)` in `src/mcp/json.ts`; stdio `src/mcp/stdio.ts`; HTTP `src/mcp/http.ts` (`mcpHttp(client)` → `{ fetch, close }`, `serveHttp(client, port, host)` → `{ url, close }`, port 0 for tests)
+- Forecast: `forecastMonth` in `src/ledger/forecast.ts` (uses exported `origins` from `record.ts`)
 - Write commands live in `src/ledger/record.ts` (`createEntry`, `markPaid`, `updateReserve`, `proposeDecision`, `confirmDecision`, `rejectDecision`, `withdrawDecision`); MCP handlers wrap them in `writing((connection, actor) => ...)` inside `createServer`, which leases and releases a pool client. Read models `findReserve(name)`/`listReserves` in `reserves.ts`, `findDecision(id)`/`listDecisions(status, limit)` and `statuses` in `decisions.ts`, sharing one `select` each
 - HTTP factory: `createMcpHandler(async ({ requestInfo }) => createServer(client, member))` resolves `x-member` per request; stdio resolves `FINANCE_MEMBER` once at start
 - Seed reserve: `Emergency fund` (balance 1800000, target 3000000); no decisions in the seed yet (L09)
@@ -48,6 +50,7 @@ Rewritten by every run, at most 60 lines. Only what the next run needs and canno
 - To get a seeded test DB: `testDatabase()` then `seed(db.client)` (about 0.3 s); `db.url` for a pool
 - `pg` returns `bigint` as `BigInt` (including ids), `date` as `YYYY-MM-DD` string, `timestamptz` as `Date`, `numeric` as string; `count(*)` needs `::int`
 - `import.meta.main` is used for CLI entry points
-- Tests: 81 passing after F07c (`test/mcp/plan.test.ts` covers reserve and decision writes and lists, tests share state in order; tool name lists asserted in `server.test.ts` and `http.test.ts`)
-- Next: F08 Forecast; take the reference date explicitly (L07) and decide L11 (flip planned to late or not) there
+- Tests: 89 passing after F08 (`test/ledger/forecast.test.ts` shares state in order; tool name lists asserted in `server.test.ts` and `http.test.ts`)
+- Seed forecast of 2026-11: 9 entries (7 recurring incl. Sofa #10, 2 salaries); 2026-12: 8 (Sofa ended)
+- Next: F09 HTTP API; reuse `src/http/node.ts` (L18) and add a body limit
 - Failing-test run streak: 0

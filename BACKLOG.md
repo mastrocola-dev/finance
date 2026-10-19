@@ -4,7 +4,6 @@ Ordered. The agent takes the first unblocked item under **Next**. Items marked *
 
 ## Next
 
-- **F08 Forecast**: generate planned entries of a month from active recurring expenses, idempotent
 - **F09 HTTP API**: REST over the same ledger module for the future app; JSON errors; tests
 - **F10 Spreadsheet import**: `.xlsx` with one sheet per month (income, fixed expenses with installment number, variable expenses, totals) into the ledger; fixture is an invented workbook
 - **F11 Demo mode**: read-only MCP server bound to the seed database, no write tools registered
@@ -22,7 +21,7 @@ Ordered. The agent takes the first unblocked item under **Next**. Items marked *
 
 - **L13 JSON money convention**: `src/mcp/json.ts` turns every bigint except a key named `id` into `{ cents, brl }`; any future non-money bigint (foreign ids, counts) must be cast in SQL or the rule must become an explicit key list. Decide before F07/F09 expose more shapes
 - **L14 Tool output size**: `month_summary` always returns both months plus differences, and `list_entries` has no limit; fine for a household month, revisit with a `limit` or a compact mode if Claude context use grows
-- **L11 Stored late status**: summary derives late from `planned` + `due_on < today`, while `entry.status = 'late'` is also stored; decide whether `late` stays a stored status or becomes derived only, and whether F08/F07 should flip planned to late
+- **L11 Stored late status**: summary derives late from `planned` + `due_on < today`, while `entry.status = 'late'` is also stored. F08 decided for the POC: forecast writes `planned` only and nothing flips planned to late; author to confirm whether stored `late` should go away
 - **L12 Summary by member**: per-member totals and the 50/50 share of joint expenses (who owes whom) on top of `monthSummary`
 
 - **L02 Down path**: migrations are forward-only; document the policy (new migration to revert) in the ADR-008 proposal
@@ -40,11 +39,17 @@ Ordered. The agent takes the first unblocked item under **Next**. Items marked *
 - **L25 Proposer auto-confirm**: proposing does not confirm; the proposer must call `confirm_decision` too (a Claude-made proposal is not taken as the member's consent). Author may prefer auto-confirm for proposals the member makes in person
 - **L26 Decision history paging**: `list_decisions` takes `limit` (default 20, max 100) but no cursor; add a `before` id or date if the closed history grows past what one call should return
 - **L27 Reserve progress format**: `progressPercent` is a numeric string with one decimal (`'60.0'`, PostgreSQL `round`), like `monthlyRatePercent`; `missing` is `{ cents, brl }` or null without a target. Record the percent convention in the ADR-008 proposal
+- **L28 Debt installments in forecast**: `debt` has no due day, so F08 does not plan debt installments; add `day_of_month` to `debt` (new migration) and plan installments `installments_paid + 1 ..` in `forecastMonth`
+- **L29 Income without category**: `income.category_id` is nullable and `forecastMonth` silently leaves such incomes out (not counted in `skipped`); make it `not null` or report them
+- **L30 Forecast of closed references**: forecast plans sources whose member, account or category is closed; filter them or close the source when its member is closed
+- **L31 Forecast amounts**: variable bills (Electricity) are planned at the registered amount; consider the average of the last three paid entries
 - **L22 Write tool shapes**: write tools return the `list_entries` read model (camelCase) while inputs are snake_case; keep this convention for F07b/F09 or pick one and record it in the ADR-008 proposal
 
 ## Needs author
 
 ## Done
+
+- **F08 Forecast**: `src/ledger/forecast.ts` `forecastMonth(client, actor, month)` plans, in one audited write under a transaction advisory lock, one `planned` entry per active recurring expense and income of the month (starts on or before the month end, ends on or after its first day), linked by `recurring_expense_id`/`income_id`, due day clamped to the month length, installment number from `starts_on`, stopping after the last installment; a source with any entry in the month, even closed, is skipped (idempotent, a closed entry is not resurrected); MCP write tool `forecast_month` (idempotentHint) returns `{ month, skipped, created }`; 8 new tests
 
 - **F07c MCP read tools for reserves and decisions**: `list_reserves` (`listReserves`: balance, target, `missing` to target, `progressPercent`, both null without target; `findReserve` shares the query so `update_reserve` returns them too) and `list_decisions` (`listDecisions(client, status = 'proposed', limit = 20)`, status `all` for every status, newest first, with `confirmedBy` and `awaiting`); README lists every tool; 5 new tests
 

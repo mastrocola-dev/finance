@@ -15,7 +15,7 @@ export type NewEntry = {
   paidOn?: string
 }
 
-const origins = { member: 'manual', claude: 'claude', import: 'import', system: 'manual' } as const
+export const origins = { member: 'manual', claude: 'claude', import: 'import', system: 'manual' } as const
 
 const single = async (client: Client, sql: string, values: unknown[], missing: string) => {
   const [row] = (await client.query<{ id: bigint }>(sql, values)).rows
