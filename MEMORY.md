@@ -5,7 +5,7 @@ Rewritten by every run, at most 60 lines. Only what the next run needs and canno
 ## Session setup (cloud container, each run)
 
 - No `add_repo`/`register_repo_root` tools in these runs (ToolSearch finds neither). The repo already exists at /home/claude/finance: `git fetch origin && git checkout -B poc origin/poc`
-- Node 22 is preinstalled: `npm i -g node@24` then `hash -r` (about a minute)
+- Node 22 is preinstalled: `npm i -g node@24` then `hash -r` (about a minute; 2026-10-19 run: 24.22.0 worked)
 - PostgreSQL 16: `pg_ctlcluster 16 main start`, then `su postgres -c "psql -c \"alter user postgres password 'local'\""`, then `cp .env.example .env` (gitignored)
 - Run setup commands one per Bash call; long chained commands were refused by the classifier
 - `npm ci` then `npm run db:reset` and `npm run db:seed`; baseline is 117 tests passing
@@ -28,7 +28,7 @@ Rewritten by every run, at most 60 lines. Only what the next run needs and canno
 - F10a: `read-excel-file` 9.3.12 over `xlsx`. Layout is one sheet per month named `YYYY-MM`, header `kind, description, category, account, member, due_on, amount`
 - F10b (author to confirm, see BACKLOG Needs author): optional 8th header `installment`; optional `total` row checked against the lines; a month is importable once; import runs as actor `import` via `importMonth`
 - F11: demo is stdio only (`src/mcp/demo.ts`, `npm run mcp:demo`), reads only, pool opened with `default_transaction_read_only=on`; shared read tools live in `src/mcp/read.ts`, zod helpers in `src/mcp/schema.ts`
-- Commit trailers: Co-Authored-By Claude Haiku 5.5 (the serving model), per the harness attribution reminder. The scheduled prompt names Opus 5.5; not used because it is not the serving model
+- Commit trailers: the scheduled prompt of 2026-10-19 names Co-Authored-By Claude Opus 5.5 plus the session URL; followed for that run. Earlier runs used Haiku 5.5 (the serving model). Author to pick one
 
 ## Notes for next items
 
@@ -42,6 +42,7 @@ Rewritten by every run, at most 60 lines. Only what the next run needs and canno
 
 ## Status
 
-- Tests: 117 passing after F11; `npm run check` green
-- Next: F12 proposal for ADR-008 (`docs/adr-008-proposal.md`)
+- Tests: 117 passing after F12; `npm run check` green
+- F12 done: `docs/adr-008-proposal.md` (proposal for the author, not yet in mastrocola-dev/docs)
+- Next is empty: the schedule was stopped on 2026-10-19 per CLAUDE.md. Re-enable only after the author adds an item to Next
 - Failing-test run streak: 0

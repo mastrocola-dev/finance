@@ -4,7 +4,7 @@ Ordered. The agent takes the first unblocked item under **Next**. Items marked *
 
 ## Next
 
-- **F12 Proposal for ADR-008**: `docs/adr-008-proposal.md` describing what was built, decisions taken, and what the Azure stage needs
+None. The author picks the next increment from **Later** or **Needs author**.
 
 ## Later
 
@@ -54,6 +54,8 @@ Ordered. The agent takes the first unblocked item under **Next**. Items marked *
 - **F10b layout choices**: built as the default: the installment column is optional (8th header cell, fixed lines only); a `total` row (kind `total`, amount = income minus expenses of the sheet) is checked against the lines when present; a month can be imported once (refused when it already holds import entries). Confirm these before F10c or any replace flow
 
 ## Done
+
+- **F12 Proposal for ADR-008**: `docs/adr-008-proposal.md` with what was built, decisions taken, open questions for the author and the Azure stage requirements; docs only, 117 tests unchanged
 
 - **F11 Demo mode**: `src/mcp/demo.ts` `createDemoServer(client)` registers only the read tools (shared `src/mcp/read.ts`, schema in `src/mcp/schema.ts`); stdio entry `npm run mcp:demo` over `DEMO_DATABASE_URL` (default `DATABASE_URL`) with the pool opened `default_transaction_read_only=on` (`connectPool(url, true)`), so writes fail at the database too; 4 new tests (117 in total)
 
