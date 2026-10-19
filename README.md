@@ -25,3 +25,15 @@ Copy `.env.example` to `.env` and adjust it; every script loads `.env` when pres
 `npm run mcp:http` serves the same tools over streamable HTTP at `http://127.0.0.1:3100/mcp` (`MCP_HOST`, `MCP_PORT`; `DATABASE_POOL_MAX` sets the pool size, default 5). Only localhost Host and Origin headers are accepted. An optional `x-member` header names the calling member; an unknown or closed member is answered `403`.
 
 Write tools `create_entry` (planned or already paid income or expense, member name or `joint`) and `mark_paid`, `forecast_month` (plans a month from the active recurring expenses and incomes, idempotent), `update_reserve`, and the joint decision tools `propose_decision`, `confirm_decision`, `reject_decision` and `withdraw_decision` record facts on behalf of the calling member, audited as `claude` with that member; they never execute a payment. Over HTTP the caller is the `x-member` header, over stdio the `FINANCE_MEMBER` variable (the server refuses to start when it names no active member). Without a caller every write is refused. A decision stays `proposed` until every active member confirms it.
+
+## HTTP API
+
+`npm run api:http` serves a JSON API at `http://127.0.0.1:3200/api` (`API_HOST`, `API_PORT`) over the same ledger, with the same money shape and localhost-only Host and Origin checks:
+
+- `GET /api/months/:month/summary` (`compare_with`, `today`)
+- `GET /api/months/:month/entries` (`direction`, `category`, `account`, `member`, `state`, `today`)
+- `GET /api/debts`, `GET /api/reserves`, `GET /api/decisions` (`status`, `limit`)
+- `POST /api/entries` with the `create_entry` fields, answered `201`
+- `POST /api/entries/:id/paid` with an optional `paid_on`
+
+Writes need an `x-member` header naming an active member and are audited as that member; they never execute a payment. Errors are JSON `{ "error": "..." }`: `400` invalid input (with `issues`), `401` write without a member, `403` unknown member or foreign host, `404`, `405`, `413` body over 64 KiB, `415` body not JSON, `422` refused by a ledger rule, `500` without details.

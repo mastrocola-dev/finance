@@ -94,7 +94,7 @@ describe('month summary', () => {
     await assert.rejects(monthSummary(client, '2026-13', seedToday), /YYYY-MM/)
     await assert.rejects(monthSummary(client, 'october', seedToday), /YYYY-MM/)
     await assert.rejects(monthSummary(client, '2026-10-40', seedToday), /YYYY-MM/)
-    await assert.rejects(monthSummary(client, '2026-10', '18/10/2026'), /today/)
+    await assert.rejects(monthSummary(client, '2026-10', '18/10/2026'), /date must be YYYY-MM-DD/)
   })
 
   test('closed entries are left out', async () => {

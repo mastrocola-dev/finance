@@ -1,4 +1,5 @@
 import type { Client } from 'pg'
+import { RuleError } from '../ledger/rule.ts'
 
 export type Actor = { author: 'member' | 'claude'; memberId: bigint } | { author: 'import' | 'system'; memberId?: bigint }
 
@@ -37,7 +38,7 @@ const writer = (client: Client, actor: Actor, touched: Set<Entity>): Writer => {
 
   const single = (rows: Row[], entity: Entity, id?: bigint) => {
     const [row] = rows
-    if (!row) throw new Error(`${entity} ${id} not found or closed`)
+    if (!row) throw new RuleError(`${entity} ${id} not found or closed`)
     touched.add(entity)
     return row
   }
@@ -77,7 +78,7 @@ const writer = (client: Client, actor: Actor, touched: Set<Entity>): Writer => {
 const assertShares = async (client: Client) => {
   const { rows } = await client.query<{ members: number; total: number }>('select count(*)::int as members, coalesce(sum(share_percent), 0)::int as total from member where closed_at is null')
   const [{ members, total } = { members: 0, total: 0 }] = rows
-  if (members && total !== 100) throw new Error(`active members' share_percent must sum to 100, got ${total}`)
+  if (members && total !== 100) throw new RuleError(`active members' share_percent must sum to 100, got ${total}`)
 }
 
 export const write = async <T>(client: Client, actor: Actor, work: (ledger: Writer) => Promise<T>) => {

@@ -1,6 +1,7 @@
 import type { Client } from 'pg'
 import { type Actor, write } from '../db/write.ts'
 import { findMember } from './members.ts'
+import { RuleError } from './rule.ts'
 import { assertDate, competenceOf, localToday } from './summary.ts'
 
 export type NewEntry = {
@@ -19,7 +20,7 @@ export const origins = { member: 'manual', claude: 'claude', import: 'import', s
 
 const single = async (client: Client, sql: string, values: unknown[], missing: string) => {
   const [row] = (await client.query<{ id: bigint }>(sql, values)).rows
-  if (!row) throw new Error(missing)
+  if (!row) throw new RuleError(missing)
   return row.id
 }
 
@@ -30,13 +31,13 @@ const accountId = (client: Client, nickname: string) => single(client, 'select i
 const memberId = async (client: Client, name: string) => {
   if (name.trim().toLowerCase() === 'joint') return null
   const member = await findMember(client, name)
-  if (!member) throw new Error(`unknown member ${name}`)
+  if (!member) throw new RuleError(`unknown member ${name}`)
   return member.id
 }
 
 export const createEntry = (client: Client, actor: Actor, entry: NewEntry) =>
   write(client, actor, async (ledger) => {
-    if (entry.amount <= 0n) throw new Error('amount must be positive')
+    if (entry.amount <= 0n) throw new RuleError('amount must be positive')
     const row = await ledger.create('entry', {
       competence: competenceOf(entry.month),
       due_on: assertDate(entry.dueOn),
@@ -56,8 +57,8 @@ export const createEntry = (client: Client, actor: Actor, entry: NewEntry) =>
 export const markPaid = (client: Client, actor: Actor, id: bigint, paidOn = localToday()) =>
   write(client, actor, async (ledger) => {
     const [current] = (await client.query<{ status: string }>('select status from entry where id = $1 and closed_at is null for update', [id])).rows
-    if (!current) throw new Error(`entry ${id} not found or closed`)
-    if (current.status === 'paid') throw new Error(`entry ${id} is already paid`)
+    if (!current) throw new RuleError(`entry ${id} not found or closed`)
+    if (current.status === 'paid') throw new RuleError(`entry ${id} is already paid`)
     await ledger.update('entry', id, { status: 'paid', paid_on: assertDate(paidOn) })
     return id
   })
@@ -66,9 +67,9 @@ export type ReserveChanges = { balance?: bigint; target?: bigint }
 
 export const updateReserve = (client: Client, actor: Actor, name: string, changes: ReserveChanges) =>
   write(client, actor, async (ledger) => {
-    if (changes.balance === undefined && changes.target === undefined) throw new Error('give a new balance or target')
-    if (changes.balance !== undefined && changes.balance < 0n) throw new Error('balance cannot be below zero')
-    if (changes.target !== undefined && changes.target <= 0n) throw new Error('target must be positive')
+    if (changes.balance === undefined && changes.target === undefined) throw new RuleError('give a new balance or target')
+    if (changes.balance !== undefined && changes.balance < 0n) throw new RuleError('balance cannot be below zero')
+    if (changes.target !== undefined && changes.target <= 0n) throw new RuleError('target must be positive')
     const id = await single(client, 'select id from reserve where closed_at is null and lower(name) = lower($1) for update', [name.trim()], `unknown reserve ${name}`)
     await ledger.update('reserve', id, {
       ...(changes.balance === undefined ? {} : { balance_cents: changes.balance }),
@@ -80,7 +81,7 @@ export const updateReserve = (client: Client, actor: Actor, name: string, change
 export type NewDecision = { title: string; description?: string; amount?: bigint }
 
 const actingMember = (actor: Actor) => {
-  if (actor.memberId === undefined) throw new Error('decisions need a member')
+  if (actor.memberId === undefined) throw new RuleError('decisions need a member')
   return actor.memberId
 }
 
@@ -88,7 +89,7 @@ const origin = (actor: Actor) => (actor.author === 'claude' ? 'claude' : 'manual
 
 export const proposeDecision = (client: Client, actor: Actor, decision: NewDecision) =>
   write(client, actor, async (ledger) => {
-    if (decision.amount !== undefined && decision.amount <= 0n) throw new Error('amount must be positive')
+    if (decision.amount !== undefined && decision.amount <= 0n) throw new RuleError('amount must be positive')
     const row = await ledger.create('decision', {
       title: decision.title,
       description: decision.description ?? '',
@@ -101,7 +102,7 @@ export const proposeDecision = (client: Client, actor: Actor, decision: NewDecis
 
 const openDecision = async (client: Client, id: bigint) => {
   const [row] = (await client.query<{ proposed_by: bigint }>("select proposed_by from decision where id = $1 and status = 'proposed' for update", [id])).rows
-  if (!row) throw new Error(`decision ${id} not found or no longer proposed`)
+  if (!row) throw new RuleError(`decision ${id} not found or no longer proposed`)
   return row
 }
 
@@ -110,7 +111,7 @@ export const confirmDecision = (client: Client, actor: Actor, id: bigint) =>
     const member = actingMember(actor)
     await openDecision(client, id)
     const confirmed = await client.query('select 1 from decision_confirmation where decision_id = $1 and member_id = $2', [id, member])
-    if (confirmed.rowCount) throw new Error(`decision ${id} is already confirmed by this member`)
+    if (confirmed.rowCount) throw new RuleError(`decision ${id} is already confirmed by this member`)
     await ledger.create('decision_confirmation', { decision_id: id, member_id: member })
     const { rows } = await client.query<{ awaiting: number }>('select count(*)::int as awaiting from member m where m.closed_at is null and not exists (select 1 from decision_confirmation c where c.decision_id = $1 and c.member_id = m.id)', [id])
     if (rows[0]?.awaiting === 0) await ledger.close('decision', id, { status: 'confirmed' })
@@ -120,7 +121,7 @@ export const confirmDecision = (client: Client, actor: Actor, id: bigint) =>
 export const rejectDecision = (client: Client, actor: Actor, id: bigint) =>
   write(client, actor, async (ledger) => {
     const { proposed_by } = await openDecision(client, id)
-    if (proposed_by === actingMember(actor)) throw new Error(`decision ${id} was proposed by this member; withdraw it instead`)
+    if (proposed_by === actingMember(actor)) throw new RuleError(`decision ${id} was proposed by this member; withdraw it instead`)
     await ledger.close('decision', id, { status: 'rejected' })
     return id
   })
@@ -128,7 +129,7 @@ export const rejectDecision = (client: Client, actor: Actor, id: bigint) =>
 export const withdrawDecision = (client: Client, actor: Actor, id: bigint) =>
   write(client, actor, async (ledger) => {
     const { proposed_by } = await openDecision(client, id)
-    if (proposed_by !== actingMember(actor)) throw new Error(`only the proposer can withdraw decision ${id}`)
+    if (proposed_by !== actingMember(actor)) throw new RuleError(`only the proposer can withdraw decision ${id}`)
     await ledger.close('decision', id, { status: 'withdrawn' })
     return id
   })

@@ -4,7 +4,7 @@ Ordered. The agent takes the first unblocked item under **Next**. Items marked *
 
 ## Next
 
-- **F09 HTTP API**: REST over the same ledger module for the future app; JSON errors; tests
+- **F09b HTTP API writes, part 2**: `PATCH /api/reserves/:name` (balance and/or target), `POST /api/decisions`, `POST /api/decisions/:id/confirm|reject|withdraw`, `POST /api/months/:month/forecast` over the existing `record.ts`/`forecast.ts` commands, as the calling member; reuse `route`, `writing` and `readJson` in `src/http/api.ts`; tests
 - **F10 Spreadsheet import**: `.xlsx` with one sheet per month (income, fixed expenses with installment number, variable expenses, totals) into the ledger; fixture is an invented workbook
 - **F11 Demo mode**: read-only MCP server bound to the seed database, no write tools registered
 - **F12 Proposal for ADR-008**: `docs/adr-008-proposal.md` describing what was built, decisions taken, and what the Azure stage needs
@@ -29,7 +29,9 @@ Ordered. The agent takes the first unblocked item under **Next**. Items marked *
 
 - **L16 Read snapshot**: over the pool, `compareMonths` runs its two month queries on possibly different connections; a write landing between them gives a mixed view. Run multi-query reads in one `repeatable read` transaction if that matters
 - **L17 Remote exposure**: `mcpHttp` accepts only localhost Host/Origin and trusts `x-member` without authentication; the Azure stage needs Entra ID, configurable allowed hostnames and TLS before binding anything but loopback
-- **L18 Shared HTTP bridge**: `src/http/node.ts` (`listen`, `nodeHandler`) is generic; F09 should reuse it and add a request body limit for non-MCP routes (the MCP handler already caps at 4 MiB)
+- **L32 Not found status**: the API answers `422` for every `RuleError`, including "entry N not found or closed"; give missing entities their own error (or a `kind` on `RuleError`) so the API can answer `404`
+- **L33 Shared JSON shape**: `toJson` lives in `src/mcp/json.ts` and the API imports it from there; move it to a neutral module (e.g. `src/ledger/json.ts`) if a third adapter appears
+- **L34 One process**: MCP (3100) and API (3200) run as two servers; consider one `node:http` server routing `/mcp` and `/api` once the app needs both, sharing the pool
 
 - **L19 Paid date bounds**: `mark_paid` and `create_entry` accept any valid `paid_on`, even in the future or long before `due_on`; decide whether to reject `paid_on` after `today`
 - **L20 Duplicate writes**: a retried `create_entry` creates a second entry; consider an optional client key or a warning when an active entry with the same month, description and amount exists
@@ -48,6 +50,8 @@ Ordered. The agent takes the first unblocked item under **Next**. Items marked *
 ## Needs author
 
 ## Done
+
+- **F09 HTTP API, part 1**: `src/http/api.ts` `api(client)` fetch handler on `URLPattern` routes, served by `serveApi` (`API_HOST`/`API_PORT`, default 127.0.0.1:3200, `npm run api:http`) through the existing `src/http/node.ts` bridge (L18 done): `GET` summary, entries, debts, reserves, decisions and `POST /api/entries` (201), `POST /api/entries/:id/paid`, writes audited as `member` for the `x-member` caller; localhost Host/Origin only; JSON errors 400 (zod issues), 401, 403, 404, 405 with `Allow`, 413 (64 KiB, `src/http/body.ts` `readJson` streams and counts), 415, 422 for the new `RuleError` thrown by ledger rules, 500 without details; optional `today` query keeps results stable (L07); README section; 10 new tests. Rest split into F09b
 
 - **F08 Forecast**: `src/ledger/forecast.ts` `forecastMonth(client, actor, month)` plans, in one audited write under a transaction advisory lock, one `planned` entry per active recurring expense and income of the month (starts on or before the month end, ends on or after its first day), linked by `recurring_expense_id`/`income_id`, due day clamped to the month length, installment number from `starts_on`, stopping after the last installment; a source with any entry in the month, even closed, is skipped (idempotent, a closed entry is not resurrected); MCP write tool `forecast_month` (idempotentHint) returns `{ month, skipped, created }`; 8 new tests
 

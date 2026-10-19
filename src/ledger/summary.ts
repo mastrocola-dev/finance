@@ -1,4 +1,5 @@
 import type { Queryable } from '../db/connection.ts'
+import { RuleError } from './rule.ts'
 
 export type Totals = { count: number; total: bigint; paid: bigint; pending: bigint; late: bigint }
 export type CategoryTotals = Totals & { category: string }
@@ -20,7 +21,7 @@ export const localToday = (now = new Date()) => new Intl.DateTimeFormat('en-CA',
 
 export const competenceOf = (month: string) => {
   const match = /^(\d{4})-(0[1-9]|1[0-2])(?:-(?:0[1-9]|[12]\d|3[01]))?$/.exec(month)
-  if (!match) throw new Error(`month must be YYYY-MM, got ${month}`)
+  if (!match) throw new RuleError(`month must be YYYY-MM, got ${month}`)
   return `${match[1]}-${match[2]}-01`
 }
 
@@ -30,7 +31,7 @@ export const shiftMonth = (month: string, count: number) => {
 }
 
 export const assertDate = (date: string) => {
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(date) || Number.isNaN(Date.parse(date))) throw new Error(`today must be YYYY-MM-DD, got ${date}`)
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(date) || Number.isNaN(Date.parse(date))) throw new RuleError(`date must be YYYY-MM-DD, got ${date}`)
   return date
 }
 
