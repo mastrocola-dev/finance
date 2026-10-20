@@ -28,6 +28,6 @@
     }
   },
   "files": {
-    "includes": ["**", "!docs/mockups", "!openapi.json", "!web/src/api/schema.ts"]
+    "includes": ["**", "!docs/mockups", "!openapi.json"]
   }
 }
