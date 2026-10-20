@@ -1,15 +1,14 @@
-import { useNavigate, useSearch } from '@tanstack/react-router'
+import { useNavigate } from '@tanstack/react-router'
 import type { AppSearch } from '../lib/search.ts'
 import { cn } from '../lib/utils.ts'
-import { useMembers } from '../query/shell.ts'
+import { useMembers, useSelectedMember } from '../query/shell.ts'
 
 const option = 'flex min-h-11 flex-1 items-center justify-center rounded-[7px] px-3.5 text-muted md:min-h-[34px] md:flex-none'
 
 export const MemberFilter = () => {
-  const { member } = useSearch({ from: '__root__' })
   const navigate = useNavigate()
   const { data: members = [] } = useMembers()
-  const selected = members.some(({ name }) => name === member) ? member : undefined
+  const selected = useSelectedMember()
   const options = [{ label: 'Casa', value: undefined }, ...members.map(({ name }) => ({ label: name, value: name }))]
 
   return (

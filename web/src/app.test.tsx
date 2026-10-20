@@ -15,7 +15,7 @@ const fetch = vi.fn(async (input: Request) => {
   calls.push(input)
   const { pathname } = new URL(input.url)
   if (pathname === '/api/members') return Response.json(members)
-  if (pathname === '/api/decisions') return Response.json([{ id: '1' }, { id: '2' }])
+  if (pathname === '/api/decisions') return Response.json(['1', '2'].map((id) => ({ id, title: `Decisão ${id}`, description: '', amount: null, status: 'proposed', proposedBy: 'Marcio', origin: 'manual', confirmedBy: [], awaiting: ['Gabriela'], createdAt: '2026-10-19T12:00:00.000Z', closedAt: null })))
   return Response.json({ error: 'not found' }, { status: 404 })
 }) as unknown as typeof globalThis.fetch
 

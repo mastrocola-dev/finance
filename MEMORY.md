@@ -5,15 +5,14 @@ Rewritten by every run, at most 60 lines. Only what the next run needs and canno
 ## Session setup (cloud container, each run)
 
 - No `add_repo`/`register_repo_root` tools in these runs (ToolSearch finds neither). The repo already exists at /home/claude/finance: `git fetch origin && git checkout -B poc origin/poc`
-- Node 22 is preinstalled: `npm i -g node@24` then `hash -r` (about a minute; 2026-10-19 run: 24.22.0 worked)
+- Node 22 is preinstalled: `npm i -g node@24` then `hash -r` (about a minute; 24.22.0 on 2026-10-20)
 - PostgreSQL 16: `pg_ctlcluster 16 main start`, then `su postgres -c "psql -c \"alter user postgres password 'local'\""`, then `cp .env.example .env` (gitignored)
 - Run setup commands one per Bash call; long chained commands were refused by the classifier
-- `npm ci` then `npm run db:reset` and `npm run db:seed`; baseline is 130 node tests plus 28 web (Vitest) tests
+- `npm ci` then `npm run db:reset` and `npm run db:seed`; baseline is 130 node tests plus 36 web (Vitest) tests
 - `curl` to local servers needs `--noproxy '*'` (the agent proxy answers 404 otherwise); stop servers by pid, `pkill -f` matched the calling shell and killed the call
 - Use `./node_modules/.bin/biome`, not `npx biome`: npx stalled a call for 3 minutes
 - Web deps install with `npm i -w web ...` (add `-S` for runtime deps: a first `-w` install put react as a peer only); root scripts forwarding to the workspace need a trailing `--` or npm swallows flags
 - Single test file: `timeout 200 node --env-file=.env --test test/mcp/demo.test.ts` (capture to a log file and read the tail; piping through grep printed nothing once)
-- npm, PyPI and Ubuntu apt are reachable; Docker Hub, mcr.microsoft.com and packages.microsoft.com are not
 - `tsconfig` has `erasableSyntaxOnly`: no constructor parameter properties, enums or namespaces
 - `biome check --write <paths>` fixes import order; `biome ci` rejects `!` non-null assertions in tests (use `assert.ok` to narrow)
 
@@ -37,8 +36,9 @@ Rewritten by every run, at most 60 lines. Only what the next run needs and canno
 - Mobile shell: top bar (brand, compact identity, theme) is not in the mockups but needed for identity and theme under 768 px; `main` has `pb-28` for the fixed tab bar
 - W04: `ui.shadcn.com` is blocked by the proxy (L49); shadcn files are hand-written. Extra deps: `class-variance-authority`, `clsx`, `tailwind-merge` (shadcn's own), `@fontsource-variable/geist(-mono)`, `lucide-react`. Tokens are Tailwind names without prefix (`bg-surface`, `text-muted`, `text-meta`, `rounded-card`); default Tailwind colors and shadows are cleared, so `bg-white`, `shadow` do not exist. A new token must also go into `extendTailwindMerge` in `web/src/lib/utils.ts` or `cn` drops classes. Dark mode is the `.dark` class on `<html>`; web `biome.json` enables `css.parser.tailwindDirectives`; Biome wants `<fieldset>` over `role="group"`
 - W02: `openapi-typescript` 7 peers on TypeScript 5, so npm nested `typescript@5.9` in `web/node_modules`; root `check` therefore runs `tsc -p web` (root TypeScript 7) and the web package has no `typecheck` script. `openapi.json` (root `biome.json`) and `web/src/api/schema.ts` (`web/biome.json`, the nested config owns web paths) are generated and excluded from Biome
-- Check exit codes from a log file, never through `| tail`: the 2026-10-20 W02 run pushed with `biome ci` red behind a pipe and needed a second fix commit
+- Check exit codes from a log file, never through `| tail` (a W02 run pushed with `biome ci` red behind a pipe)
 - W02: response schemas are `z.strictObject` of the wire shape (after `toJson`); request schemas reuse `month`, `date`, `id`, `today` from `src/mcp/schema.ts`; components are the keys of `schemas` plus `<OperationId>Body`/`<OperationId>Response` for unnamed ones; the error component is `ApiError` (a component named `Error` shadowed the global type)
+- W06a: overview in `web/src/overview/` (pure `model.ts`/`activity.ts`, one card per file, `Card` wrapper); one query reads current plus previous month entries; a chosen member means that member's own entries only (L55); entries wait for `/api/members` so no unfiltered flash. Web test stubs must return full API shapes (the overview reads `awaiting` etc. directly). Screenshot spec waits for `[aria-busy]` to clear. Overview only: `npx playwright test -g overview`
 - W03: settlement counts only paid joint expenses on member-owned accounts (Needs author); the seed has none, so split is empty over the seed (L44). Audit `next` is a string cursor (bigint would become money via `toJson`); counts ignore the author filter and cursor so filter chips keep their numbers
 
 ## Notes for next items
@@ -54,7 +54,7 @@ Rewritten by every run, at most 60 lines. Only what the next run needs and canno
 
 ## Status
 
-- Tests: 130 node plus 28 web after W05; `npm run check`, `npm run web:build` and the 24 screenshots green
-- 2026-10-20: the author approved the web app (W01–W13 in BACKLOG), the design in `docs/design.md` and `docs/mockups/`, and rules in CLAUDE.md "Web app". The schedule was re-enabled on Opus
-- The Later items stay parked until the web app is done, except where a W item needs one (L32 not-found 404, L33 shared JSON shape, L34 one process, L44 seed settlement for W06, L52 stale identity are good candidates)
+- Tests: 130 node plus 36 web after W06a; `npm run check` and the overview screenshots green (other screens unchanged since W05)
+- 2026-10-20: the author approved the web app (W01–W13 in BACKLOG), the design in `docs/design.md` and `docs/mockups/`, and rules in CLAUDE.md "Web app"
+- Later items stay parked until the web app is done, except where a W item needs one (L44 is inside W06b; L32, L33, L34, L52 are good candidates)
 - Failing-test run streak: 0
