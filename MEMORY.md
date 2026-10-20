@@ -8,7 +8,7 @@ Rewritten by every run, at most 60 lines. Only what the next run needs and canno
 - Node 22 is preinstalled: `npm i -g node@24` then `hash -r` (about a minute; 2026-10-19 run: 24.22.0 worked)
 - PostgreSQL 16: `pg_ctlcluster 16 main start`, then `su postgres -c "psql -c \"alter user postgres password 'local'\""`, then `cp .env.example .env` (gitignored)
 - Run setup commands one per Bash call; long chained commands were refused by the classifier
-- `npm ci` then `npm run db:reset` and `npm run db:seed`; baseline is 116 node tests plus 2 web (Vitest) tests
+- `npm ci` then `npm run db:reset` and `npm run db:seed`; baseline is 120 node tests plus 5 web (Vitest) tests
 - `curl` to local servers needs `--noproxy '*'` (the agent proxy answers 404 otherwise); stop servers by pid, `pkill -f` matched the calling shell and killed the call
 - Use `./node_modules/.bin/biome`, not `npx biome`: npx stalled a call for 3 minutes
 - Web deps install with `npm i -w web ...` (add `-S` for runtime deps: a first `-w` install put react as a peer only); root scripts forwarding to the workspace need a trailing `--` or npm swallows flags
@@ -31,13 +31,17 @@ Rewritten by every run, at most 60 lines. Only what the next run needs and canno
 - F10b (author to confirm, see BACKLOG Needs author): optional 8th header `installment`; optional `total` row checked against the lines; a month is importable once; import runs as actor `import` via `importMonth`
 - F11: demo is stdio only (`src/mcp/demo.ts`, `npm run mcp:demo`), reads only, pool opened with `default_transaction_read_only=on`; shared read tools live in `src/mcp/read.ts`, zod helpers in `src/mcp/schema.ts`
 - W01: no `@vitejs/plugin-react` (not on the CLAUDE.md list; Vite's built-in JSX transform, no Fast Refresh). Extra deps beyond the list: `vite` (named by W01), `@types/react`, `@types/react-dom`, `@testing-library/dom` (peer of Testing Library). Web tsconfig uses `moduleResolution: bundler`, `jsx: react-jsx`, types `vite/client` and `node`; root `tsc` still covers only `src` and `test`
-- W01 has no screen, so no screenshots; Playwright arrives in W05
+- W01 and W02 have no screen, so no screenshots; Playwright arrives in W05
+- W02: `openapi-typescript` 7 peers on TypeScript 5, so npm nested `typescript@5.9` in `web/node_modules`; root `check` therefore runs `tsc -p web` (root TypeScript 7) and the web package has no `typecheck` script. `openapi.json` and `web/src/api/schema.ts` are generated and excluded from Biome
+- W02: response schemas are `z.strictObject` of the wire shape (after `toJson`); request schemas reuse `month`, `date`, `id`, `today` from `src/mcp/schema.ts`; components are the keys of `schemas` plus `<OperationId>Body`/`<OperationId>Response` for unnamed ones; the error component is `ApiError` (a component named `Error` shadowed the global type)
+- Vitest runs in jsdom: `new URL(..., import.meta.url)` gives a jsdom URL that `fs` rejects; use `fileURLToPath(import.meta.url)` paths in web scripts
 - Commit trailers: the scheduled prompt of 2026-10-19 names Co-Authored-By Claude Opus 5.5 plus the session URL; followed for that run. Earlier runs used Haiku 5.5 (the serving model). Author to pick one
 
 ## Notes for next items
 
 - All ledger writes go through `write(client, actor, (ledger) => ...)`; it issues `begin`, so it needs a leased client (`await pool.connect()` then `release()`); nested `write()` on the same client would nest (L05). Compose inside one `write()` with `entryValues` and `ledger.create`
 - Write commands in `src/ledger/record.ts` (`createEntry`, `entryValues`, `markPaid`, `updateReserve`, `proposeDecision`, `confirmDecision`, `rejectDecision`, `withdrawDecision`); `forecastMonth` in `forecast.ts`; `importMonth` in `src/import/month.ts`
+- A new API route: declare it with `route({ method, path, operationId, summary, params, query, body, response, status }, handler)` in `src/http/api.ts`, schemas in `contract.ts`, add a sample to `test/http/openapi.test.ts`, run `npm run openapi`
 - Write tools are registered in `src/mcp/server.ts`; read tools only in `src/mcp/read.ts` (`registerReads`), so any new read tool reaches the demo automatically
 - `connectPool(url, true)` gives a read-only pool; `pg` returns `bigint` as `BigInt`, `date` as string, `timestamptz` as `Date`, `numeric` as string; `count(*)` needs `::int`
 - Seeded test DB: `testDatabase()` then `seed(db.client)` (`test/db/database.ts`); API tests use `serveApi(pool, 0, '127.0.0.1')` and `fetch`
@@ -46,7 +50,7 @@ Rewritten by every run, at most 60 lines. Only what the next run needs and canno
 
 ## Status
 
-- Tests: 116 node (the helper file stopped counting as a test, L04) plus 2 web after W01; `npm run check` green
+- Tests: 120 node plus 5 web after W02; `npm run check` green
 - 2026-10-20: the author approved the web app (W01–W13 in BACKLOG), the design in `docs/design.md` and `docs/mockups/`, and rules in CLAUDE.md "Web app". The schedule was re-enabled on Opus
 - The Later items stay parked until the web app is done, except where a W item needs one (L32 not-found 404, L33 shared JSON shape, L34 one process are good candidates)
 - Failing-test run streak: 0

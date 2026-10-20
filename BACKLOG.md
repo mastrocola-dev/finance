@@ -4,8 +4,7 @@ Ordered. The agent takes the first unblocked item under **Next**. Items marked *
 
 ## Next
 
-- **W02 API contract**: OpenAPI 3.1 document built from the existing zod schemas (`z.toJSONSchema`), served at `GET /api/openapi.json` and written to `openapi.json` by `npm run openapi`; a test fails when a route has no documented schema. Web client typed from it with `openapi-typescript` and `openapi-fetch`
-- **W03 API for the screens**: `GET /api/members`, `GET /api/goals`, `GET /api/audit` (filters author, member, entity; `limit` and `before` cursor; counts per author), `GET /api/months/:month/split` (who owes whom from joint expenses and `share_percent`), `GET /api/net-worth` (reserves and goals minus debt balances); tests; OpenAPI updated
+- **W03 API for the screens**: every new route declared with its zod schemas in `src/http/contract.ts`, a sample in `test/http/openapi.test.ts` and `npm run openapi` rerun; `GET /api/members`, `GET /api/goals`, `GET /api/audit` (filters author, member, entity; `limit` and `before` cursor; counts per author), `GET /api/months/:month/split` (who owes whom from joint expenses and `share_percent`), `GET /api/net-worth` (reserves and goals minus debt balances); tests; OpenAPI updated
 - **W04 Design system**: tokens of `docs/design.md` as CSS variables for light and dark mapped into Tailwind v4 `@theme`; shadcn/ui initialised with only the components used; Geist and Geist Mono self-hosted (`@fontsource-variable/geist`, `@fontsource-variable/geist-mono` or equivalent); BRL, date and month formatters in pt-BR with tests; theme switch (system default, stored per browser)
 - **W05 App shell**: also add `@vitejs/plugin-react` only if Fast Refresh is wanted (W01 relies on Vite's built-in JSX transform, full reload on change); TanStack Router with the six routes of `docs/design.md`; sidebar from 768 px, bottom tab bar below; month switcher and member selector in the URL; local identity picker sending `x-member`; TanStack Query client; shared loading skeleton, empty and error states; Playwright set up (see CLAUDE.md) with screenshots
 - **W06 Month overview** (`/`)
@@ -19,6 +18,9 @@ Ordered. The agent takes the first unblocked item under **Next**. Items marked *
 
 ## Later
 
+- **L41 Error responses in the contract**: every operation documents only a `default` `ApiError` response; list the statuses each route can answer (400, 401, 403, 404, 405, 413, 415, 422) if the web app needs to tell them apart by type
+- **L42 Formats in the contract**: `month` and `date` are plain strings in `src/mcp/schema.ts`, so the document and the typed client carry no `YYYY-MM`/`YYYY-MM-DD` pattern and a bad month answers `422` from the ledger instead of `400`; add `regex` (shared by MCP and HTTP) once the tests asserting `422` for `2026-13` are adjusted
+- **L43 Contract for MCP tools**: MCP tool inputs keep their own zod shapes in `src/mcp/server.ts` and `read.ts`; reuse `src/http/contract.ts` request schemas where the fields match (snake_case already shared) to avoid drift
 - **L40 Web build in CI**: `npm run check` typechecks the web app but never runs `vite build`; add `npm run web:build` to CI when L03 lands
 - **L36 Import entry point**: F10b has no API or MCP route; add one (author-only, reads the sheet from a configured path, never from request bodies) if the author wants to import from Claude
 - **L37 Replace an import**: a month imported once cannot be re-imported; a replace flow must close the import entries (nothing is deleted) and write the new ones in the same transaction
@@ -66,6 +68,7 @@ Ordered. The agent takes the first unblocked item under **Next**. Items marked *
 
 ## Done
 
+- **W02 API contract**: `src/http/contract.ts` holds the request (path, query, body) and response zod schemas; each route in `src/http/api.ts` declares them with an `operationId` and the router parses params, query and body before the handler; `src/http/openapi.ts` builds OpenAPI 3.1 with `z.toJSONSchema` (named components, `x-member` apiKey security), served at `GET /api/openapi.json` and written to `openapi.json` by `npm run openapi` (`src/http/document.ts`), which also regenerates `web/src/api/schema.ts` with `openapi-typescript` (`web/scripts/openapi-types.ts`); `createApi` in `web/src/api/client.ts` over `openapi-fetch`; tests fail on an undocumented route, a route without a sample, a response outside its strict schema or a stale document or types file; 4 node plus 3 web tests (120 node, 5 web)
 - **W01 Workspace**: root `workspaces: ["web"]`; `web/` package with React 19.3, Vite 8.3, Vitest 5 (jsdom, Testing Library), strict `tsconfig` (bundler resolution), nested `biome.json` extending the root; `/api` proxied to `127.0.0.1:${API_PORT:-3200}` in dev and preview; root `check` adds the web typecheck, root `test` runs `test/**/*.test.ts` (L04 done: `test/db/database.ts` no longer counted) then Vitest; `web:dev`, `web:build`; README section; 116 node plus 2 web tests
 
 - **F12 Proposal for ADR-008**: `docs/adr-008-proposal.md` with what was built, decisions taken, open questions for the author and the Azure stage requirements; docs only, 117 tests unchanged

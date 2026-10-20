@@ -41,6 +41,9 @@ Write tools `create_entry` (planned or already paid income or expense, member na
 - `POST /api/decisions` with `title`, optional `description` and `amount_cents`, answered `201`
 - `POST /api/decisions/:id/confirm|reject|withdraw`
 - `POST /api/months/:month/forecast`, planning the month's recurring entries once (`today`)
+- `GET /api/openapi.json`, the OpenAPI 3.1 contract of these routes
+
+The contract is built from the zod schemas the routes validate with (`src/http/contract.ts`) and committed as `openapi.json`; after changing a route run `npm run openapi`, which also regenerates the web types in `web/src/api/schema.ts`. Tests fail when a route is undocumented, answers outside its documented shape, or either file is stale.
 
 Writes need an `x-member` header naming an active member and are audited as that member; they never execute a payment. Errors are JSON `{ "error": "..." }`: `400` invalid input (with `issues`), `401` write without a member, `403` unknown member or foreign host, `404`, `405`, `413` body over 64 KiB, `415` body not JSON, `422` refused by a ledger rule, `500` without details.
 
@@ -53,4 +56,4 @@ npm run api:http
 npm run web:dev
 ```
 
-Vite serves `http://localhost:5173` and proxies `/api` to the API on `127.0.0.1:3200` (`API_PORT`), so the browser talks to one origin and no CORS is needed. `npm run web:build` writes `web/dist`. `npm test` and `npm run check` cover the API and the web app.
+Vite serves `http://localhost:5173` and proxies `/api` to the API on `127.0.0.1:3200` (`API_PORT`), so the browser talks to one origin and no CORS is needed. `npm run web:build` writes `web/dist`. `createApi` (`web/src/api/client.ts`) is the typed client (`openapi-fetch`), sending `x-member` when a member is given. `npm test` and `npm run check` cover the API and the web app.

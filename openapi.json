@@ -1,0 +1,1473 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "finance",
+    "version": "0.1.0",
+    "description": "Household finance ledger. Writes are audited as the member named in the x-member header."
+  },
+  "paths": {
+    "/api/openapi.json": {
+      "get": {
+        "operationId": "getOpenApi",
+        "summary": "This OpenAPI document",
+        "security": [
+          {},
+          {
+            "member": []
+          }
+        ],
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OpenApiDocument"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/months/{month}/summary": {
+      "get": {
+        "operationId": "getMonthSummary",
+        "summary": "Month totals compared with another month",
+        "security": [
+          {},
+          {
+            "member": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "month",
+            "in": "path",
+            "required": true,
+            "description": "Month as YYYY-MM",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "compare_with",
+            "in": "query",
+            "required": false,
+            "description": "Month to compare with; defaults to the previous month",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "today",
+            "in": "query",
+            "required": false,
+            "description": "Reference date YYYY-MM-DD for pending and late; defaults to today in America/Sao_Paulo",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Comparison"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/months/{month}/entries": {
+      "get": {
+        "operationId": "listEntries",
+        "summary": "Entries of a month with filters",
+        "security": [
+          {},
+          {
+            "member": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "month",
+            "in": "path",
+            "required": true,
+            "description": "Month as YYYY-MM",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "direction",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "income",
+                "expense"
+              ]
+            }
+          },
+          {
+            "name": "category",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "account",
+            "in": "query",
+            "required": false,
+            "description": "Account nickname",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "member",
+            "in": "query",
+            "required": false,
+            "description": "Member name or joint",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "state",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "paid",
+                "pending",
+                "late"
+              ]
+            }
+          },
+          {
+            "name": "today",
+            "in": "query",
+            "required": false,
+            "description": "Reference date YYYY-MM-DD for pending and late; defaults to today in America/Sao_Paulo",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ListEntriesResponse"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/debts": {
+      "get": {
+        "operationId": "listDebts",
+        "summary": "Active debts",
+        "security": [
+          {},
+          {
+            "member": []
+          }
+        ],
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ListDebtsResponse"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/reserves": {
+      "get": {
+        "operationId": "listReserves",
+        "summary": "Reserves with progress to target",
+        "security": [
+          {},
+          {
+            "member": []
+          }
+        ],
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ListReservesResponse"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/decisions": {
+      "get": {
+        "operationId": "listDecisions",
+        "summary": "Decisions by status, newest first",
+        "security": [
+          {},
+          {
+            "member": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "status",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "default": "proposed",
+              "type": "string",
+              "enum": [
+                "proposed",
+                "confirmed",
+                "rejected",
+                "withdrawn",
+                "all"
+              ]
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "default": 20,
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ListDecisionsResponse"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "operationId": "proposeDecision",
+        "summary": "Propose a joint decision",
+        "security": [
+          {
+            "member": []
+          }
+        ],
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ProposeDecisionBody"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Decision"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/entries": {
+      "post": {
+        "operationId": "createEntry",
+        "summary": "Record an entry",
+        "security": [
+          {
+            "member": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "today",
+            "in": "query",
+            "required": false,
+            "description": "Reference date YYYY-MM-DD for pending and late; defaults to today in America/Sao_Paulo",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateEntryBody"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Entry"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/entries/{id}/paid": {
+      "post": {
+        "operationId": "markPaid",
+        "summary": "Mark an entry as paid",
+        "security": [
+          {
+            "member": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^\\d+$"
+            }
+          },
+          {
+            "name": "today",
+            "in": "query",
+            "required": false,
+            "description": "Reference date YYYY-MM-DD for pending and late; defaults to today in America/Sao_Paulo",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MarkPaidBody"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Entry"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/reserves/{name}": {
+      "patch": {
+        "operationId": "updateReserve",
+        "summary": "Change the balance or target of a reserve",
+        "security": [
+          {
+            "member": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "name",
+            "in": "path",
+            "required": true,
+            "description": "Reserve name, percent-encoded",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateReserveBody"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Reserve"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/decisions/{id}/confirm": {
+      "post": {
+        "operationId": "confirmDecision",
+        "summary": "Confirm a proposed decision as the caller",
+        "security": [
+          {
+            "member": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^\\d+$"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Decision"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/decisions/{id}/reject": {
+      "post": {
+        "operationId": "rejectDecision",
+        "summary": "Reject a decision proposed by another member",
+        "security": [
+          {
+            "member": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^\\d+$"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Decision"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/decisions/{id}/withdraw": {
+      "post": {
+        "operationId": "withdrawDecision",
+        "summary": "Withdraw a decision the caller proposed",
+        "security": [
+          {
+            "member": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^\\d+$"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Decision"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/months/{month}/forecast": {
+      "post": {
+        "operationId": "forecastMonth",
+        "summary": "Plan the recurring entries of a month",
+        "security": [
+          {
+            "member": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "month",
+            "in": "path",
+            "required": true,
+            "description": "Month as YYYY-MM",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "today",
+            "in": "query",
+            "required": false,
+            "description": "Reference date YYYY-MM-DD for pending and late; defaults to today in America/Sao_Paulo",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Forecast"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "Money": {
+        "type": "object",
+        "properties": {
+          "cents": {
+            "type": "string",
+            "description": "Integer cents in BRL"
+          },
+          "brl": {
+            "type": "string",
+            "description": "Formatted as R$ 1.234,56"
+          }
+        },
+        "required": [
+          "cents",
+          "brl"
+        ],
+        "additionalProperties": false
+      },
+      "Entry": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^\\d+$"
+          },
+          "competence": {
+            "type": "string",
+            "description": "Date as YYYY-MM-DD"
+          },
+          "dueOn": {
+            "type": "string",
+            "description": "Date as YYYY-MM-DD"
+          },
+          "description": {
+            "type": "string"
+          },
+          "direction": {
+            "type": "string",
+            "enum": [
+              "income",
+              "expense"
+            ]
+          },
+          "amount": {
+            "$ref": "#/components/schemas/Money"
+          },
+          "category": {
+            "type": "string"
+          },
+          "account": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "member": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "planned",
+              "paid",
+              "late"
+            ]
+          },
+          "state": {
+            "type": "string",
+            "enum": [
+              "paid",
+              "pending",
+              "late"
+            ]
+          },
+          "paidOn": {
+            "anyOf": [
+              {
+                "type": "string",
+                "description": "Date as YYYY-MM-DD"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "installmentNumber": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": -9007199254740991,
+                "maximum": 9007199254740991
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "competence",
+          "dueOn",
+          "description",
+          "direction",
+          "amount",
+          "category",
+          "account",
+          "member",
+          "status",
+          "state",
+          "paidOn",
+          "installmentNumber"
+        ],
+        "additionalProperties": false
+      },
+      "CategoryTotals": {
+        "type": "object",
+        "properties": {
+          "category": {
+            "type": "string"
+          },
+          "count": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
+          "total": {
+            "$ref": "#/components/schemas/Money"
+          },
+          "paid": {
+            "$ref": "#/components/schemas/Money"
+          },
+          "pending": {
+            "$ref": "#/components/schemas/Money"
+          },
+          "late": {
+            "$ref": "#/components/schemas/Money"
+          }
+        },
+        "required": [
+          "category",
+          "count",
+          "total",
+          "paid",
+          "pending",
+          "late"
+        ],
+        "additionalProperties": false
+      },
+      "Side": {
+        "type": "object",
+        "properties": {
+          "count": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
+          "total": {
+            "$ref": "#/components/schemas/Money"
+          },
+          "paid": {
+            "$ref": "#/components/schemas/Money"
+          },
+          "pending": {
+            "$ref": "#/components/schemas/Money"
+          },
+          "late": {
+            "$ref": "#/components/schemas/Money"
+          },
+          "byCategory": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CategoryTotals"
+            }
+          }
+        },
+        "required": [
+          "count",
+          "total",
+          "paid",
+          "pending",
+          "late",
+          "byCategory"
+        ],
+        "additionalProperties": false
+      },
+      "MonthSummary": {
+        "type": "object",
+        "properties": {
+          "month": {
+            "type": "string",
+            "description": "Date as YYYY-MM-DD"
+          },
+          "today": {
+            "type": "string",
+            "description": "Date as YYYY-MM-DD"
+          },
+          "income": {
+            "$ref": "#/components/schemas/Side"
+          },
+          "expenses": {
+            "$ref": "#/components/schemas/Side"
+          },
+          "balance": {
+            "$ref": "#/components/schemas/Money"
+          }
+        },
+        "required": [
+          "month",
+          "today",
+          "income",
+          "expenses",
+          "balance"
+        ],
+        "additionalProperties": false
+      },
+      "CategoryDifference": {
+        "type": "object",
+        "properties": {
+          "category": {
+            "type": "string"
+          },
+          "month": {
+            "$ref": "#/components/schemas/Money"
+          },
+          "other": {
+            "$ref": "#/components/schemas/Money"
+          },
+          "difference": {
+            "$ref": "#/components/schemas/Money"
+          }
+        },
+        "required": [
+          "category",
+          "month",
+          "other",
+          "difference"
+        ],
+        "additionalProperties": false
+      },
+      "Comparison": {
+        "type": "object",
+        "properties": {
+          "month": {
+            "$ref": "#/components/schemas/MonthSummary"
+          },
+          "other": {
+            "$ref": "#/components/schemas/MonthSummary"
+          },
+          "difference": {
+            "type": "object",
+            "properties": {
+              "income": {
+                "$ref": "#/components/schemas/Money"
+              },
+              "expenses": {
+                "$ref": "#/components/schemas/Money"
+              },
+              "balance": {
+                "$ref": "#/components/schemas/Money"
+              },
+              "expensesByCategory": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/CategoryDifference"
+                }
+              }
+            },
+            "required": [
+              "income",
+              "expenses",
+              "balance",
+              "expensesByCategory"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "required": [
+          "month",
+          "other",
+          "difference"
+        ],
+        "additionalProperties": false
+      },
+      "Debt": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^\\d+$"
+          },
+          "creditor": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "member": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "account": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "principal": {
+            "$ref": "#/components/schemas/Money"
+          },
+          "balance": {
+            "$ref": "#/components/schemas/Money"
+          },
+          "monthlyRatePercent": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "installment": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Money"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "installmentsTotal": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": -9007199254740991,
+                "maximum": 9007199254740991
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "installmentsPaid": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
+          "installmentsRemaining": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": -9007199254740991,
+                "maximum": 9007199254740991
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "startsOn": {
+            "type": "string",
+            "description": "Date as YYYY-MM-DD"
+          }
+        },
+        "required": [
+          "id",
+          "creditor",
+          "description",
+          "member",
+          "account",
+          "principal",
+          "balance",
+          "monthlyRatePercent",
+          "installment",
+          "installmentsTotal",
+          "installmentsPaid",
+          "installmentsRemaining",
+          "startsOn"
+        ],
+        "additionalProperties": false
+      },
+      "Reserve": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^\\d+$"
+          },
+          "name": {
+            "type": "string"
+          },
+          "account": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "balance": {
+            "$ref": "#/components/schemas/Money"
+          },
+          "target": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Money"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "missing": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Money"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "progressPercent": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "account",
+          "balance",
+          "target",
+          "missing",
+          "progressPercent"
+        ],
+        "additionalProperties": false
+      },
+      "Decision": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^\\d+$"
+          },
+          "title": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "amount": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Money"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "proposed",
+              "confirmed",
+              "rejected",
+              "withdrawn"
+            ]
+          },
+          "proposedBy": {
+            "type": "string"
+          },
+          "origin": {
+            "type": "string",
+            "enum": [
+              "manual",
+              "claude"
+            ]
+          },
+          "confirmedBy": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "awaiting": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+          },
+          "closedAt": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time",
+                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "title",
+          "description",
+          "amount",
+          "status",
+          "proposedBy",
+          "origin",
+          "confirmedBy",
+          "awaiting",
+          "createdAt",
+          "closedAt"
+        ],
+        "additionalProperties": false
+      },
+      "Forecast": {
+        "type": "object",
+        "properties": {
+          "month": {
+            "type": "string",
+            "description": "Date as YYYY-MM-DD"
+          },
+          "skipped": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
+          "created": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Entry"
+            }
+          }
+        },
+        "required": [
+          "month",
+          "skipped",
+          "created"
+        ],
+        "additionalProperties": false
+      },
+      "ApiError": {
+        "type": "object",
+        "properties": {
+          "error": {
+            "type": "string"
+          },
+          "issues": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "path": {
+                  "type": "string"
+                },
+                "message": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "path",
+                "message"
+              ],
+              "additionalProperties": false
+            }
+          }
+        },
+        "required": [
+          "error"
+        ],
+        "additionalProperties": false
+      },
+      "OpenApiDocument": {
+        "type": "object",
+        "properties": {
+          "openapi": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "openapi"
+        ],
+        "additionalProperties": {}
+      },
+      "ListEntriesResponse": {
+        "type": "array",
+        "items": {
+          "$ref": "#/components/schemas/Entry"
+        }
+      },
+      "ListDebtsResponse": {
+        "type": "array",
+        "items": {
+          "$ref": "#/components/schemas/Debt"
+        }
+      },
+      "ListReservesResponse": {
+        "type": "array",
+        "items": {
+          "$ref": "#/components/schemas/Reserve"
+        }
+      },
+      "ListDecisionsResponse": {
+        "type": "array",
+        "items": {
+          "$ref": "#/components/schemas/Decision"
+        }
+      },
+      "CreateEntryBody": {
+        "type": "object",
+        "properties": {
+          "month": {
+            "type": "string",
+            "description": "Month as YYYY-MM"
+          },
+          "due_on": {
+            "type": "string",
+            "description": "Date as YYYY-MM-DD"
+          },
+          "description": {
+            "type": "string",
+            "minLength": 1
+          },
+          "direction": {
+            "type": "string",
+            "enum": [
+              "income",
+              "expense"
+            ]
+          },
+          "amount_cents": {
+            "type": "integer",
+            "exclusiveMinimum": 0,
+            "maximum": 9007199254740991
+          },
+          "category": {
+            "type": "string"
+          },
+          "account": {
+            "type": "string"
+          },
+          "member": {
+            "type": "string",
+            "description": "Member name or joint"
+          },
+          "paid_on": {
+            "type": "string",
+            "description": "Date as YYYY-MM-DD"
+          }
+        },
+        "required": [
+          "month",
+          "due_on",
+          "description",
+          "direction",
+          "amount_cents",
+          "category",
+          "member"
+        ]
+      },
+      "MarkPaidBody": {
+        "type": "object",
+        "properties": {
+          "paid_on": {
+            "type": "string",
+            "description": "Date as YYYY-MM-DD"
+          }
+        }
+      },
+      "UpdateReserveBody": {
+        "type": "object",
+        "properties": {
+          "balance_cents": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
+          "target_cents": {
+            "type": "integer",
+            "exclusiveMinimum": 0,
+            "maximum": 9007199254740991
+          }
+        }
+      },
+      "ProposeDecisionBody": {
+        "type": "object",
+        "properties": {
+          "title": {
+            "type": "string",
+            "minLength": 1
+          },
+          "description": {
+            "type": "string"
+          },
+          "amount_cents": {
+            "type": "integer",
+            "exclusiveMinimum": 0,
+            "maximum": 9007199254740991
+          }
+        },
+        "required": [
+          "title"
+        ]
+      }
+    },
+    "securitySchemes": {
+      "member": {
+        "type": "apiKey",
+        "in": "header",
+        "name": "x-member"
+      }
+    }
+  }
+}
