@@ -1,0 +1,35 @@
+{
+  "name": "finance",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=24"
+  },
+  "scripts": {
+    "db:migrate": "node --env-file-if-exists=.env src/db/migrate.ts",
+    "db:reset": "node --env-file-if-exists=.env src/db/reset.ts",
+    "db:seed": "node --env-file-if-exists=.env src/db/seed.ts",
+    "api:http": "node --env-file-if-exists=.env src/http/api.ts",
+    "mcp:http": "node --env-file-if-exists=.env src/mcp/http.ts",
+    "mcp:stdio": "node --env-file-if-exists=.env src/mcp/stdio.ts",
+    "mcp:demo": "node --env-file-if-exists=.env src/mcp/demo.ts",
+    "typecheck": "tsc",
+    "check": "biome ci && tsc",
+    "fix": "biome check --write",
+    "test": "node --env-file-if-exists=.env --test",
+    "test:coverage": "node --env-file-if-exists=.env --test --experimental-test-coverage --test-coverage-exclude='test/**' 'test/**/*.test.ts'"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "2.5.14",
+    "@modelcontextprotocol/client": "^2.3.1",
+    "@types/node": "^24.19.0",
+    "@types/pg": "^8.23.1",
+    "typescript": "^7.0.2"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/server": "^2.3.1",
+    "pg": "^8.23.1",
+    "read-excel-file": "9.3.12",
+    "zod": "^4.6.7"
+  }
+}
