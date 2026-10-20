@@ -9,3 +9,5 @@ const query = `
 `
 
 export const findMember = async (client: Queryable, name: string): Promise<Member | undefined> => (await client.query<Member>(query, [name.trim()])).rows[0]
+
+export const listMembers = async (client: Queryable) => (await client.query<Member>('select id, name, share_percent as "sharePercent" from member where closed_at is null order by id')).rows

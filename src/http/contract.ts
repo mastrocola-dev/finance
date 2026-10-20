@@ -1,4 +1,5 @@
 import * as z from 'zod'
+import { authors } from '../ledger/audit.ts'
 import { statuses } from '../ledger/decisions.ts'
 import { states } from '../ledger/entries.ts'
 import { date, id, month, today } from '../mcp/schema.ts'
@@ -26,6 +27,14 @@ export const entryQuery = z.object({
 export const decisionQuery = z.object({
   status: z.enum([...statuses, 'all']).default('proposed'),
   limit: z.coerce.number().int().min(1).max(100).default(20),
+})
+
+export const auditQuery = z.object({
+  author: z.enum(authors).optional(),
+  member: z.string().optional().describe('Member name'),
+  entity: z.string().optional().describe('Table name such as entry or decision'),
+  before: id.optional().describe('Cursor: the next value of the previous page'),
+  limit: z.coerce.number().int().min(1).max(200).default(50),
 })
 
 export const newEntry = z.object({
@@ -120,10 +129,69 @@ const decision = z.strictObject({
   closedAt: z.iso.datetime().nullable(),
 })
 
+const member = z.strictObject({ id, name: z.string(), sharePercent: z.int() })
+
+const goal = z.strictObject({
+  id,
+  name: z.string(),
+  reserve: z.string().nullable(),
+  target: money,
+  saved: money,
+  missing: money,
+  progressPercent: z.string(),
+  dueOn: date.nullable(),
+})
+
+const auditItem = z.strictObject({
+  id,
+  at: z.iso.datetime(),
+  author: z.enum(authors),
+  member: z.string().nullable(),
+  entity: z.string(),
+  entityId: z.string().nullable(),
+  action: z.enum(['create', 'update', 'close']),
+  before: z.record(z.string(), z.unknown()).nullable(),
+  after: z.record(z.string(), z.unknown()).nullable(),
+})
+
+const auditPage = z.strictObject({
+  items: z.array(auditItem),
+  counts: z.strictObject(Object.fromEntries(authors.map((name) => [name, z.int()])) as Record<(typeof authors)[number], z.ZodInt>),
+  next: id.nullable().describe('Pass as before to read the next page'),
+})
+
+const part = z.strictObject({ name: z.string(), sharePercent: z.int(), paid: money, share: money, balance: money.describe('Paid minus share; negative owes') })
+const transfer = z.strictObject({ from: z.string(), to: z.string(), amount: money })
+const split = z.strictObject({ month: date, total: money.describe('Joint expenses paid from member accounts'), members: z.array(part), transfers: z.array(transfer) })
+
+const netWorth = z.strictObject({ reserves: money, goals: money.describe('Goals not kept in a reserve'), debts: money, netWorth: money })
+
 const forecast = z.strictObject({ month: date, skipped: z.int(), created: z.array(entry) })
 
 const error = z.strictObject({ error: z.string(), issues: z.array(z.strictObject({ path: z.string(), message: z.string() })).optional() })
 
 const document = z.looseObject({ openapi: z.string() })
 
-export const schemas = { Money: money, Entry: entry, CategoryTotals: categoryTotals, Side: side, MonthSummary: monthSummary, CategoryDifference: categoryDifference, Comparison: comparison, Debt: debt, Reserve: reserve, Decision: decision, Forecast: forecast, ApiError: error, OpenApiDocument: document }
+export const schemas = {
+  Money: money,
+  Entry: entry,
+  CategoryTotals: categoryTotals,
+  Side: side,
+  MonthSummary: monthSummary,
+  CategoryDifference: categoryDifference,
+  Comparison: comparison,
+  Debt: debt,
+  Reserve: reserve,
+  Decision: decision,
+  Forecast: forecast,
+  Member: member,
+  Goal: goal,
+  AuditItem: auditItem,
+  AuditPage: auditPage,
+  SplitPart: part,
+  Transfer: transfer,
+  Split: split,
+  NetWorth: netWorth,
+  ApiError: error,
+  OpenApiDocument: document,
+}

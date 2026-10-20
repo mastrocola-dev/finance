@@ -102,6 +102,91 @@ export type paths = {
         patch?: never;
         trace?: never;
     };
+    "/api/members": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Active members with their share of joint expenses */
+        get: operations["listMembers"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/goals": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Goals with progress, nearest due first */
+        get: operations["listGoals"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/net-worth": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Reserves and goals minus debt balances */
+        get: operations["getNetWorth"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/months/{month}/split": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Who owes whom from joint expenses paid from member accounts */
+        get: operations["getMonthSplit"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/audit": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Audit log, newest first, with counts per author */
+        get: operations["listAudit"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/entries": {
         parameters: {
             query?: never;
@@ -339,6 +424,78 @@ export type components = {
             skipped: number;
             created: components["schemas"]["Entry"][];
         };
+        Member: {
+            id: string;
+            name: string;
+            sharePercent: number;
+        };
+        Goal: {
+            id: string;
+            name: string;
+            reserve: string | null;
+            target: components["schemas"]["Money"];
+            saved: components["schemas"]["Money"];
+            missing: components["schemas"]["Money"];
+            progressPercent: string;
+            dueOn: string | null;
+        };
+        AuditItem: {
+            id: string;
+            /** Format: date-time */
+            at: string;
+            /** @enum {string} */
+            author: "member" | "claude" | "import" | "system";
+            member: string | null;
+            entity: string;
+            entityId: string | null;
+            /** @enum {string} */
+            action: "create" | "update" | "close";
+            before: {
+                [key: string]: unknown;
+            } | null;
+            after: {
+                [key: string]: unknown;
+            } | null;
+        };
+        AuditPage: {
+            items: components["schemas"]["AuditItem"][];
+            counts: {
+                member: number;
+                claude: number;
+                import: number;
+                system: number;
+            };
+            /** @description Pass as before to read the next page */
+            next: string | null;
+        };
+        SplitPart: {
+            name: string;
+            sharePercent: number;
+            paid: components["schemas"]["Money"];
+            share: components["schemas"]["Money"];
+            /** @description Paid minus share; negative owes */
+            balance: components["schemas"]["Money"];
+        };
+        Transfer: {
+            from: string;
+            to: string;
+            amount: components["schemas"]["Money"];
+        };
+        Split: {
+            /** @description Date as YYYY-MM-DD */
+            month: string;
+            /** @description Joint expenses paid from member accounts */
+            total: components["schemas"]["Money"];
+            members: components["schemas"]["SplitPart"][];
+            transfers: components["schemas"]["Transfer"][];
+        };
+        NetWorth: {
+            reserves: components["schemas"]["Money"];
+            /** @description Goals not kept in a reserve */
+            goals: components["schemas"]["Money"];
+            debts: components["schemas"]["Money"];
+            netWorth: components["schemas"]["Money"];
+        };
         ApiError: {
             error: string;
             issues?: {
@@ -355,6 +512,8 @@ export type components = {
         ListDebtsResponse: components["schemas"]["Debt"][];
         ListReservesResponse: components["schemas"]["Reserve"][];
         ListDecisionsResponse: components["schemas"]["Decision"][];
+        ListMembersResponse: components["schemas"]["Member"][];
+        ListGoalsResponse: components["schemas"]["Goal"][];
         CreateEntryBody: {
             /** @description Month as YYYY-MM */
             month: string;
@@ -402,12 +561,22 @@ export type Debt = components['schemas']['Debt'];
 export type Reserve = components['schemas']['Reserve'];
 export type Decision = components['schemas']['Decision'];
 export type Forecast = components['schemas']['Forecast'];
+export type Member = components['schemas']['Member'];
+export type Goal = components['schemas']['Goal'];
+export type AuditItem = components['schemas']['AuditItem'];
+export type AuditPage = components['schemas']['AuditPage'];
+export type SplitPart = components['schemas']['SplitPart'];
+export type Transfer = components['schemas']['Transfer'];
+export type Split = components['schemas']['Split'];
+export type NetWorth = components['schemas']['NetWorth'];
 export type ApiError = components['schemas']['ApiError'];
 export type OpenApiDocument = components['schemas']['OpenApiDocument'];
 export type ListEntriesResponse = components['schemas']['ListEntriesResponse'];
 export type ListDebtsResponse = components['schemas']['ListDebtsResponse'];
 export type ListReservesResponse = components['schemas']['ListReservesResponse'];
 export type ListDecisionsResponse = components['schemas']['ListDecisionsResponse'];
+export type ListMembersResponse = components['schemas']['ListMembersResponse'];
+export type ListGoalsResponse = components['schemas']['ListGoalsResponse'];
 export type CreateEntryBody = components['schemas']['CreateEntryBody'];
 export type MarkPaidBody = components['schemas']['MarkPaidBody'];
 export type UpdateReserveBody = components['schemas']['UpdateReserveBody'];
@@ -632,6 +801,163 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["Decision"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+        };
+    };
+    listMembers: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ListMembersResponse"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+        };
+    };
+    listGoals: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ListGoalsResponse"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+        };
+    };
+    getNetWorth: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["NetWorth"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+        };
+    };
+    getMonthSplit: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Month as YYYY-MM */
+                month: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Split"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+        };
+    };
+    listAudit: {
+        parameters: {
+            query?: {
+                author?: "member" | "claude" | "import" | "system";
+                /** @description Member name */
+                member?: string;
+                /** @description Table name such as entry or decision */
+                entity?: string;
+                /** @description Cursor: the next value of the previous page */
+                before?: string;
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AuditPage"];
                 };
             };
             /** @description Error */

@@ -8,7 +8,7 @@ Rewritten by every run, at most 60 lines. Only what the next run needs and canno
 - Node 22 is preinstalled: `npm i -g node@24` then `hash -r` (about a minute; 2026-10-19 run: 24.22.0 worked)
 - PostgreSQL 16: `pg_ctlcluster 16 main start`, then `su postgres -c "psql -c \"alter user postgres password 'local'\""`, then `cp .env.example .env` (gitignored)
 - Run setup commands one per Bash call; long chained commands were refused by the classifier
-- `npm ci` then `npm run db:reset` and `npm run db:seed`; baseline is 120 node tests plus 5 web (Vitest) tests
+- `npm ci` then `npm run db:reset` and `npm run db:seed`; baseline is 130 node tests plus 5 web (Vitest) tests
 - `curl` to local servers needs `--noproxy '*'` (the agent proxy answers 404 otherwise); stop servers by pid, `pkill -f` matched the calling shell and killed the call
 - Use `./node_modules/.bin/biome`, not `npx biome`: npx stalled a call for 3 minutes
 - Web deps install with `npm i -w web ...` (add `-S` for runtime deps: a first `-w` install put react as a peer only); root scripts forwarding to the workspace need a trailing `--` or npm swallows flags
@@ -36,7 +36,8 @@ Rewritten by every run, at most 60 lines. Only what the next run needs and canno
 - Check exit codes from a log file, never through `| tail`: the 2026-10-20 W02 run pushed with `biome ci` red behind a pipe and needed a second fix commit
 - W02: response schemas are `z.strictObject` of the wire shape (after `toJson`); request schemas reuse `month`, `date`, `id`, `today` from `src/mcp/schema.ts`; components are the keys of `schemas` plus `<OperationId>Body`/`<OperationId>Response` for unnamed ones; the error component is `ApiError` (a component named `Error` shadowed the global type)
 - Vitest runs in jsdom: `new URL(..., import.meta.url)` gives a jsdom URL that `fs` rejects; use `fileURLToPath(import.meta.url)` paths in web scripts
-- Commit trailers: the scheduled prompt of 2026-10-19 names Co-Authored-By Claude Opus 5.5 plus the session URL; followed for that run. Earlier runs used Haiku 5.5 (the serving model). Author to pick one
+- W03: settlement counts only paid joint expenses on member-owned accounts (Needs author); the seed has none, so split is empty over the seed (L44). Audit `next` is a string cursor (bigint would become money via `toJson`); counts ignore the author filter and cursor so filter chips keep their numbers
+- Commit trailer: Co-Authored-By Claude Opus 5.5 (named by the scheduled prompt)
 
 ## Notes for next items
 
@@ -45,13 +46,14 @@ Rewritten by every run, at most 60 lines. Only what the next run needs and canno
 - A new API route: declare it with `route({ method, path, operationId, summary, params, query, body, response, status }, handler)` in `src/http/api.ts`, schemas in `contract.ts`, add a sample to `test/http/openapi.test.ts`, run `npm run openapi`
 - Write tools are registered in `src/mcp/server.ts`; read tools only in `src/mcp/read.ts` (`registerReads`), so any new read tool reaches the demo automatically
 - `connectPool(url, true)` gives a read-only pool; `pg` returns `bigint` as `BigInt`, `date` as string, `timestamptz` as `Date`, `numeric` as string; `count(*)` needs `::int`
+- New read model: put the query in `src/ledger/<name>.ts`, cast sums `::bigint` (else numeric string) and non-money bigints `::text`
 - Seeded test DB: `testDatabase()` then `seed(db.client)` (`test/db/database.ts`); API tests use `serveApi(pool, 0, '127.0.0.1')` and `fetch`
 - API tests change the seeded reserve balance (test order matters)
 - `formatBrl` (src/ledger/money.ts) renders messages as `R$ 59,00`
 
 ## Status
 
-- Tests: 120 node plus 5 web after W02; `npm run check` green
+- Tests: 130 node plus 5 web after W03; `npm run check` green
 - 2026-10-20: the author approved the web app (W01–W13 in BACKLOG), the design in `docs/design.md` and `docs/mockups/`, and rules in CLAUDE.md "Web app". The schedule was re-enabled on Opus
 - The Later items stay parked until the web app is done, except where a W item needs one (L32 not-found 404, L33 shared JSON shape, L34 one process are good candidates)
 - Failing-test run streak: 0

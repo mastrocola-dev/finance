@@ -4,10 +4,9 @@ Ordered. The agent takes the first unblocked item under **Next**. Items marked *
 
 ## Next
 
-- **W03 API for the screens**: every new route declared with its zod schemas in `src/http/contract.ts`, a sample in `test/http/openapi.test.ts` and `npm run openapi` rerun; `GET /api/members`, `GET /api/goals`, `GET /api/audit` (filters author, member, entity; `limit` and `before` cursor; counts per author), `GET /api/months/:month/split` (who owes whom from joint expenses and `share_percent`), `GET /api/net-worth` (reserves and goals minus debt balances); tests; OpenAPI updated
 - **W04 Design system**: tokens of `docs/design.md` as CSS variables for light and dark mapped into Tailwind v4 `@theme`; shadcn/ui initialised with only the components used; Geist and Geist Mono self-hosted (`@fontsource-variable/geist`, `@fontsource-variable/geist-mono` or equivalent); BRL, date and month formatters in pt-BR with tests; theme switch (system default, stored per browser)
 - **W05 App shell**: also add `@vitejs/plugin-react` only if Fast Refresh is wanted (W01 relies on Vite's built-in JSX transform, full reload on change); TanStack Router with the six routes of `docs/design.md`; sidebar from 768 px, bottom tab bar below; month switcher and member selector in the URL; local identity picker sending `x-member`; TanStack Query client; shared loading skeleton, empty and error states; Playwright set up (see CLAUDE.md) with screenshots
-- **W06 Month overview** (`/`)
+- **W06 Month overview** (`/`): the seed has no joint expense paid from a member account, so the couple settlement is always empty; take L44 first or within this item
 - **W07 Bills checklist** (`/contas`): optimistic mark-paid with rollback on error and an undo toast
 - **W08 Entries** (`/lancamentos`): quick add with react-hook-form and the API's zod rules, search, filters, table, totals
 - **W09 Net worth** (`/patrimonio`): debts, reserves, goals
@@ -18,6 +17,10 @@ Ordered. The agent takes the first unblocked item under **Next**. Items marked *
 
 ## Later
 
+- **L44 Seed settlement**: add one or two paid joint expenses on a member's account to the seed (e.g. joint Pharmacy on `Marcio card`) so `GET /api/months/:month/split` and the overview show a real settlement; adjust the seed counts and totals asserted in tests
+- **L45 Audit snapshot**: `listAudit` reads the page and the counts with two queries over the pool; a write between them can make counts disagree with the page (same as L16)
+- **L46 Audit exposure**: `GET /api/audit` returns whole before/after rows to any local caller, with or without `x-member`; restrict columns or require a member before L17 exposes the API beyond loopback
+- **L47 Audit entity names**: the `entity` filter takes table names (`entry`, `decision_confirmation`); expose the list (enum in the contract) once the Activity screen needs a picker
 - **L41 Error responses in the contract**: every operation documents only a `default` `ApiError` response; list the statuses each route can answer (400, 401, 403, 404, 405, 413, 415, 422) if the web app needs to tell them apart by type
 - **L42 Formats in the contract**: `month` and `date` are plain strings in `src/mcp/schema.ts`, so the document and the typed client carry no `YYYY-MM`/`YYYY-MM-DD` pattern and a bad month answers `422` from the ledger instead of `400`; add `regex` (shared by MCP and HTTP) once the tests asserting `422` for `2026-13` are adjusted
 - **L43 Contract for MCP tools**: MCP tool inputs keep their own zod shapes in `src/mcp/server.ts` and `read.ts`; reuse `src/http/contract.ts` request schemas where the fields match (snake_case already shared) to avoid drift
@@ -64,10 +67,12 @@ Ordered. The agent takes the first unblocked item under **Next**. Items marked *
 
 ## Needs author
 
+- **W03 settlement rule** (built as default, not blocking): only joint expenses (no member) with status `paid` count, and only when paid from an account owned by a member; joint expenses paid from a joint account are already shared and count for nobody; leftover cents of the share go to members in id order. Confirm or change
 - **F10b layout choices**: built as the default: the installment column is optional (8th header cell, fixed lines only); a `total` row (kind `total`, amount = income minus expenses of the sheet) is checked against the lines when present; a month can be imported once (refused when it already holds import entries). Confirm these before F10c or any replace flow
 
 ## Done
 
+- **W03 API for the screens**: `GET /api/members`, `GET /api/goals` (progress, missing, nearest due first), `GET /api/net-worth` (reserves plus goals outside a reserve minus debt balances), `GET /api/months/:month/split` (`src/ledger/split.ts`: paid joint expenses by payer account owner, shares by `share_percent`, greedy transfers) and `GET /api/audit` (`src/ledger/audit.ts`: filters author, member, entity; `limit` 1–200, default 50; `before` id cursor with `next`; counts per author ignoring the author filter and cursor); schemas in `contract.ts`, samples in the OpenAPI test, `openapi.json` and web types regenerated, README routes; 10 new node tests (130 node, 5 web)
 - **W02 API contract**: `src/http/contract.ts` holds the request (path, query, body) and response zod schemas; each route in `src/http/api.ts` declares them with an `operationId` and the router parses params, query and body before the handler; `src/http/openapi.ts` builds OpenAPI 3.1 with `z.toJSONSchema` (named components, `x-member` apiKey security), served at `GET /api/openapi.json` and written to `openapi.json` by `npm run openapi` (`src/http/document.ts`), which also regenerates `web/src/api/schema.ts` with `openapi-typescript` (`web/scripts/openapi-types.ts`); `createApi` in `web/src/api/client.ts` over `openapi-fetch`; tests fail on an undocumented route, a route without a sample, a response outside its strict schema or a stale document or types file; 4 node plus 3 web tests (120 node, 5 web)
 - **W01 Workspace**: root `workspaces: ["web"]`; `web/` package with React 19.3, Vite 8.3, Vitest 5 (jsdom, Testing Library), strict `tsconfig` (bundler resolution), nested `biome.json` extending the root; `/api` proxied to `127.0.0.1:${API_PORT:-3200}` in dev and preview; root `check` adds the web typecheck, root `test` runs `test/**/*.test.ts` (L04 done: `test/db/database.ts` no longer counted) then Vitest; `web:dev`, `web:build`; README section; 116 node plus 2 web tests
 

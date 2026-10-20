@@ -3,18 +3,22 @@ import type { PoolClient } from 'pg'
 import * as z from 'zod'
 import { connectPool, type Database } from '../db/connection.ts'
 import type { Actor } from '../db/write.ts'
+import { listAudit } from '../ledger/audit.ts'
 import { listDebts } from '../ledger/debts.ts'
 import { findDecision, listDecisions } from '../ledger/decisions.ts'
 import { findEntry, listEntries } from '../ledger/entries.ts'
 import { forecastMonth } from '../ledger/forecast.ts'
-import { findMember, type Member } from '../ledger/members.ts'
+import { listGoals } from '../ledger/goals.ts'
+import { findMember, listMembers, type Member } from '../ledger/members.ts'
 import { confirmDecision, createEntry, markPaid, proposeDecision, rejectDecision, updateReserve, withdrawDecision } from '../ledger/record.ts'
 import { findReserve, listReserves } from '../ledger/reserves.ts'
 import { RuleError } from '../ledger/rule.ts'
+import { monthSplit } from '../ledger/split.ts'
 import { compareMonths } from '../ledger/summary.ts'
+import { netWorth } from '../ledger/worth.ts'
 import { toJson } from '../mcp/json.ts'
 import { HttpError, readJson } from './body.ts'
-import { decisionQuery, entryQuery, idPath, memberHeader, monthPath, namePath, newDecision, newEntry, payment, referenceQuery, reserveChanges, schemas, summaryQuery } from './contract.ts'
+import { auditQuery, decisionQuery, entryQuery, idPath, memberHeader, monthPath, namePath, newDecision, newEntry, payment, referenceQuery, reserveChanges, schemas, summaryQuery } from './contract.ts'
 import { listen } from './node.ts'
 import { openApi } from './openapi.ts'
 
@@ -55,6 +59,11 @@ export const routes: Route[] = [
   route({ method: 'GET', path: '/debts', operationId: 'listDebts', summary: 'Active debts', response: z.array(schemas.Debt) }, ({ client }) => listDebts(client)),
   route({ method: 'GET', path: '/reserves', operationId: 'listReserves', summary: 'Reserves with progress to target', response: z.array(schemas.Reserve) }, ({ client }) => listReserves(client)),
   route({ method: 'GET', path: '/decisions', operationId: 'listDecisions', summary: 'Decisions by status, newest first', query: decisionQuery, response: z.array(schemas.Decision) }, ({ client, query }) => listDecisions(client, query.status, query.limit)),
+  route({ method: 'GET', path: '/members', operationId: 'listMembers', summary: 'Active members with their share of joint expenses', response: z.array(schemas.Member) }, ({ client }) => listMembers(client)),
+  route({ method: 'GET', path: '/goals', operationId: 'listGoals', summary: 'Goals with progress, nearest due first', response: z.array(schemas.Goal) }, ({ client }) => listGoals(client)),
+  route({ method: 'GET', path: '/net-worth', operationId: 'getNetWorth', summary: 'Reserves and goals minus debt balances', response: schemas.NetWorth }, ({ client }) => netWorth(client)),
+  route({ method: 'GET', path: '/months/:month/split', operationId: 'getMonthSplit', summary: 'Who owes whom from joint expenses paid from member accounts', params: monthPath, response: schemas.Split }, ({ client, params }) => monthSplit(client, params.month)),
+  route({ method: 'GET', path: '/audit', operationId: 'listAudit', summary: 'Audit log, newest first, with counts per author', query: auditQuery, response: schemas.AuditPage }, ({ client, query: { before, ...filter } }) => listAudit(client, { ...filter, before: before === undefined ? undefined : BigInt(before) })),
   route({ method: 'POST', path: '/entries', operationId: 'createEntry', summary: 'Record an entry', query: referenceQuery, body: newEntry, response: schemas.Entry, status: 201 }, async (input) => {
     const { body } = input
     const created = await writing(input, (connection, actor) =>

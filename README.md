@@ -35,6 +35,9 @@ Write tools `create_entry` (planned or already paid income or expense, member na
 - `GET /api/months/:month/summary` (`compare_with`, `today`)
 - `GET /api/months/:month/entries` (`direction`, `category`, `account`, `member`, `state`, `today`)
 - `GET /api/debts`, `GET /api/reserves`, `GET /api/decisions` (`status`, `limit`)
+- `GET /api/members`, `GET /api/goals`, `GET /api/net-worth` (reserves plus goals kept outside a reserve, minus debt balances)
+- `GET /api/months/:month/split`: joint expenses paid from a member's account, each member's share by `share_percent`, and who owes whom
+- `GET /api/audit` (`author`, `member`, `entity`, `limit`, `before` cursor from `next`), newest first with counts per author
 - `POST /api/entries` with the `create_entry` fields, answered `201`
 - `POST /api/entries/:id/paid` with an optional `paid_on`
 - `PATCH /api/reserves/:name` with `balance_cents` and/or `target_cents`

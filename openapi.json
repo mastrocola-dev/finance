@@ -384,6 +384,245 @@
         }
       }
     },
+    "/api/members": {
+      "get": {
+        "operationId": "listMembers",
+        "summary": "Active members with their share of joint expenses",
+        "security": [
+          {},
+          {
+            "member": []
+          }
+        ],
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ListMembersResponse"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/goals": {
+      "get": {
+        "operationId": "listGoals",
+        "summary": "Goals with progress, nearest due first",
+        "security": [
+          {},
+          {
+            "member": []
+          }
+        ],
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ListGoalsResponse"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/net-worth": {
+      "get": {
+        "operationId": "getNetWorth",
+        "summary": "Reserves and goals minus debt balances",
+        "security": [
+          {},
+          {
+            "member": []
+          }
+        ],
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NetWorth"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/months/{month}/split": {
+      "get": {
+        "operationId": "getMonthSplit",
+        "summary": "Who owes whom from joint expenses paid from member accounts",
+        "security": [
+          {},
+          {
+            "member": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "month",
+            "in": "path",
+            "required": true,
+            "description": "Month as YYYY-MM",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Split"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/audit": {
+      "get": {
+        "operationId": "listAudit",
+        "summary": "Audit log, newest first, with counts per author",
+        "security": [
+          {},
+          {
+            "member": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "author",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "member",
+                "claude",
+                "import",
+                "system"
+              ]
+            }
+          },
+          {
+            "name": "member",
+            "in": "query",
+            "required": false,
+            "description": "Member name",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "entity",
+            "in": "query",
+            "required": false,
+            "description": "Table name such as entry or decision",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "before",
+            "in": "query",
+            "required": false,
+            "description": "Cursor: the next value of the previous page",
+            "schema": {
+              "type": "string",
+              "pattern": "^\\d+$"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "default": 50,
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 200
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AuditPage"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/entries": {
       "post": {
         "operationId": "createEntry",
@@ -1298,6 +1537,336 @@
         ],
         "additionalProperties": false
       },
+      "Member": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^\\d+$"
+          },
+          "name": {
+            "type": "string"
+          },
+          "sharePercent": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "sharePercent"
+        ],
+        "additionalProperties": false
+      },
+      "Goal": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^\\d+$"
+          },
+          "name": {
+            "type": "string"
+          },
+          "reserve": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "target": {
+            "$ref": "#/components/schemas/Money"
+          },
+          "saved": {
+            "$ref": "#/components/schemas/Money"
+          },
+          "missing": {
+            "$ref": "#/components/schemas/Money"
+          },
+          "progressPercent": {
+            "type": "string"
+          },
+          "dueOn": {
+            "anyOf": [
+              {
+                "type": "string",
+                "description": "Date as YYYY-MM-DD"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "reserve",
+          "target",
+          "saved",
+          "missing",
+          "progressPercent",
+          "dueOn"
+        ],
+        "additionalProperties": false
+      },
+      "AuditItem": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^\\d+$"
+          },
+          "at": {
+            "type": "string",
+            "format": "date-time",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+          },
+          "author": {
+            "type": "string",
+            "enum": [
+              "member",
+              "claude",
+              "import",
+              "system"
+            ]
+          },
+          "member": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "entity": {
+            "type": "string"
+          },
+          "entityId": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "action": {
+            "type": "string",
+            "enum": [
+              "create",
+              "update",
+              "close"
+            ]
+          },
+          "before": {
+            "anyOf": [
+              {
+                "type": "object",
+                "propertyNames": {
+                  "type": "string"
+                },
+                "additionalProperties": {}
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "after": {
+            "anyOf": [
+              {
+                "type": "object",
+                "propertyNames": {
+                  "type": "string"
+                },
+                "additionalProperties": {}
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "at",
+          "author",
+          "member",
+          "entity",
+          "entityId",
+          "action",
+          "before",
+          "after"
+        ],
+        "additionalProperties": false
+      },
+      "AuditPage": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AuditItem"
+            }
+          },
+          "counts": {
+            "type": "object",
+            "properties": {
+              "member": {
+                "type": "integer",
+                "minimum": -9007199254740991,
+                "maximum": 9007199254740991
+              },
+              "claude": {
+                "type": "integer",
+                "minimum": -9007199254740991,
+                "maximum": 9007199254740991
+              },
+              "import": {
+                "type": "integer",
+                "minimum": -9007199254740991,
+                "maximum": 9007199254740991
+              },
+              "system": {
+                "type": "integer",
+                "minimum": -9007199254740991,
+                "maximum": 9007199254740991
+              }
+            },
+            "required": [
+              "member",
+              "claude",
+              "import",
+              "system"
+            ],
+            "additionalProperties": false
+          },
+          "next": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^\\d+$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Pass as before to read the next page"
+          }
+        },
+        "required": [
+          "items",
+          "counts",
+          "next"
+        ],
+        "additionalProperties": false
+      },
+      "SplitPart": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "sharePercent": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
+          "paid": {
+            "$ref": "#/components/schemas/Money"
+          },
+          "share": {
+            "$ref": "#/components/schemas/Money"
+          },
+          "balance": {
+            "description": "Paid minus share; negative owes",
+            "$ref": "#/components/schemas/Money"
+          }
+        },
+        "required": [
+          "name",
+          "sharePercent",
+          "paid",
+          "share",
+          "balance"
+        ],
+        "additionalProperties": false
+      },
+      "Transfer": {
+        "type": "object",
+        "properties": {
+          "from": {
+            "type": "string"
+          },
+          "to": {
+            "type": "string"
+          },
+          "amount": {
+            "$ref": "#/components/schemas/Money"
+          }
+        },
+        "required": [
+          "from",
+          "to",
+          "amount"
+        ],
+        "additionalProperties": false
+      },
+      "Split": {
+        "type": "object",
+        "properties": {
+          "month": {
+            "type": "string",
+            "description": "Date as YYYY-MM-DD"
+          },
+          "total": {
+            "description": "Joint expenses paid from member accounts",
+            "$ref": "#/components/schemas/Money"
+          },
+          "members": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SplitPart"
+            }
+          },
+          "transfers": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Transfer"
+            }
+          }
+        },
+        "required": [
+          "month",
+          "total",
+          "members",
+          "transfers"
+        ],
+        "additionalProperties": false
+      },
+      "NetWorth": {
+        "type": "object",
+        "properties": {
+          "reserves": {
+            "$ref": "#/components/schemas/Money"
+          },
+          "goals": {
+            "description": "Goals not kept in a reserve",
+            "$ref": "#/components/schemas/Money"
+          },
+          "debts": {
+            "$ref": "#/components/schemas/Money"
+          },
+          "netWorth": {
+            "$ref": "#/components/schemas/Money"
+          }
+        },
+        "required": [
+          "reserves",
+          "goals",
+          "debts",
+          "netWorth"
+        ],
+        "additionalProperties": false
+      },
       "ApiError": {
         "type": "object",
         "properties": {
@@ -1363,6 +1932,18 @@
         "type": "array",
         "items": {
           "$ref": "#/components/schemas/Decision"
+        }
+      },
+      "ListMembersResponse": {
+        "type": "array",
+        "items": {
+          "$ref": "#/components/schemas/Member"
+        }
+      },
+      "ListGoalsResponse": {
+        "type": "array",
+        "items": {
+          "$ref": "#/components/schemas/Goal"
         }
       },
       "CreateEntryBody": {
