@@ -60,3 +60,5 @@ npm run web:dev
 ```
 
 Vite serves `http://localhost:5173` and proxies `/api` to the API on `127.0.0.1:3200` (`API_PORT`), so the browser talks to one origin and no CORS is needed. `npm run web:build` writes `web/dist`. `createApi` (`web/src/api/client.ts`) is the typed client (`openapi-fetch`), sending `x-member` when a member is given. `npm test` and `npm run check` cover the API and the web app.
+
+The design tokens of `docs/design.md` live in `web/src/styles.css` as CSS variables for light and dark, mapped into Tailwind v4 `@theme` (`bg-surface`, `text-muted`, `rounded-card`, `text-kpi`, the `amount` utility for tabular Geist Mono). Geist and Geist Mono are self-hosted from `@fontsource-variable`. The theme follows the system until a choice is stored in the browser (`finance.theme`). pt-BR formatters for money, dates and months are in `web/src/lib/format.ts`.

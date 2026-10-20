@@ -4,5 +4,10 @@
   "extends": "//",
   "files": {
     "includes": ["**", "!src/api/schema.ts"]
+  },
+  "css": {
+    "parser": {
+      "tailwindDirectives": true
+    }
   }
 }
