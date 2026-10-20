@@ -43,3 +43,14 @@ Write tools `create_entry` (planned or already paid income or expense, member na
 - `POST /api/months/:month/forecast`, planning the month's recurring entries once (`today`)
 
 Writes need an `x-member` header naming an active member and are audited as that member; they never execute a payment. Errors are JSON `{ "error": "..." }`: `400` invalid input (with `issues`), `401` write without a member, `403` unknown member or foreign host, `404`, `405`, `413` body over 64 KiB, `415` body not JSON, `422` refused by a ledger rule, `500` without details.
+
+## Web app
+
+`web/` is an npm workspace with the React 19 app (Vite, TypeScript strict, Vitest). Run the API and the web dev server side by side:
+
+```sh
+npm run api:http
+npm run web:dev
+```
+
+Vite serves `http://localhost:5173` and proxies `/api` to the API on `127.0.0.1:3200` (`API_PORT`), so the browser talks to one origin and no CORS is needed. `npm run web:build` writes `web/dist`. `npm test` and `npm run check` cover the API and the web app.

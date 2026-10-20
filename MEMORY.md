@@ -8,8 +8,10 @@ Rewritten by every run, at most 60 lines. Only what the next run needs and canno
 - Node 22 is preinstalled: `npm i -g node@24` then `hash -r` (about a minute; 2026-10-19 run: 24.22.0 worked)
 - PostgreSQL 16: `pg_ctlcluster 16 main start`, then `su postgres -c "psql -c \"alter user postgres password 'local'\""`, then `cp .env.example .env` (gitignored)
 - Run setup commands one per Bash call; long chained commands were refused by the classifier
-- `npm ci` then `npm run db:reset` and `npm run db:seed`; baseline is 117 tests passing
+- `npm ci` then `npm run db:reset` and `npm run db:seed`; baseline is 116 node tests plus 2 web (Vitest) tests
+- `curl` to local servers needs `--noproxy '*'` (the agent proxy answers 404 otherwise); stop servers by pid, `pkill -f` matched the calling shell and killed the call
 - Use `./node_modules/.bin/biome`, not `npx biome`: npx stalled a call for 3 minutes
+- Web deps install with `npm i -w web ...` (add `-S` for runtime deps: a first `-w` install put react as a peer only); root scripts forwarding to the workspace need a trailing `--` or npm swallows flags
 - Single test file: `timeout 200 node --env-file=.env --test test/mcp/demo.test.ts` (capture to a log file and read the tail; piping through grep printed nothing once)
 - npm, PyPI and Ubuntu apt are reachable; Docker Hub, mcr.microsoft.com and packages.microsoft.com are not
 - `tsconfig` has `erasableSyntaxOnly`: no constructor parameter properties, enums or namespaces
@@ -28,6 +30,8 @@ Rewritten by every run, at most 60 lines. Only what the next run needs and canno
 - F10a: `read-excel-file` 9.3.12 over `xlsx`. Layout is one sheet per month named `YYYY-MM`, header `kind, description, category, account, member, due_on, amount`
 - F10b (author to confirm, see BACKLOG Needs author): optional 8th header `installment`; optional `total` row checked against the lines; a month is importable once; import runs as actor `import` via `importMonth`
 - F11: demo is stdio only (`src/mcp/demo.ts`, `npm run mcp:demo`), reads only, pool opened with `default_transaction_read_only=on`; shared read tools live in `src/mcp/read.ts`, zod helpers in `src/mcp/schema.ts`
+- W01: no `@vitejs/plugin-react` (not on the CLAUDE.md list; Vite's built-in JSX transform, no Fast Refresh). Extra deps beyond the list: `vite` (named by W01), `@types/react`, `@types/react-dom`, `@testing-library/dom` (peer of Testing Library). Web tsconfig uses `moduleResolution: bundler`, `jsx: react-jsx`, types `vite/client` and `node`; root `tsc` still covers only `src` and `test`
+- W01 has no screen, so no screenshots; Playwright arrives in W05
 - Commit trailers: the scheduled prompt of 2026-10-19 names Co-Authored-By Claude Opus 5.5 plus the session URL; followed for that run. Earlier runs used Haiku 5.5 (the serving model). Author to pick one
 
 ## Notes for next items
@@ -42,7 +46,7 @@ Rewritten by every run, at most 60 lines. Only what the next run needs and canno
 
 ## Status
 
-- Tests: 117 passing after F12; `npm run check` green
+- Tests: 116 node (the helper file stopped counting as a test, L04) plus 2 web after W01; `npm run check` green
 - 2026-10-20: the author approved the web app (W01–W13 in BACKLOG), the design in `docs/design.md` and `docs/mockups/`, and rules in CLAUDE.md "Web app". The schedule was re-enabled on Opus
 - The Later items stay parked until the web app is done, except where a W item needs one (L32 not-found 404, L33 shared JSON shape, L34 one process are good candidates)
 - Failing-test run streak: 0

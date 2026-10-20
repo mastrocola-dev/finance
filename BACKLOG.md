@@ -4,11 +4,10 @@ Ordered. The agent takes the first unblocked item under **Next**. Items marked *
 
 ## Next
 
-- **W01 Workspace**: root `package.json` gains `"workspaces": ["web"]`; `web/` is its own package (React 19, Vite, TypeScript strict, Biome with the same rules, Vitest); root `check` and `test` also run the web ones; `npm run web:dev` serves Vite with `/api` proxied to the API on 3200 (no CORS)
 - **W02 API contract**: OpenAPI 3.1 document built from the existing zod schemas (`z.toJSONSchema`), served at `GET /api/openapi.json` and written to `openapi.json` by `npm run openapi`; a test fails when a route has no documented schema. Web client typed from it with `openapi-typescript` and `openapi-fetch`
 - **W03 API for the screens**: `GET /api/members`, `GET /api/goals`, `GET /api/audit` (filters author, member, entity; `limit` and `before` cursor; counts per author), `GET /api/months/:month/split` (who owes whom from joint expenses and `share_percent`), `GET /api/net-worth` (reserves and goals minus debt balances); tests; OpenAPI updated
 - **W04 Design system**: tokens of `docs/design.md` as CSS variables for light and dark mapped into Tailwind v4 `@theme`; shadcn/ui initialised with only the components used; Geist and Geist Mono self-hosted (`@fontsource-variable/geist`, `@fontsource-variable/geist-mono` or equivalent); BRL, date and month formatters in pt-BR with tests; theme switch (system default, stored per browser)
-- **W05 App shell**: TanStack Router with the six routes of `docs/design.md`; sidebar from 768 px, bottom tab bar below; month switcher and member selector in the URL; local identity picker sending `x-member`; TanStack Query client; shared loading skeleton, empty and error states; Playwright set up (see CLAUDE.md) with screenshots
+- **W05 App shell**: also add `@vitejs/plugin-react` only if Fast Refresh is wanted (W01 relies on Vite's built-in JSX transform, full reload on change); TanStack Router with the six routes of `docs/design.md`; sidebar from 768 px, bottom tab bar below; month switcher and member selector in the URL; local identity picker sending `x-member`; TanStack Query client; shared loading skeleton, empty and error states; Playwright set up (see CLAUDE.md) with screenshots
 - **W06 Month overview** (`/`)
 - **W07 Bills checklist** (`/contas`): optimistic mark-paid with rollback on error and an undo toast
 - **W08 Entries** (`/lancamentos`): quick add with react-hook-form and the API's zod rules, search, filters, table, totals
@@ -20,10 +19,10 @@ Ordered. The agent takes the first unblocked item under **Next**. Items marked *
 
 ## Later
 
+- **L40 Web build in CI**: `npm run check` typechecks the web app but never runs `vite build`; add `npm run web:build` to CI when L03 lands
 - **L36 Import entry point**: F10b has no API or MCP route; add one (author-only, reads the sheet from a configured path, never from request bodies) if the author wants to import from Claude
 - **L37 Replace an import**: a month imported once cannot be re-imported; a replace flow must close the import entries (nothing is deleted) and write the new ones in the same transaction
 - **L38 Import versus manual entries**: importing a month that already has manual entries creates duplicates; detect same month, description and amount before writing
-- **L04 Test helper discovery**: `node --test` also runs `test/db/database.ts` as a test file; rename helpers outside the default glob or set an explicit pattern in `npm test`
 - **L05 Nested writes**: `write()` issues `begin` on the given client; calling it inside another `write()` on the same client would nest. Decide on savepoints or a guard when MCP/HTTP adapters compose writes (F07/F09)
 - **L06 Audit JSON numbers**: `audit_log.before/after` store bigint cents as JSON numbers; exact in PostgreSQL but JS readers lose precision above 2^53 cents. Fine for household amounts; revisit only if audit is read back into BigInt
 
@@ -66,6 +65,8 @@ Ordered. The agent takes the first unblocked item under **Next**. Items marked *
 - **F10b layout choices**: built as the default: the installment column is optional (8th header cell, fixed lines only); a `total` row (kind `total`, amount = income minus expenses of the sheet) is checked against the lines when present; a month can be imported once (refused when it already holds import entries). Confirm these before F10c or any replace flow
 
 ## Done
+
+- **W01 Workspace**: root `workspaces: ["web"]`; `web/` package with React 19.3, Vite 8.3, Vitest 5 (jsdom, Testing Library), strict `tsconfig` (bundler resolution), nested `biome.json` extending the root; `/api` proxied to `127.0.0.1:${API_PORT:-3200}` in dev and preview; root `check` adds the web typecheck, root `test` runs `test/**/*.test.ts` (L04 done: `test/db/database.ts` no longer counted) then Vitest; `web:dev`, `web:build`; README section; 116 node plus 2 web tests
 
 - **F12 Proposal for ADR-008**: `docs/adr-008-proposal.md` with what was built, decisions taken, open questions for the author and the Azure stage requirements; docs only, 117 tests unchanged
 

@@ -2,6 +2,9 @@
   "name": "finance",
   "private": true,
   "type": "module",
+  "workspaces": [
+    "web"
+  ],
   "engines": {
     "node": ">=24"
   },
@@ -14,10 +17,12 @@
     "mcp:stdio": "node --env-file-if-exists=.env src/mcp/stdio.ts",
     "mcp:demo": "node --env-file-if-exists=.env src/mcp/demo.ts",
     "typecheck": "tsc",
-    "check": "biome ci && tsc",
+    "check": "biome ci && tsc && npm run typecheck -w web",
     "fix": "biome check --write",
-    "test": "node --env-file-if-exists=.env --test",
-    "test:coverage": "node --env-file-if-exists=.env --test --experimental-test-coverage --test-coverage-exclude='test/**' 'test/**/*.test.ts'"
+    "test": "node --env-file-if-exists=.env --test 'test/**/*.test.ts' && npm test -w web",
+    "test:coverage": "node --env-file-if-exists=.env --test --experimental-test-coverage --test-coverage-exclude='test/**' 'test/**/*.test.ts'",
+    "web:dev": "npm run dev -w web --",
+    "web:build": "npm run build -w web --"
   },
   "devDependencies": {
     "@biomejs/biome": "2.5.14",
