@@ -43,6 +43,6 @@ Rewritten by every run, at most 60 lines. Only what the next run needs and canno
 ## Status
 
 - Tests: 117 passing after F12; `npm run check` green
-- F12 done: `docs/adr-008-proposal.md` (proposal for the author, not yet in mastrocola-dev/docs)
-- Next is empty: the schedule was stopped on 2026-10-19 per CLAUDE.md. Re-enable only after the author adds an item to Next
+- 2026-10-20: the author approved the web app (W01–W13 in BACKLOG), the design in `docs/design.md` and `docs/mockups/`, and rules in CLAUDE.md "Web app". The schedule was re-enabled on Opus
+- The Later items stay parked until the web app is done, except where a W item needs one (L32 not-found 404, L33 shared JSON shape, L34 one process are good candidates)
 - Failing-test run streak: 0

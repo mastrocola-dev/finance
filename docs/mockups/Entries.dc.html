@@ -1,0 +1,164 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<title>Lançamentos</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&amp;family=Geist+Mono:wght@400;500&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+a{color:inherit;text-decoration:none}a:hover{text-decoration:underline}
+button,input,select{font:inherit}
+button{cursor:pointer}
+</style>
+</helmet>
+<div style="min-height: 100vh; background: {{t.bg}}; color: {{t.text}}; font-family: Geist, system-ui, sans-serif; font-size: 14px; display: flex; flex-wrap: wrap; align-items: stretch">
+  <nav aria-label="Principal" style="flex: 1 1 232px; max-width: 280px; box-sizing: border-box; padding: 24px 16px; background: {{t.surface}}; border-right: 1px solid {{t.border}}; display: flex; flex-direction: column; gap: 4px">
+    <div style="display: flex; align-items: center; gap: 10px; padding: 0 8px 20px">
+      <div style="width: 28px; height: 28px; border-radius: 8px; background: {{t.accent}}; color: {{t.accentText}}; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 15px" aria-hidden="true">c</div>
+      <span style="font-weight: 600; font-size: 16px; letter-spacing: -0.01em">Caixa</span>
+      <span style="margin-left: auto; font-size: 12px; color: {{t.muted}}">Casa</span>
+    </div>
+    <sc-for list="{{nav}}" as="item" hint-placeholder-count="6">
+      <a href="{{item.href}}" style="display: flex; align-items: center; gap: 10px; min-height: 40px; padding: 0 10px; border-radius: 8px; background: {{item.bg}}; color: {{item.color}}; font-weight: {{item.weight}}">
+        <span style="width: 8px; height: 8px; border-radius: 2px; background: {{item.dot}}" aria-hidden="true"></span>
+        <span>{{item.label}}</span>
+        <sc-if value="{{item.badge}}" hint-placeholder-val="{{ false }}"><span style="margin-left: auto; font-size: 12px; font-weight: 600; padding: 2px 8px; border-radius: 999px; background: {{t.accentSoft}}; color: {{t.accent}}">{{item.badge}}</span></sc-if>
+      </a>
+    </sc-for>
+    <div style="margin-top: auto; padding: 16px 10px 0; border-top: 1px solid {{t.border}}; display: flex; align-items: center; gap: 10px">
+      <div style="width: 32px; height: 32px; border-radius: 999px; background: {{t.sunken}}; display: flex; align-items: center; justify-content: center; font-weight: 600; font-size: 13px" aria-hidden="true">M</div>
+      <div style="display: flex; flex-direction: column"><span style="font-weight: 500">Marcio</span><span style="font-size: 12px; color: {{t.muted}}">Divide 50% · Casa</span></div>
+    </div>
+  </nav>
+
+  <main style="flex: 999 1 560px; min-width: 0; box-sizing: border-box; padding: 32px 40px 48px; display: flex; flex-direction: column; gap: 20px; max-width: 1240px">
+    <header style="display: flex; flex-wrap: wrap; align-items: flex-end; gap: 16px">
+      <div style="display: flex; flex-direction: column; gap: 4px">
+        <span style="font-size: 13px; color: {{t.muted}}">Outubro de 2026 · 47 lançamentos</span>
+        <h1 style="margin: 0; font-size: 26px; font-weight: 600; letter-spacing: -0.02em">Lançamentos</h1>
+      </div>
+      <div style="margin-left: auto; display: flex; gap: 8px; flex-wrap: wrap">
+        <button style="min-height: 40px; padding: 0 14px; border-radius: 10px; border: 1px solid {{t.border}}; background: {{t.surface}}; color: {{t.text}}">Importar planilha</button>
+        <button style="min-height: 40px; padding: 0 14px; border-radius: 10px; border: 1px solid {{t.border}}; background: {{t.surface}}; color: {{t.text}}">Exportar CSV</button>
+      </div>
+    </header>
+
+    <form aria-label="Lançamento rápido" style="display: flex; flex-wrap: wrap; gap: 8px; align-items: flex-end; background: {{t.surface}}; border: 1px solid {{t.border}}; border-radius: 14px; padding: 16px">
+      <label style="flex: 0 1 140px; display: flex; flex-direction: column; gap: 6px; font-size: 12px; color: {{t.muted}}">Tipo
+        <select style="min-height: 40px; border-radius: 8px; border: 1px solid {{t.border}}; background: {{t.bg}}; color: {{t.text}}; padding: 0 10px"><option>Despesa</option><option>Receita</option></select>
+      </label>
+      <label style="flex: 2 1 220px; display: flex; flex-direction: column; gap: 6px; font-size: 12px; color: {{t.muted}}">Descrição
+        <input value="Farmácia" style="min-height: 40px; border-radius: 8px; border: 1px solid {{t.accent}}; background: {{t.bg}}; color: {{t.text}}; padding: 0 12px; outline: 2px solid {{t.accentSoft}}">
+      </label>
+      <label style="flex: 1 1 140px; display: flex; flex-direction: column; gap: 6px; font-size: 12px; color: {{t.muted}}">Valor
+        <input value="R$ 84,90" style="min-height: 40px; border-radius: 8px; border: 1px solid {{t.border}}; background: {{t.bg}}; color: {{t.text}}; padding: 0 12px; font-family: 'Geist Mono', ui-monospace, monospace">
+      </label>
+      <label style="flex: 1 1 150px; display: flex; flex-direction: column; gap: 6px; font-size: 12px; color: {{t.muted}}">Categoria
+        <select style="min-height: 40px; border-radius: 8px; border: 1px solid {{t.border}}; background: {{t.bg}}; color: {{t.text}}; padding: 0 10px"><option>Saúde</option></select>
+      </label>
+      <label style="flex: 1 1 170px; display: flex; flex-direction: column; gap: 6px; font-size: 12px; color: {{t.muted}}">Conta
+        <select style="min-height: 40px; border-radius: 8px; border: 1px solid {{t.border}}; background: {{t.bg}}; color: {{t.text}}; padding: 0 10px"><option>Nubank •• 4821</option></select>
+      </label>
+      <label style="flex: 1 1 140px; display: flex; flex-direction: column; gap: 6px; font-size: 12px; color: {{t.muted}}">Quem
+        <select style="min-height: 40px; border-radius: 8px; border: 1px solid {{t.border}}; background: {{t.bg}}; color: {{t.text}}; padding: 0 10px"><option>Conjunto</option></select>
+      </label>
+      <button type="submit" style="min-height: 40px; padding: 0 18px; border: 0; border-radius: 10px; background: {{t.accent}}; color: {{t.accentText}}; font-weight: 600">Lançar <span style="opacity: 0.75; font-size: 12px; margin-left: 4px">↵</span></button>
+    </form>
+
+    <div style="display: flex; flex-wrap: wrap; gap: 8px; align-items: center">
+      <label style="flex: 1 1 260px; display: flex; align-items: center; gap: 8px; min-height: 40px; padding: 0 12px; border-radius: 10px; border: 1px solid {{t.border}}; background: {{t.surface}}; color: {{t.muted}}">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="11" cy="11" r="7"></circle><path d="m20 20-3.5-3.5"></path></svg>
+        <span style="position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0)">Buscar</span>
+        <input placeholder="Buscar descrição ou valor" style="flex: 1; min-width: 0; border: 0; background: transparent; color: {{t.text}}; outline: none">
+        <span style="font-size: 11px; padding: 2px 6px; border-radius: 4px; border: 1px solid {{t.border}}">/</span>
+      </label>
+      <sc-for list="{{filters}}" as="f" hint-placeholder-count="5">
+        <button style="min-height: 36px; padding: 0 12px; border-radius: 999px; border: 1px solid {{f.border}}; background: {{f.bg}}; color: {{f.color}}; font-size: 13px">{{f.label}}</button>
+      </sc-for>
+    </div>
+
+    <section aria-label="Lista de lançamentos" style="background: {{t.surface}}; border: 1px solid {{t.border}}; border-radius: 14px; overflow-x: auto">
+      <table style="width: 100%; min-width: 860px; border-collapse: collapse">
+        <thead>
+          <tr style="text-align: left; font-size: 12px; color: {{t.muted}}">
+            <th scope="col" style="padding: 12px 16px; font-weight: 500; border-bottom: 1px solid {{t.border}}">Data</th>
+            <th scope="col" style="padding: 12px 16px; font-weight: 500; border-bottom: 1px solid {{t.border}}">Descrição</th>
+            <th scope="col" style="padding: 12px 16px; font-weight: 500; border-bottom: 1px solid {{t.border}}">Categoria</th>
+            <th scope="col" style="padding: 12px 16px; font-weight: 500; border-bottom: 1px solid {{t.border}}">Conta</th>
+            <th scope="col" style="padding: 12px 16px; font-weight: 500; border-bottom: 1px solid {{t.border}}">Quem</th>
+            <th scope="col" style="padding: 12px 16px; font-weight: 500; border-bottom: 1px solid {{t.border}}">Origem</th>
+            <th scope="col" style="padding: 12px 16px; font-weight: 500; border-bottom: 1px solid {{t.border}}">Situação</th>
+            <th scope="col" style="padding: 12px 16px; font-weight: 500; border-bottom: 1px solid {{t.border}}; text-align: right">Valor</th>
+          </tr>
+        </thead>
+        <tbody>
+          <sc-for list="{{rows}}" as="r" hint-placeholder-count="12">
+            <tr style="background: {{r.rowBg}}">
+              <td style="padding: 12px 16px; border-bottom: 1px solid {{t.border}}; color: {{t.muted}}; font-variant-numeric: tabular-nums; white-space: nowrap">{{r.date}}</td>
+              <td style="padding: 12px 16px; border-bottom: 1px solid {{t.border}}; font-weight: 500">{{r.desc}}<sc-if value="{{r.inst}}" hint-placeholder-val="{{ false }}"><span style="margin-left: 8px; font-size: 12px; font-weight: 400; color: {{t.muted}}">{{r.inst}}</span></sc-if></td>
+              <td style="padding: 12px 16px; border-bottom: 1px solid {{t.border}}">{{r.cat}}</td>
+              <td style="padding: 12px 16px; border-bottom: 1px solid {{t.border}}; color: {{t.muted}}; white-space: nowrap">{{r.acct}}</td>
+              <td style="padding: 12px 16px; border-bottom: 1px solid {{t.border}}">{{r.who}}</td>
+              <td style="padding: 12px 16px; border-bottom: 1px solid {{t.border}}"><span style="font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: 999px; background: {{r.oBg}}; color: {{r.oFg}}">{{r.origin}}</span></td>
+              <td style="padding: 12px 16px; border-bottom: 1px solid {{t.border}}"><span style="font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: 999px; background: {{r.sBg}}; color: {{r.sFg}}">{{r.status}}</span></td>
+              <td style="padding: 12px 16px; border-bottom: 1px solid {{t.border}}; text-align: right; font-family: 'Geist Mono', ui-monospace, monospace; font-variant-numeric: tabular-nums; white-space: nowrap; color: {{r.amtColor}}">{{r.amount}}</td>
+            </tr>
+          </sc-for>
+        </tbody>
+      </table>
+      <div style="display: flex; flex-wrap: wrap; gap: 16px; align-items: center; padding: 14px 16px; font-size: 13px; color: {{t.muted}}">
+        <span>Mostrando 12 de 47</span>
+        <span style="margin-left: auto">Receitas <strong style="color: {{t.income}}; font-family: 'Geist Mono', ui-monospace, monospace">R$ 22.200,00</strong></span>
+        <span>Despesas <strong style="color: {{t.text}}; font-family: 'Geist Mono', ui-monospace, monospace">R$ 15.873,40</strong></span>
+      </div>
+    </section>
+  </main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"dark":{"editor":"boolean","default":false},"$preview":{"width":1440,"height":1080}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const light = { bg: '#F6F6F3', surface: '#FFFFFF', sunken: '#F0F0EC', border: '#E3E3DD', text: '#15171C', muted: '#5B606B', accent: '#2B54D9', accentText: '#FFFFFF', accentSoft: '#E8EDFC', income: '#2B54D9', expense: '#B4440E', late: '#9A3A0B', lateSoft: '#FBE9DF', ok: '#1F6F4A', okSoft: '#E3F1E9', claude: '#5B3FC4', claudeSoft: '#EEEAFB', pend: '#3D4250', pendSoft: '#ECECE7', fresh: '#F3F6FE' };
+    const dark = { bg: '#0E1014', surface: '#161920', sunken: '#1E222A', border: '#2A2E37', text: '#ECEDEF', muted: '#A0A6B1', accent: '#8BA6FF', accentText: '#0E1014', accentSoft: '#1E2A4D', income: '#8BA6FF', expense: '#F08A4B', late: '#F5A574', lateSoft: '#3A2216', ok: '#73D3A2', okSoft: '#16302A', claude: '#BDAEFF', claudeSoft: '#2A2448', pend: '#D2D5DB', pendSoft: '#262A33', fresh: '#18213A' };
+    const t = this.props.dark ? dark : light;
+    const pages = ['Main.dc.html', 'MobileBills.dc.html', 'Entries.dc.html', 'MobileDebts.dc.html', 'MobileDecisions.dc.html', 'Audit.dc.html'];
+    const nav = ['Visão do mês', 'Contas do mês', 'Lançamentos', 'Dívidas e reservas', 'Decisões', 'Atividade'].map((label, i) => ({
+      label, href: pages[i],
+      bg: i === 2 ? t.accentSoft : 'transparent', color: i === 2 ? t.accent : t.text, weight: i === 2 ? 600 : 400, dot: i === 2 ? t.accent : t.border, badge: i === 4 ? '2' : '',
+    }));
+    const filters = [['Outubro', true], ['Despesas', false], ['Todas as categorias', false], ['Todos', false], ['Pendentes e atrasadas', false]].map(([label, on]) => ({
+      label, bg: on ? t.accentSoft : t.surface, color: on ? t.accent : t.text, border: on ? t.accent : t.border,
+    }));
+    const origin = { Claude: [t.claudeSoft, t.claude], Manual: [t.sunken, t.text], Planilha: [t.sunken, t.muted], Previsto: [t.sunken, t.muted] };
+    const status = { Paga: [t.okSoft, t.ok], Pendente: [t.pendSoft, t.pend], Atrasada: [t.lateSoft, t.late], Recebida: [t.okSoft, t.ok] };
+    const rows = [
+      ['20/10', 'Farmácia', '', 'Saúde', 'Nubank •• 4821', 'Conjunto', 'Manual', 'Paga', '− R$ 84,90', true],
+      ['19/10', 'Mercado', '', 'Alimentação', 'Itaú •• 0937', 'Gabriela', 'Manual', 'Paga', '− R$ 386,20'],
+      ['18/10', 'Energia', '', 'Moradia', 'Itaú •• 0937', 'Conjunto', 'Claude', 'Paga', '− R$ 412,30'],
+      ['28/10', 'Financiamento do carro', '18/48', 'Dívidas', 'Itaú •• 0937', 'Marcio', 'Previsto', 'Pendente', '− R$ 1.500,00'],
+      ['25/10', 'Fatura Nubank', '', 'Outros', 'Nubank •• 4821', 'Marcio', 'Previsto', 'Pendente', '− R$ 2.418,50'],
+      ['15/10', 'Plano de saúde', '', 'Saúde', 'Itaú •• 0937', 'Conjunto', 'Previsto', 'Atrasada', '− R$ 750,00'],
+      ['15/10', 'Internet', '', 'Moradia', 'Nubank •• 4821', 'Conjunto', 'Claude', 'Paga', '− R$ 129,90'],
+      ['12/10', 'Restaurante', '', 'Lazer', 'C6 •• 5512', 'Gabriela', 'Manual', 'Paga', '− R$ 214,00'],
+      ['10/10', 'Condomínio', '', 'Moradia', 'Itaú •• 0937', 'Conjunto', 'Planilha', 'Paga', '− R$ 1.050,00'],
+      ['10/10', 'Escola de inglês', '7/12', 'Educação', 'C6 •• 5512', 'Gabriela', 'Planilha', 'Paga', '− R$ 1.650,00'],
+      ['05/10', 'Salário', '', 'Salário', 'Itaú •• 0937', 'Marcio', 'Previsto', 'Recebida', '+ R$ 12.400,00'],
+      ['05/10', 'Salário', '', 'Salário', 'C6 •• 5512', 'Gabriela', 'Previsto', 'Recebida', '+ R$ 9.800,00'],
+    ].map(([date, desc, inst, cat, acct, who, o, s, amount, fresh]) => ({
+      date, desc, inst, cat, acct, who, origin: o, status: s, amount,
+      oBg: origin[o][0], oFg: origin[o][1], sBg: status[s][0], sFg: status[s][1],
+      amtColor: amount.startsWith('+') ? t.income : t.text,
+      rowBg: fresh ? t.fresh : 'transparent',
+    }));
+    return { t, nav, filters, rows };
+  }
+}
+</script>
+</body>
+</html>

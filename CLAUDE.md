@@ -25,6 +25,16 @@ Stop the schedule (`update_trigger` with `enabled: false` on this task) and say 
 - Money is `bigint` cents in BRL; display `R$ 1.234,56`. Dates `YYYY-MM-DD`; competence is the first day of the month; time zone America/Sao_Paulo
 - Dependencies only when they remove real code; prefer the standard library
 
+## Web app (`web/`)
+
+- React 19, Vite, TypeScript strict, TanStack Router and Query, Tailwind v4, shadcn/ui, Recharts, react-hook-form with zod, typed client from `openapi.json`. A build step is accepted here only (correction to ADR-004 approved 2026-10-20)
+- Same style as the API: no comments, no `;`, single quotes, Biome; components small, one per file, named exports
+- Follow `docs/design.md` and the mockups in `docs/mockups/` (layout, spacing, copy, palettes); do not invent new colors, fonts or shadows
+- Accessibility is part of done: real buttons and links, labels on inputs, `aria-label` on icon buttons, focus visible, contrast from the tokens
+- Every web item ends with Playwright screenshots of the screens it touched, at 390×844 and 1440×1000, light and dark, against the seeded API, saved to `web/screenshots/<route>-<width>-<theme>.png` and committed; look at them before committing and fix what looks wrong
+- Playwright: the browser is preinstalled; launch Chromium with `executablePath: '/opt/pw-browsers/chromium'` and never run `playwright install`
+- New dependencies only from this list unless an item needs one more (record why in MEMORY): `react`, `react-dom`, `@tanstack/react-router`, `@tanstack/react-query`, `tailwindcss`, `@tailwindcss/vite`, shadcn/ui and its Radix peers, `lucide-react`, `recharts`, `react-hook-form`, `@hookform/resolvers`, `zod`, `openapi-fetch`, `openapi-typescript`, `vite-plugin-pwa`, Geist font packages, `vitest`, `@testing-library/react`, `@testing-library/user-event`, `jsdom`, `@playwright/test`, `@axe-core/playwright`
+
 ## Security and integrity rules (non-negotiable)
 
 - Fictional data only. Never ask for, fetch or commit real financial data; the seed is invented

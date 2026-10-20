@@ -4,7 +4,19 @@ Ordered. The agent takes the first unblocked item under **Next**. Items marked *
 
 ## Next
 
-None. The author picks the next increment from **Later** or **Needs author**.
+- **W01 Workspace**: root `package.json` gains `"workspaces": ["web"]`; `web/` is its own package (React 19, Vite, TypeScript strict, Biome with the same rules, Vitest); root `check` and `test` also run the web ones; `npm run web:dev` serves Vite with `/api` proxied to the API on 3200 (no CORS)
+- **W02 API contract**: OpenAPI 3.1 document built from the existing zod schemas (`z.toJSONSchema`), served at `GET /api/openapi.json` and written to `openapi.json` by `npm run openapi`; a test fails when a route has no documented schema. Web client typed from it with `openapi-typescript` and `openapi-fetch`
+- **W03 API for the screens**: `GET /api/members`, `GET /api/goals`, `GET /api/audit` (filters author, member, entity; `limit` and `before` cursor; counts per author), `GET /api/months/:month/split` (who owes whom from joint expenses and `share_percent`), `GET /api/net-worth` (reserves and goals minus debt balances); tests; OpenAPI updated
+- **W04 Design system**: tokens of `docs/design.md` as CSS variables for light and dark mapped into Tailwind v4 `@theme`; shadcn/ui initialised with only the components used; Geist and Geist Mono self-hosted (`@fontsource-variable/geist`, `@fontsource-variable/geist-mono` or equivalent); BRL, date and month formatters in pt-BR with tests; theme switch (system default, stored per browser)
+- **W05 App shell**: TanStack Router with the six routes of `docs/design.md`; sidebar from 768 px, bottom tab bar below; month switcher and member selector in the URL; local identity picker sending `x-member`; TanStack Query client; shared loading skeleton, empty and error states; Playwright set up (see CLAUDE.md) with screenshots
+- **W06 Month overview** (`/`)
+- **W07 Bills checklist** (`/contas`): optimistic mark-paid with rollback on error and an undo toast
+- **W08 Entries** (`/lancamentos`): quick add with react-hook-form and the API's zod rules, search, filters, table, totals
+- **W09 Net worth** (`/patrimonio`): debts, reserves, goals
+- **W10 Decisions** (`/decisoes`): propose, confirm, reject, withdraw, history
+- **W11 Activity** (`/atividade`): audit timeline with author filters and before/after table
+- **W12 PWA and quality**: `vite-plugin-pwa` manifest and icons (generated, no third-party art), offline read cache; Playwright end-to-end flow over the seed (add entry, mark paid, confirm decision); axe with zero violations on every route; Lighthouse-style budget recorded in MEMORY
+- **W13 Showcase**: README section with the screenshots (light and dark, mobile and desktop), how to run API plus web locally, architecture sketch
 
 ## Later
 
