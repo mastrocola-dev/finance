@@ -23,7 +23,8 @@
     "test:coverage": "node --env-file-if-exists=.env --test --experimental-test-coverage --test-coverage-exclude='test/**' 'test/**/*.test.ts'",
     "web:dev": "npm run dev -w web --",
     "web:build": "npm run build -w web --",
-    "openapi": "node src/http/document.ts && node web/scripts/openapi-types.ts"
+    "openapi": "node src/http/document.ts && node web/scripts/openapi-types.ts",
+    "web:screenshots": "npm run screenshots -w web --"
   },
   "devDependencies": {
     "@biomejs/biome": "2.5.14",
