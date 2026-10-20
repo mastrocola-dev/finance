@@ -51,7 +51,7 @@ Stop the schedule (`update_trigger` with `enabled: false` on this task) and say 
 Proposed by Claude, approved for the POC by the author on 2026-10-18; ADR-008 in `mastrocola-dev/docs` will record them.
 
 - PostgreSQL 16 locally and Azure Database for PostgreSQL later
-- One repository with API, MCP server and database
+- One repository with API, MCP server, database and web app: one repository per domain, not per layer (refines ADR-001, approved 2026-10-20). Split only when a second consumer of the API or an independent release cycle appears; the MCP server would be the first to leave
 - Monthly cycle is the calendar month until the author sets a closing day
 - Joint expenses split 50/50 by default, configurable per household
 - Identity is a `x-member` header in local mode; Entra ID comes with the Azure stage
