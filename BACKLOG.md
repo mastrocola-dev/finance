@@ -4,10 +4,13 @@ Ordered. The agent takes the first unblocked item under **Next**. Items marked *
 
 ## Next
 
-- **W13 Showcase**: README section with the screenshots (light and dark, mobile and desktop), how to run API plus web locally, architecture sketch
+(empty: the web app W01–W13 is done; the author promotes Later items to continue)
 
 ## Later
 
+- **L91 Showcase images**: the README shows the full-page screenshots as committed, so the phone images carry the tab bar mid-page (L57) and the desktop overview shows the ground under the sidebar (L58); fix those two first, then refresh the screenshots, or add viewport-only showcase captures
+- **L92 Showcase GIF or hosted demo**: a short recording of the payment mark and undo, or a read-only demo (F11 `mcp:demo` plus a static build) would show the flow better than stills; a hosted demo needs the author (Azure, Cloudflare are off limits for the agent)
+- **L93 Architecture decision record**: the README architecture section and `docs/adr-008-proposal.md` overlap; once ADR-008 lands in `mastrocola-dev/docs`, link it from the README and keep only the sketch here
 - **L89 Precache headroom**: the precache is 964 KiB against the 1 MiB budget in `web/e2e/budget.spec.ts`; the Recharts chunk (274 kB) and the form chunk with zod (115 kB) are precached for every device. Move `flow-bars-*` and `zod-*` to a runtime `CacheFirst` route (cached on first use) or raise the budget with a reason
 - **L90 Budgets in CI**: `npx playwright test -g budget` runs only with the local Playwright suite; when the author enables CI, run it there on every push to `poc` so a heavier dependency fails the build
 - **L86 Separate end-to-end database**: `e2e/flow.spec.ts` reseeds the database in `.env` (the dev ledger) before and after its writes, and Playwright reuses an API already running on 3200; point the e2e API at its own `DATABASE_URL` and port so a run never resets the dev data
@@ -100,10 +103,13 @@ Ordered. The agent takes the first unblocked item under **Next**. Items marked *
 
 ## Needs author
 
+- **Next is empty** (W13 closed the web app; the schedule was stopped): promote Later items to Next in the order wanted. Suggested first: L57 and L58 (clean showcase images, L91), L86 (e2e on its own database), L52 and L53 (stale identity, raw month), L32 (404 for missing entities), L03 (CI, needs approval)
 - **W03 settlement rule** (built as default, not blocking): only joint expenses (no member) with status `paid` count, and only when paid from an account owned by a member; joint expenses paid from a joint account are already shared and count for nobody; leftover cents of the share go to members in id order. Confirm or change
 - **F10b layout choices**: built as the default: the installment column is optional (8th header cell, fixed lines only); a `total` row (kind `total`, amount = income minus expenses of the sheet) is checked against the lines when present; a month can be imported once (refused when it already holds import entries). Confirm these before F10c or any replace flow
 
 ## Done
+
+- **W13 Showcase**: README gains Showcase (overview desktop and phone in light and dark, a collapsible table of every screen at both widths and themes plus the undo toast), "Quick start: API plus web" (seed, API, Vite dev server, preview on 4173 with the same `/api` proxy) and Architecture (Mermaid sketch of web and Claude over the HTTP and MCP adapters, ledger, audited `write()`, PostgreSQL, plus five lines on the layering and safety rules); "Run locally" renamed Development; `test/docs/readme.test.ts` checks that every local link and image exists, every committed screenshot is shown and every image has alt text. 3 node tests (141 node, 102 web, 58 e2e); no screen changed, screenshots unchanged
 
 - **W12c Budget**: `web/e2e/budget.spec.ts` measures the overview first load over the gzip preview with the service worker blocked (encoded JS and font bytes, FCP, LCP from `PerformanceObserver`) and the `sw.js` precache; budgets: JS 150 kB at 390 and 240 kB at 1440, fonts 60 kB, FCP 1.8 s, LCP 2.5 s, precache 1 MiB with latin fonts only. Fixes: Recharts moved to a lazy `flow-bars.tsx` chunk and the flow card (and its six month reads) mounts only at `min-width: 768px` through `useMediaQuery` (L84 done), so phone first-load JS fell from 211 kB to 129 kB gzip; precache keeps only the two latin Geist files (L83 done), 40 entries / 1023 KiB to 30 / 964 KiB; lucide-react tree-shakes (3 kB). 0 node, 3 web, 3 e2e tests (138 node, 102 web, 58 e2e); screenshots unchanged (only reseed timestamps moved, reverted)
 

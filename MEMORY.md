@@ -6,7 +6,7 @@
 - Node 22 is preinstalled: `npm i -g node@24` then `hash -r` (about a minute; 24.22.0 on 2026-10-20)
 - PostgreSQL 16: `pg_ctlcluster 16 main start`, then `su postgres -c "psql -c \"alter user postgres password 'local'\""`, then `cp .env.example .env` (gitignored)
 - Run setup commands one per Bash call; long chained commands were refused by the classifier
-- `npm ci` then `npm run db:reset` and `npm run db:seed`; baseline is 138 node tests plus 102 web (Vitest) tests plus 58 Playwright; seed has 189 entries and `db:seed` also plants 4 decisions (`seedDecisions`, not in `seed()`, L73)
+- `npm ci` then `npm run db:reset` and `npm run db:seed`; baseline is 141 node tests plus 102 web (Vitest) tests plus 58 Playwright; seed has 189 entries and `db:seed` also plants 4 decisions (`seedDecisions`, not in `seed()`, L73)
 - `curl` to local servers needs `--noproxy '*'` (the agent proxy answers 404 otherwise); stop servers by pid, `pkill -f` matched the calling shell and killed the call
 - Web deps install with `npm i -w web ...` (add `-S` for runtime deps: a first `-w` install put react as a peer only); root scripts forwarding to the workspace need a trailing `--` or npm swallows flags
 - Single test file: `timeout 200 node --env-file=.env --test test/mcp/demo.test.ts` (capture to a log file and read the tail; piping through grep printed nothing once)
@@ -55,6 +55,6 @@
 
 ## Status
 
-- Tests: 138 node, 102 web, 58 Playwright after W12c; `npm run check` green; entry chunk 383 kB (react-dom, router, query, tailwind-merge). Next is W13 (showcase), the last W item; after it Next is empty unless the author promotes Later items
-- 2026-10-20: the author approved the web app (W01–W13), `docs/design.md`, `docs/mockups/` and CLAUDE.md "Web app". Later items stay parked until the web app is done unless a W item needs one (L32, L52, L58, L59, L83, L84, L86)
+- Tests: 141 node, 102 web, 58 Playwright after W13; `npm run check` green. `test/docs/readme.test.ts` fails when a committed screenshot is missing from the README or a README link breaks: a new screenshot needs a README row
+- W13 closed the web app (W01–W13). Next is empty, so the schedule "finance build agent" was stopped on 2026-10-21; the author promotes Later items (suggested order under Needs author) and re-enables it
 - Failing-test run streak: 0

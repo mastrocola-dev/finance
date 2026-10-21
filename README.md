@@ -2,7 +2,88 @@
 
 Household finance ledger with a Claude connector. Two members, every change audited, nothing deleted, no payment ever executed. Work in progress on branch `poc`, built one increment at a time by an agent following [CLAUDE.md](CLAUDE.md).
 
-## Run locally
+## Showcase
+
+"Caixa", the web app over the ledger: one month at a glance for the household or for one member, bills to pay, entries, debts and reserves, joint decisions waiting for both members, and the audit trail of every change, including the ones Claude made on a member's behalf. The data is the invented seed household of `npm run db:seed`.
+
+<p>
+  <img src="web/screenshots/overview-1440-light.png" alt="Month overview, desktop, light theme" width="560">
+  <img src="web/screenshots/overview-390-dark.png" alt="Month overview, phone, dark theme" width="180">
+</p>
+
+<p>
+  <img src="web/screenshots/overview-1440-dark.png" alt="Month overview, desktop, dark theme" width="560">
+  <img src="web/screenshots/overview-390-light.png" alt="Month overview, phone, light theme" width="180">
+</p>
+
+<details>
+<summary>Every screen, desktop and phone, light and dark</summary>
+
+| Screen | Desktop light | Desktop dark | Phone light | Phone dark |
+| --- | --- | --- | --- | --- |
+| Contas do mês | <img src="web/screenshots/bills-1440-light.png" alt="Contas do mês, desktop, light" width="360"> | <img src="web/screenshots/bills-1440-dark.png" alt="Contas do mês, desktop, dark" width="360"> | <img src="web/screenshots/bills-390-light.png" alt="Contas do mês, phone, light" width="120"> | <img src="web/screenshots/bills-390-dark.png" alt="Contas do mês, phone, dark" width="120"> |
+| Lançamentos | <img src="web/screenshots/entries-1440-light.png" alt="Lançamentos, desktop, light" width="360"> | <img src="web/screenshots/entries-1440-dark.png" alt="Lançamentos, desktop, dark" width="360"> | <img src="web/screenshots/entries-390-light.png" alt="Lançamentos, phone, light" width="120"> | <img src="web/screenshots/entries-390-dark.png" alt="Lançamentos, phone, dark" width="120"> |
+| Dívidas e reservas | <img src="web/screenshots/net-worth-1440-light.png" alt="Dívidas e reservas, desktop, light" width="360"> | <img src="web/screenshots/net-worth-1440-dark.png" alt="Dívidas e reservas, desktop, dark" width="360"> | <img src="web/screenshots/net-worth-390-light.png" alt="Dívidas e reservas, phone, light" width="120"> | <img src="web/screenshots/net-worth-390-dark.png" alt="Dívidas e reservas, phone, dark" width="120"> |
+| Decisões | <img src="web/screenshots/decisions-1440-light.png" alt="Decisões, desktop, light" width="360"> | <img src="web/screenshots/decisions-1440-dark.png" alt="Decisões, desktop, dark" width="360"> | <img src="web/screenshots/decisions-390-light.png" alt="Decisões, phone, light" width="120"> | <img src="web/screenshots/decisions-390-dark.png" alt="Decisões, phone, dark" width="120"> |
+| Atividade | <img src="web/screenshots/activity-1440-light.png" alt="Atividade, desktop, light" width="360"> | <img src="web/screenshots/activity-1440-dark.png" alt="Atividade, desktop, dark" width="360"> | <img src="web/screenshots/activity-390-light.png" alt="Atividade, phone, light" width="120"> | <img src="web/screenshots/activity-390-dark.png" alt="Atividade, phone, dark" width="120"> |
+| Undo after a payment mark | <img src="web/screenshots/bills-toast-1440-light.png" alt="Payment undo toast, desktop, light" width="360"> | <img src="web/screenshots/bills-toast-1440-dark.png" alt="Payment undo toast, desktop, dark" width="360"> | <img src="web/screenshots/bills-toast-390-light.png" alt="Payment undo toast, phone, light" width="120"> | <img src="web/screenshots/bills-toast-390-dark.png" alt="Payment undo toast, phone, dark" width="120"> |
+
+</details>
+
+Screenshots are taken by Playwright against the seeded API (`npm run web:screenshots`) and committed with every web change.
+
+## Quick start: API plus web
+
+Requires Node 24 and PostgreSQL 16 on `localhost:5432`.
+
+```sh
+npm ci
+cp .env.example .env
+npm run db:reset
+npm run db:seed
+npm run api:http
+```
+
+In a second terminal:
+
+```sh
+npm run web:dev
+```
+
+Open `http://localhost:5173`, pick who you are under "Você é" and open `?month=2026-10` (the seed covers November 2025 to October 2026). The API answers on `http://127.0.0.1:3200/api`; Vite proxies `/api` to it, so the browser sees one origin. For the production build run `npm run web:build`, then `npm run preview -w web` (`http://localhost:4173`, same proxy) with the API still running.
+
+## Architecture
+
+```mermaid
+flowchart LR
+  subgraph clients[Clients]
+    web[Web app<br>React 19 · Vite · PWA]
+    claude[Claude<br>MCP client]
+  end
+  subgraph node[Node 24 · TypeScript]
+    http[src/http<br>JSON API :3200<br>OpenAPI contract]
+    mcp[src/mcp<br>MCP server<br>stdio · HTTP :3100]
+    ledger[src/ledger<br>read models and commands]
+    write[src/db write<br>one transaction plus audit row]
+    imp[src/import<br>monthly sheet]
+  end
+  pg[(PostgreSQL 16<br>closed_at, no deletes<br>audit_log)]
+  web -- x-member --> http
+  claude -- tools --> mcp
+  http --> ledger
+  mcp --> ledger
+  imp --> ledger
+  ledger --> write --> pg
+  ledger -- reads --> pg
+```
+
+- `src/ledger` holds the domain: read models (`summary`, `entries`, `split`, `worth`, `audit`) and the write commands in `record.ts`; it knows nothing about HTTP or MCP
+- Every write goes through `write()` in `src/db`: one transaction, one `audit_log` row (author member, claude, import or system), nothing deleted; database triggers refuse deletes and truncates
+- `src/http` and `src/mcp` are thin adapters over the same ledger; the API contract is generated from its zod schemas into `openapi.json`, and the web app's typed client is generated from that file
+- `web/` reads and writes only through the API; identity is the local `x-member` header until Entra ID arrives with the Azure stage
+- No adapter executes payments or transfers: marking a bill paid records a fact, and joint decisions stay proposed until every member confirms
+
+## Development
 
 Requires Node 24 and PostgreSQL 16.
 
