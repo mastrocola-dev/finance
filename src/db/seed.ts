@@ -1,5 +1,6 @@
 import type { Client } from 'pg'
 import { connect } from './connection.ts'
+import { seedDecisions } from './seed-decisions.ts'
 import { type Row, type Writer, write } from './write.ts'
 
 export const seedToday = '2026-10-18'
@@ -170,8 +171,9 @@ if (import.meta.main) {
   const client = await connect()
   try {
     await seed(client)
+    const decisions = await seedDecisions(client)
     const { rows } = await client.query<{ total: number }>('select count(*)::int as total from entry')
-    console.log(`seeded ${rows[0]?.total} entries from ${seedMonths[0]} to ${seedMonths.at(-1)}`)
+    console.log(`seeded ${rows[0]?.total} entries from ${seedMonths[0]} to ${seedMonths.at(-1)} and ${decisions} decisions`)
   } finally {
     await client.end()
   }

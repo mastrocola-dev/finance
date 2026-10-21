@@ -4,7 +4,6 @@ Ordered. The agent takes the first unblocked item under **Next**. Items marked *
 
 ## Next
 
-- **W10 Decisions** (`/decisoes`): propose, confirm, reject, withdraw, history
 - **W11 Activity** (`/atividade`): audit timeline with author filters and before/after table
 - **W12 PWA and quality**: `vite-plugin-pwa` manifest and icons (generated, no third-party art), offline read cache; Playwright end-to-end flow over the seed (add entry, mark paid, confirm decision); axe with zero violations on every route; Lighthouse-style budget recorded in MEMORY
 - **W13 Showcase**: README section with the screenshots (light and dark, mobile and desktop), how to run API plus web locally, architecture sketch
@@ -85,6 +84,10 @@ Ordered. The agent takes the first unblocked item under **Next**. Items marked *
 - **L35 Malformed reserve name**: `PATCH /api/reserves/:name` calls `decodeURIComponent`, so a malformed percent sequence answers `500` instead of `400`; validate the segment with zod or catch `URIError` in `src/http/api.ts`
 - **L39 Demo seed check**: `mcp:demo` does not verify that `DEMO_DATABASE_URL` holds the seed; refuse to start when `audit_log` has no `system` seed row if the demo must never show an empty ledger
 - **L22 Write tool shapes**: write tools return the `list_entries` read model (camelCase) while inputs are snake_case; keep this convention for F07b/F09 or pick one and record it in the ADR-008 proposal
+- **L73 Decisions in the shared seed**: the four fictional decisions live in `seedDecisions` (run by `db:seed` only) because node tests assert an empty decision list over `seed()` (api, server, plan, seed tests); fold them into `seed()` and update those tests so tests and the dev ledger match
+- **L74 Seed timestamps**: seeded decisions and audit rows take `now()`, so dates in the decisions history, activity and screenshots change on every reseed; give the seed fixed `created_at`/`at` values (needs a seed-only path past `protectedColumns`) or accept it
+- **L75 Closed decisions filter**: the history asks `GET /api/decisions?status=all&limit=30` and drops proposed ones in the browser, so it can show fewer than 30 closed decisions; add `status=closed` (confirmed, rejected or withdrawn) to `decisionQuery` and page by cursor
+- **L76 Concurrent decision notices**: per-call `mutate` callbacks fire only for the latest call, so answering two cards quickly shows only the last notice; move notices to mutation-level handlers like `usePayment` if it matters
 
 ## Needs author
 
@@ -92,6 +95,8 @@ Ordered. The agent takes the first unblocked item under **Next**. Items marked *
 - **F10b layout choices**: built as the default: the installment column is optional (8th header cell, fixed lines only); a `total` row (kind `total`, amount = income minus expenses of the sheet) is checked against the lines when present; a month can be imported once (refused when it already holds import entries). Confirm these before F10c or any replace flow
 
 ## Done
+
+- **W10 Decisions**: `/decisoes` renders `web/src/decisions/` (pure `model.ts`: people in member order with Confirmou/Aguardando, answers per member — Confirmar while awaited, Retirar proposta for the proposer, Rejeitar for the others —, "Proposta por X via Claude · dd/mm, hh:mm" in São Paulo time, zod `proposal` and `toNewDecision`); cards with Proposta and via Claude chips, amount, details and confirmations; history (Confirmada, Rejeitada, Retirada with day); "Propor decisão" form (título, valor and detalhes opcionais); toasts for success, 422 ("a decisão mudou") and 401; answers invalidate decisions and audit, so the overview card and sidebar count follow; without identity the buttons give way to "Escolha quem você é"; `seedDecisions` plants four fictional decisions through the ledger commands for `db:seed` (L73); 2 node plus 11 web tests (137 node, 84 web); all screenshots refreshed (overview and activity now show decisions)
 
 - **W09 Net worth**: `/patrimonio` renders `web/src/worth/` (pure `model.ts`: `debtView` with installment ticks, "N de M pagas · próxima dd/mm", installment, monthly rate and creditor; `monthlyInstallments`; `reserveView` and `goalView` with percent, "R$ x de R$ y" and "faltam R$/mês" until the due month; `formatSignedBrl`); "Patrimônio líquido estimado" under the title, Dívidas with 48-column installment strips (`role="img"`), Reservas e metas with conic progress rings, two columns from 1024 px; each section loads, empties and retries on its own; debt read model gains `nextDueOn` (contract, OpenAPI and web types regenerated); 1 node plus 11 web tests (135 node, 73 web); net-worth screenshots
 

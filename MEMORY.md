@@ -6,7 +6,7 @@
 - Node 22 is preinstalled: `npm i -g node@24` then `hash -r` (about a minute; 24.22.0 on 2026-10-20)
 - PostgreSQL 16: `pg_ctlcluster 16 main start`, then `su postgres -c "psql -c \"alter user postgres password 'local'\""`, then `cp .env.example .env` (gitignored)
 - Run setup commands one per Bash call; long chained commands were refused by the classifier
-- `npm ci` then `npm run db:reset` and `npm run db:seed`; baseline is 135 node tests plus 73 web (Vitest) tests; seed has 189 entries
+- `npm ci` then `npm run db:reset` and `npm run db:seed`; baseline is 137 node tests plus 84 web (Vitest) tests; seed has 189 entries and `db:seed` also plants 4 decisions (`seedDecisions`, not in `seed()`, L73)
 - `curl` to local servers needs `--noproxy '*'` (the agent proxy answers 404 otherwise); stop servers by pid, `pkill -f` matched the calling shell and killed the call
 - Use `./node_modules/.bin/biome`, not `npx biome`: npx stalled a call for 3 minutes
 - Web deps install with `npm i -w web ...` (add `-S` for runtime deps: a first `-w` install put react as a peer only); root scripts forwarding to the workspace need a trailing `--` or npm swallows flags
@@ -30,7 +30,6 @@
 - W05: screenshots with `cd web && timeout 400 npx playwright test` (about 15 s; it builds, starts API and preview, stops them after). Names are `<screen>-<width>-<theme>.png` with screen overview, bills, entries, net-worth, decisions, activity; the spec stores `finance.member=Marcio` first. Read a few PNGs before committing
 - W05 routing: code-based TanStack Router (no router plugin, not on the list); `Link` sets `aria-current="page"` on its own and `to="."` is always active, so filters and month arrows are buttons calling `navigate({ to: '.', search })`; type the search callback `(previous: AppSearch)`. Root `validateSearch: parseSearch` plus `retainSearchParams(['month', 'member'])`; read with `useSearch({ from: '__root__' })`, month via `monthOf`
 - W05 data: `useIdentity().api` is the typed client with `x-member`; wrap calls with `unwrap(await api.GET(...))` in `useQuery`; render with `QueryView` (skeleton, empty, error with retry). App tests render `<App history={createMemoryHistory(...)} fetch={stub} />`; pin the month in the URL, never rely on the clock
-- Mobile shell: top bar (brand, compact identity, theme) is not in the mockups but needed for identity and theme under 768 px; `main` has `pb-28` for the fixed tab bar
 - W04: `ui.shadcn.com` is blocked by the proxy (L49); shadcn files are hand-written. Extra deps: `class-variance-authority`, `clsx`, `tailwind-merge` (shadcn's own), `@fontsource-variable/geist(-mono)`, `lucide-react`. Tokens are Tailwind names without prefix (`bg-surface`, `text-muted`, `text-meta`, `rounded-card`); default Tailwind colors and shadows are cleared, so `bg-white`, `shadow` do not exist. A new token must also go into `extendTailwindMerge` in `web/src/lib/utils.ts` or `cn` drops classes. Dark mode is the `.dark` class on `<html>`; web `biome.json` enables `css.parser.tailwindDirectives`; Biome wants `<fieldset>` over `role="group"`
 - W02: `openapi-typescript` 7 peers on TypeScript 5, so npm nested `typescript@5.9` in `web/node_modules`; root `check` therefore runs `tsc -p web` (root TypeScript 7) and the web package has no `typecheck` script. `openapi.json` (root `biome.json`) and `web/src/api/schema.ts` (`web/biome.json`, the nested config owns web paths) are generated and excluded from Biome
 - W02: response schemas are `z.strictObject` of the wire shape (after `toJson`); request schemas reuse `month`, `date`, `id`, `today` from `src/mcp/schema.ts`; components are the keys of `schemas` plus `<OperationId>Body`/`<OperationId>Response` for unnamed ones; the error component is `ApiError` (a component named `Error` shadowed the global type)
@@ -41,6 +40,7 @@
 - W08b: `@hookform/resolvers` pinned to 5.9.2 (6.x has optional peers on `effect` 4 that npm cannot resolve); web `zod` 4.6.7 as root. Quick add due date is today in the current month else the month's first day (L67); form ids `quick-<field>` with `<label htmlFor>` (Biome rejects labels wrapping a child component's input); form row is `lg:flex-nowrap` so Lançar stays inline at 1440
 - W09: `/patrimonio` in `web/src/worth/`; three queries (`debts`, `savings` = reserves plus goals, `net-worth`) each with its own `QueryView`. Tailwind `@theme inline` emits no `--color-*` variables at runtime: inline styles use the raw tokens (`var(--ok)`, `var(--sunken)`). Query client retries once (1 s), so error-state tests wait with `{ timeout: 3000 }`. Biome rejects array index keys (ticks carry a `number`)
 - W03: settlement counts only paid joint expenses on member-owned accounts (Needs author); the seed has none, so split is empty over the seed (L44). Audit `next` is a string cursor (bigint would become money via `toJson`); counts ignore the author filter and cursor so filter chips keep their numbers
+- W10: `/decisoes` in `web/src/decisions/`; pending list reuses `useProposedDecisions` (key `['decisions','proposed']`), history is `['decisions','history']` (status all, filtered in the browser, L75); answers use mutation key `decision-reply` and invalidate `decisions` and `audit`. Mobile shell note: top bar (brand, identity, theme) is not in the mockups; `main` has `pb-28` for the fixed tab bar
 
 ## Notes for next items
 
@@ -54,7 +54,7 @@
 
 ## Status
 
-- Tests: 135 node plus 73 web after W09; `npm run check` and net-worth screenshots green. Next is W10 (decisions, `/decisoes`; mockup `MobileDecisions.dc.html`; write routes for propose, confirm, reject, withdraw already exist)
+- Tests: 137 node plus 84 web after W10; `npm run check` and all 24 screenshots green. Next is W11 (activity, `/atividade`; mockup `Audit.dc.html`; `GET /api/audit` with author counts and cursor exists, W03). The seeded decisions now give the audit log member and Claude rows to show
 - 2026-10-20: the author approved the web app (W01–W13 in BACKLOG), the design in `docs/design.md` and `docs/mockups/`, and rules in CLAUDE.md "Web app"
 - Later items stay parked until the web app is done, except where a W item needs one (L32, L52, L58, L59; L60 belongs to W12)
 - Failing-test run streak: 0
