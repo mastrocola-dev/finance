@@ -4,6 +4,7 @@ import { QueryView } from '../components/query-view.tsx'
 import { Skeleton } from '../components/skeleton.tsx'
 import { buttonVariants } from '../components/ui/button.tsx'
 import { formatMonth } from '../lib/format.ts'
+import { desktop, useMediaQuery } from '../lib/media.ts'
 import { firstDay, monthOf, shiftMonth } from '../lib/search.ts'
 import { useMembers, useProposedDecisions, useSelectedMember } from '../query/shell.ts'
 import { screenOf } from '../shell/nav.ts'
@@ -36,7 +37,7 @@ const CardSkeleton = () => <Skeleton className="h-32 rounded-card" />
 const MonthFlow = ({ month, member }: { month: string; member: string | undefined }) => {
   const query = useMonthFlow(month, member)
   return (
-    <div className="hidden min-w-0 flex-[2_1_520px] md:flex">
+    <div className="flex min-w-0 flex-[2_1_520px]">
       <QueryView query={query} skeleton={<Skeleton className="h-72" />}>
         {(data) => <FlowChart months={flow(data)} />}
       </QueryView>
@@ -60,6 +61,7 @@ const MonthCategories = ({ month }: { month: string }) => {
 const MonthSection = ({ month }: { month: string }) => {
   const member = useSelectedMember()
   const entries = useMonthEntries(month, member, !useMembers().isPending)
+  const wide = useMediaQuery(desktop, true)
   return (
     <QueryView
       query={entries}
@@ -83,7 +85,7 @@ const MonthSection = ({ month }: { month: string }) => {
             <BalanceHero data={summary} />
             <KpiCards data={summary} />
             <div className="flex flex-wrap gap-4">
-              <MonthFlow month={month} member={member} />
+              {wide && <MonthFlow month={month} member={member} />}
               <DueBills data={summary} />
             </div>
           </>

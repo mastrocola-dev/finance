@@ -1,9 +1,12 @@
-import { Bar, BarChart, ResponsiveContainer } from 'recharts'
+import { lazy, Suspense } from 'react'
+import { Skeleton } from '../components/skeleton.tsx'
 import { formatMonthShort, formatNetShort } from '../lib/format.ts'
 import { firstDay } from '../lib/search.ts'
 import { cn } from '../lib/utils.ts'
 import { Card } from './card.tsx'
 import { type FlowMonth, flowSummary } from './model.ts'
+
+const FlowBars = lazy(() => import('./flow-bars.tsx').then(({ FlowBars }) => ({ default: FlowBars })))
 
 const Legend = () => (
   <span className="flex gap-3.5">
@@ -19,7 +22,6 @@ const Legend = () => (
 )
 
 export const FlowChart = ({ months }: { months: FlowMonth[] }) => {
-  const data = months.map(({ month, income, expenses }) => ({ month, income: Number(income), expenses: Number(expenses) }))
   const current = months.at(-1)?.month
   const columns = { gridTemplateColumns: `repeat(${months.length}, minmax(0, 1fr))` }
   return (
@@ -31,12 +33,9 @@ export const FlowChart = ({ months }: { months: FlowMonth[] }) => {
           ))}
         </div>
         <div className="h-40">
-          <ResponsiveContainer width="100%" height="100%">
-            <BarChart data={data} margin={{ top: 0, right: 0, bottom: 0, left: 0 }} barGap={4} barSize={18} accessibilityLayer={false}>
-              <Bar dataKey="income" fill="var(--color-income)" radius={[4, 4, 0, 0]} isAnimationActive={false} />
-              <Bar dataKey="expenses" fill="var(--color-expense)" radius={[4, 4, 0, 0]} isAnimationActive={false} />
-            </BarChart>
-          </ResponsiveContainer>
+          <Suspense fallback={<Skeleton aria-busy="true" className="h-full" />}>
+            <FlowBars months={months} />
+          </Suspense>
         </div>
       </div>
       <div className="grid text-center text-xs text-muted" style={columns}>

@@ -56,6 +56,7 @@ const fetch = vi.fn(async (input: Request) => {
 
 afterEach(() => {
   cleanup()
+  vi.unstubAllGlobals()
   calls.length = 0
 })
 
@@ -95,4 +96,14 @@ test('filters entries by the chosen member and shows an empty month', async () =
   expect(entryCalls.some(({ pathname, searchParams }) => pathname === '/api/months/2026-08/entries' && searchParams.get('member') === 'Marcio')).toBe(true)
   expect(entryCalls.some(({ pathname }) => pathname === '/api/months/2026-07/entries')).toBe(true)
   expect(entryCalls.every(({ searchParams }) => searchParams.get('member') === 'Marcio')).toBe(true)
+})
+
+test('skips the flow chart and its six months of reads on a phone', async () => {
+  vi.stubGlobal('matchMedia', () => Object.assign(new EventTarget(), { matches: false }))
+  start('/?month=2026-10')
+  expect(await screen.findByRole('region', { name: 'Indicadores' })).toBeTruthy()
+  expect(await screen.findByText('Marcou Energia como paga')).toBeTruthy()
+  expect(screen.queryByRole('region', { name: 'Receitas × despesas' })).toBeNull()
+  const months = calls.filter(({ pathname }) => pathname.endsWith('/entries')).map(({ pathname }) => pathname.slice(12, 19))
+  expect([...new Set(months)].sort()).toEqual(['2026-09', '2026-10'])
 })
