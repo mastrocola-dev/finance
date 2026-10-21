@@ -49,6 +49,7 @@ const variable = [
   { description: 'Supermarket', category: 'Groceries', account: 'joint', member: null, day: 22, amount: vary(48000n, 4300, 12000) },
   { description: 'Fuel', category: 'Transport', account: 'marcioCard', member: 'marcio', day: 17, amount: vary(26000n, 2900, 8000) },
   { description: 'Restaurant', category: 'Leisure', account: 'gabriela', member: 'gabriela', day: 14, amount: vary(18000n, 2300, 9000) },
+  { description: 'Pharmacy', category: 'Health', account: 'marcioCard', member: null, day: 3, amount: vary(9000n, 1300, 5000) },
 ] as const
 
 const debts = [

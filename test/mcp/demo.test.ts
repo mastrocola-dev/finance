@@ -38,7 +38,7 @@ describe('demo mcp server', () => {
   test('answers reads over the seed', async () => {
     const { content } = await mcp.callTool({ name: 'month_summary', arguments: { month: '2026-10', today: seedToday } })
     const [first] = content as { text: string }[]
-    assert.equal(JSON.parse(first?.text ?? '{}').month.expenses.count, 13)
+    assert.equal(JSON.parse(first?.text ?? '{}').month.expenses.count, 14)
   })
 
   test('the connection itself refuses writes', async () => {

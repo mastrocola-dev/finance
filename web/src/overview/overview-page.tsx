@@ -11,10 +11,11 @@ import { PageHeader } from '../shell/page-header.tsx'
 import { BalanceHero } from './balance-hero.tsx'
 import { CategorySpend } from './category-spend.tsx'
 import { DueBills } from './due-bills.tsx'
+import { FlowChart } from './flow-chart.tsx'
 import { KpiCards } from './kpi-cards.tsx'
-import { categories, overview } from './model.ts'
+import { categories, flow, overview } from './model.ts'
 import { PendingDecisions } from './pending-decisions.tsx'
-import { useMonthEntries, useMonthSplit, useRecentActivity } from './queries.ts'
+import { useMonthEntries, useMonthFlow, useMonthSplit, useRecentActivity } from './queries.ts'
 import { RecentActivity } from './recent-activity.tsx'
 import { SettlementCard } from './settlement-card.tsx'
 
@@ -24,13 +25,37 @@ const MonthSkeleton = () => (
   <div className="flex flex-col gap-4">
     <Skeleton className="h-40 md:h-28" />
     <div className="flex flex-wrap gap-4">
-      <Skeleton className="h-72 flex-[2_1_520px]" />
+      <Skeleton className="hidden h-72 flex-[2_1_520px] md:block" />
       <Skeleton className="h-72 flex-[1_1_300px]" />
     </div>
   </div>
 )
 
 const CardSkeleton = () => <Skeleton className="h-32 rounded-card" />
+
+const MonthFlow = ({ month, member }: { month: string; member: string | undefined }) => {
+  const query = useMonthFlow(month, member)
+  return (
+    <div className="hidden min-w-0 flex-[2_1_520px] md:flex">
+      <QueryView query={query} skeleton={<Skeleton className="h-72" />}>
+        {(data) => <FlowChart months={flow(data)} />}
+      </QueryView>
+    </div>
+  )
+}
+
+const MonthCategories = ({ month }: { month: string }) => {
+  const member = useSelectedMember()
+  const entries = useMonthEntries(month, member, !useMembers().isPending)
+  if (entries.data?.current.length === 0) return null
+  return (
+    <div className="flex min-w-0 flex-[2_1_520px]">
+      <QueryView query={entries} skeleton={<Skeleton className="h-72" />}>
+        {(data) => <CategorySpend items={categories(data.current, data.previous)} previousLabel={monthName(shiftMonth(month, -1))} />}
+      </QueryView>
+    </div>
+  )
+}
 
 const MonthSection = ({ month }: { month: string }) => {
   const member = useSelectedMember()
@@ -58,10 +83,8 @@ const MonthSection = ({ month }: { month: string }) => {
             <BalanceHero data={summary} />
             <KpiCards data={summary} />
             <div className="flex flex-wrap gap-4">
-              <CategorySpend items={categories(data.current, data.previous)} previousLabel={monthName(shiftMonth(month, -1))} />
-              <div className="order-first flex flex-[1_1_300px] md:order-none">
-                <DueBills data={summary} />
-              </div>
+              <MonthFlow month={month} member={member} />
+              <DueBills data={summary} />
             </div>
           </>
         )
@@ -81,16 +104,19 @@ export const OverviewPage = () => {
     <>
       <PageHeader screen={screenOf('/')} />
       <MonthSection month={month} />
-      <div className="grid items-start gap-4 lg:grid-cols-3">
-        <QueryView query={split} skeleton={<CardSkeleton />}>
-          {(data) => <SettlementCard split={data} members={members.data ?? []} />}
-        </QueryView>
-        <QueryView query={decisions} skeleton={<CardSkeleton />}>
-          {(data) => <PendingDecisions decisions={data} />}
-        </QueryView>
-        <QueryView query={activity} skeleton={<CardSkeleton />}>
-          {(data) => <RecentActivity items={data.items} />}
-        </QueryView>
+      <div className="flex flex-wrap items-start gap-4">
+        <MonthCategories month={month} />
+        <div className="flex min-w-0 flex-[1_1_300px] flex-col gap-4">
+          <QueryView query={split} skeleton={<CardSkeleton />}>
+            {(data) => <SettlementCard split={data} members={members.data ?? []} />}
+          </QueryView>
+          <QueryView query={decisions} skeleton={<CardSkeleton />}>
+            {(data) => <PendingDecisions decisions={data} />}
+          </QueryView>
+          <QueryView query={activity} skeleton={<CardSkeleton />}>
+            {(data) => <RecentActivity items={data.items} />}
+          </QueryView>
+        </div>
       </div>
     </>
   )

@@ -50,10 +50,10 @@ describe('mcp read tools', () => {
     assert.equal(month.month, '2026-10-01')
     assert.equal(other.month, '2026-09-01')
     assert.deepEqual(month.expenses.late, { cents: '22200', brl: 'R$ 222,00' })
-    assert.deepEqual(month.expenses.total, { cents: '1023800', brl: 'R$ 10.238,00' })
-    assert.deepEqual(month.balance, { cents: '1006200', brl: 'R$ 10.062,00' })
-    assert.equal(month.expenses.count, 13)
-    assert.deepEqual(difference.expenses, { cents: '14300', brl: 'R$ 143,00' })
+    assert.deepEqual(month.expenses.total, { cents: '1037100', brl: 'R$ 10.371,00' })
+    assert.deepEqual(month.balance, { cents: '992900', brl: 'R$ 9.929,00' })
+    assert.equal(month.expenses.count, 14)
+    assert.deepEqual(difference.expenses, { cents: '15600', brl: 'R$ 156,00' })
   })
 
   test('month_summary compares with a chosen month', async () => {
@@ -63,7 +63,7 @@ describe('mcp read tools', () => {
 
   test('list_entries returns a month ordered by due date', async () => {
     const entries = (await call('list_entries', { month: '2026-10', today: seedToday })).json()
-    assert.equal(entries.length, 16)
+    assert.equal(entries.length, 17)
     const dates = entries.map(({ dueOn }: { dueOn: string }) => dueOn)
     assert.deepEqual(dates, [...dates].sort())
     assert.equal(typeof entries[0].id, 'string')
@@ -78,7 +78,11 @@ describe('mcp read tools', () => {
     const utilities = (await call('list_entries', { month: '2026-10', category: 'utilities', today: seedToday })).json()
     assert.deepEqual(utilities.map(({ description }: { description: string }) => description).sort(), ['Electricity', 'Internet'])
     const card = (await call('list_entries', { month: '2026-10', account: 'Marcio card', today: seedToday })).json()
-    assert.ok(card.length > 0 && card.every(({ account, member }: { account: string; member: string }) => account === 'Marcio card' && member === 'Marcio'))
+    assert.deepEqual(card.map(({ description, account, member }: { description: string; account: string; member: string | null }) => [description, account, member]).sort(), [
+      ['Fuel', 'Marcio card', 'Marcio'],
+      ['Pharmacy', 'Marcio card', null],
+      ['Sofa', 'Marcio card', 'Marcio'],
+    ])
     const joint = (await call('list_entries', { month: '2026-10', member: 'joint', direction: 'expense', today: seedToday })).json()
     assert.ok(joint.length > 0 && joint.every(({ member }: { member: string | null }) => member === null))
   })

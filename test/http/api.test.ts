@@ -43,15 +43,15 @@ describe('http api', () => {
   test('summarizes a month against the previous one', async () => {
     const { status, body } = await get(`/months/2026-10/summary?today=${seedToday}`)
     assert.equal(status, 200)
-    assert.deepEqual(body.month.expenses.total, { cents: '1023800', brl: 'R$ 10.238,00' })
+    assert.deepEqual(body.month.expenses.total, { cents: '1037100', brl: 'R$ 10.371,00' })
     assert.equal(body.month.expenses.late.cents, '22200')
     assert.equal(body.other.month, '2026-09-01')
-    assert.equal(body.other.expenses.total.cents, '1009500')
+    assert.equal(body.other.expenses.total.cents, '1021500')
   })
 
   test('lists entries with filters', async () => {
     const all = await get(`/months/2026-10/entries?today=${seedToday}`)
-    assert.equal(all.body.length, 16)
+    assert.equal(all.body.length, 17)
     const late = await get(`/months/2026-10/entries?state=late&direction=expense&today=${seedToday}`)
     assert.deepEqual(
       late.body.map(({ description }: { description: string }) => description),

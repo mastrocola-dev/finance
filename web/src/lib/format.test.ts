@@ -1,5 +1,5 @@
 import { expect, test } from 'vitest'
-import { currentMonth, formatBrl, formatDay, formatMonth, formatMonthTitle, today } from './format.ts'
+import { currentMonth, formatBrl, formatDay, formatMonth, formatMonthShort, formatMonthTitle, formatNetShort, formatThousandsBrl, today } from './format.ts'
 
 test('formats cents as BRL with thousands and a comma', () => {
   expect(formatBrl('123456')).toBe('R$ 1.234,56')
@@ -25,4 +25,13 @@ test('takes today and the current month in America/Sao_Paulo', () => {
   expect(today(lateNightUtc)).toBe('2026-10-31')
   expect(currentMonth(lateNightUtc)).toBe('2026-10-01')
   expect(currentMonth(new Date('2026-11-01T03:30:00Z'))).toBe('2026-11-01')
+})
+
+test('formats amounts in thousands for the flow chart', () => {
+  expect(formatThousandsBrl(2_140_000n)).toBe('R$ 21,4 mil')
+  expect(formatThousandsBrl(-125_000n)).toBe('-R$ 1,3 mil')
+  expect(formatNetShort(530_000n)).toBe('+5,3k')
+  expect(formatNetShort(-48_000n)).toBe('−0,5k')
+  expect(formatNetShort(0n)).toBe('+0,0k')
+  expect(formatMonthShort('2026-05-01')).toBe('mai')
 })

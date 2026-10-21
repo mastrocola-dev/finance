@@ -75,22 +75,22 @@ describe('http api for the screens', () => {
   test('settles joint expenses paid from a member account', async () => {
     const before = await get('/months/2026-10/split')
     assert.equal(before.status, 200)
-    assert.equal(before.body.total.cents, '0')
-    assert.deepEqual(before.body.transfers, [])
+    assert.equal(before.body.total.brl, 'R$ 133,00')
+    assert.deepEqual(before.body.transfers, [{ from: 'Gabriela', to: 'Marcio', amount: { cents: '6650', brl: 'R$ 66,50' } }])
     const created = await post('/entries', { month: '2026-10', due_on: '2026-10-19', description: 'Dinner with friends', direction: 'expense', amount_cents: 42861, category: 'leisure', account: 'Gabriela checking', member: 'joint', paid_on: '2026-10-19' })
     assert.equal(created.status, 201)
     await post('/entries', { month: '2026-10', due_on: '2026-10-28', description: 'Pharmacy', direction: 'expense', amount_cents: 9000, category: 'health', account: 'Marcio card', member: 'joint' })
     const { body } = await get('/months/2026-10/split')
     assert.equal(body.month, '2026-10-01')
-    assert.equal(body.total.brl, 'R$ 428,61')
+    assert.equal(body.total.brl, 'R$ 561,61')
     assert.deepEqual(
       body.members.map(({ name, paid, share, balance }: { name: string; paid: { cents: string }; share: { cents: string }; balance: { cents: string } }) => [name, paid.cents, share.cents, balance.cents]),
       [
-        ['Marcio', '0', '21431', '-21431'],
-        ['Gabriela', '42861', '21430', '21431'],
+        ['Marcio', '13300', '28081', '-14781'],
+        ['Gabriela', '42861', '28080', '14781'],
       ],
     )
-    assert.deepEqual(body.transfers, [{ from: 'Marcio', to: 'Gabriela', amount: { cents: '21431', brl: 'R$ 214,31' } }])
+    assert.deepEqual(body.transfers, [{ from: 'Marcio', to: 'Gabriela', amount: { cents: '14781', brl: 'R$ 147,81' } }])
   })
 
   test('answers 422 for a malformed month in the split', async () => {

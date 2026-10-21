@@ -1,4 +1,5 @@
 import type { components } from '../api/schema.ts'
+import { formatThousandsBrl } from '../lib/format.ts'
 
 export type Entry = components['schemas']['Entry']
 
@@ -42,3 +43,19 @@ export const overview = (entries: Entry[]) => {
 }
 
 export type Overview = ReturnType<typeof overview>
+
+export type FlowMonth = { month: string; income: bigint; expenses: bigint; net: bigint }
+
+export const flow = (months: { month: string; entries: Entry[] }[]): FlowMonth[] =>
+  months.map(({ month, entries }) => {
+    const income = sum(entries.filter((entry) => entry.direction === 'income'))
+    const expenses = sum(entries.filter((entry) => entry.direction === 'expense'))
+    return { month, income, expenses, net: income - expenses }
+  })
+
+const range = (values: bigint[]) => {
+  const sorted = [...values].sort((a, b) => (a < b ? -1 : a > b ? 1 : 0))
+  return `entre ${formatThousandsBrl(sorted[0] ?? 0n)} e ${formatThousandsBrl(sorted.at(-1) ?? 0n)}`
+}
+
+export const flowSummary = (months: FlowMonth[]) => `Receitas ${range(months.map(({ income }) => income))}; despesas ${range(months.map(({ expenses }) => expenses))}`

@@ -1,5 +1,5 @@
 import { expect, test } from 'vitest'
-import { categories, change, type Entry, overview, percentOf } from './model.ts'
+import { categories, change, type Entry, flow, flowSummary, overview, percentOf } from './model.ts'
 
 const entry = (id: string, direction: Entry['direction'], category: string, cents: number, state: Entry['state'], dueOn = '2026-10-10'): Entry => ({
   id,
@@ -50,4 +50,18 @@ test('change is undefined without a previous amount and percentOf guards a zero 
   expect(change(10n, 0n)).toBeUndefined()
   expect(percentOf(1n, 3n)).toBe(33.3)
   expect(percentOf(5n, 0n)).toBe(0)
+})
+
+test('flow totals income, expenses and net per month and summarizes the ranges', () => {
+  const months = flow([
+    { month: '2026-09', entries: [entry('1', 'income', 'Salário', 2_140_000, 'paid'), entry('2', 'expense', 'Moradia', 1_740_000, 'paid')] },
+    { month: '2026-10', entries: [entry('3', 'income', 'Salário', 2_220_000, 'paid'), entry('4', 'expense', 'Moradia', 1_490_000, 'pending'), entry('5', 'expense', 'Saúde', 80_000, 'late')] },
+    { month: '2026-11', entries: [] },
+  ])
+  expect(months).toEqual([
+    { month: '2026-09', income: 2_140_000n, expenses: 1_740_000n, net: 400_000n },
+    { month: '2026-10', income: 2_220_000n, expenses: 1_570_000n, net: 650_000n },
+    { month: '2026-11', income: 0n, expenses: 0n, net: 0n },
+  ])
+  expect(flowSummary(months.slice(0, 2))).toBe('Receitas entre R$ 21,4 mil e R$ 22,2 mil; despesas entre R$ 15,7 mil e R$ 17,4 mil')
 })

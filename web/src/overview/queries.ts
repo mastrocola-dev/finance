@@ -16,6 +16,20 @@ export const useMonthEntries = (month: string, member: string | undefined, enabl
   })
 }
 
+export const useMonthFlow = (month: string, member: string | undefined, count = 6) => {
+  const { api } = useIdentity()
+  return useQuery({
+    queryKey: ['entries', 'flow', month, member ?? 'all', count],
+    queryFn: () =>
+      Promise.all(
+        Array.from({ length: count }, (_, index) => shiftMonth(month, index - count + 1)).map(async (month) => ({
+          month,
+          entries: unwrap(await api.GET('/api/months/{month}/entries', { params: { path: { month }, query: member ? { member } : {} } })),
+        })),
+      ),
+  })
+}
+
 export const useMonthSplit = (month: string) => {
   const { api } = useIdentity()
   return useQuery({ queryKey: ['split', month], queryFn: async () => unwrap(await api.GET('/api/months/{month}/split', { params: { path: { month } } })) })

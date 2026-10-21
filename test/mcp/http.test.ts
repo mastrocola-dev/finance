@@ -62,7 +62,7 @@ describe('streamable http adapter', () => {
     const calls = clients.flatMap((mcp) => ['2026-09', '2026-10'].map((month) => mcp.callTool({ name: 'month_summary', arguments: { month, today: seedToday } })))
     const results = await Promise.all(calls)
     const expenses = results.map(({ content }) => JSON.parse((content as { text: string }[])[0]?.text ?? '{}').month.expenses.total.cents)
-    assert.deepEqual(expenses, ['1009500', '1023800', '1009500', '1023800'])
+    assert.deepEqual(expenses, ['1021500', '1037100', '1021500', '1037100'])
     await Promise.all(clients.map((mcp) => mcp.close()))
   })
 

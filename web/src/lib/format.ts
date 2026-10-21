@@ -2,6 +2,10 @@ const zone = 'America/Sao_Paulo'
 
 const day = new Intl.DateTimeFormat('pt-BR', { day: '2-digit', month: '2-digit', timeZone: 'UTC' })
 
+const thousands = new Intl.NumberFormat('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })
+
+const shortMonth = new Intl.DateTimeFormat('pt-BR', { month: 'short', timeZone: 'UTC' })
+
 const month = new Intl.DateTimeFormat('pt-BR', { month: 'long', year: 'numeric', timeZone: 'UTC' })
 
 const utc = (date: string) => {
@@ -30,3 +34,11 @@ export const formatMonthTitle = (date: string) => {
 export const today = (now = new Date()) => new Intl.DateTimeFormat('en-CA', { timeZone: zone }).format(now)
 
 export const currentMonth = (now = new Date()) => `${today(now).slice(0, 7)}-01`
+
+const inThousands = (cents: bigint) => thousands.format(Number(cents < 0n ? -cents : cents) / 100_000)
+
+export const formatThousandsBrl = (cents: bigint) => `${cents < 0n ? '-' : ''}R$ ${inThousands(cents)} mil`
+
+export const formatNetShort = (cents: bigint) => `${cents < 0n ? '−' : '+'}${inThousands(cents)}k`
+
+export const formatMonthShort = (date: string) => shortMonth.format(utc(date)).replace('.', '')
