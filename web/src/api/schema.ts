@@ -449,6 +449,8 @@ export type components = {
             installmentsRemaining: number | null;
             /** @description Date as YYYY-MM-DD */
             startsOn: string;
+            /** @description Oldest unpaid installment, else a month after the last one recorded */
+            nextDueOn: string | null;
         };
         Reserve: {
             id: string;

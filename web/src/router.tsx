@@ -8,6 +8,7 @@ import { NotFound } from './pages/not-found.tsx'
 import { ScreenPage } from './pages/screen-page.tsx'
 import { Layout } from './shell/layout.tsx'
 import { type Path, screens } from './shell/nav.ts'
+import { WorthPage } from './worth/worth-page.tsx'
 
 const rootRoute = createRootRoute({
   validateSearch: parseSearch,
@@ -16,7 +17,7 @@ const rootRoute = createRootRoute({
   notFoundComponent: NotFound,
 })
 
-const pages: Partial<Record<Path, () => ReactNode>> = { '/': OverviewPage, '/contas': BillsPage, '/lancamentos': EntriesPage }
+const pages: Partial<Record<Path, () => ReactNode>> = { '/': OverviewPage, '/contas': BillsPage, '/lancamentos': EntriesPage, '/patrimonio': WorthPage }
 
 const routeTree = rootRoute.addChildren(screens.map((screen) => createRoute({ getParentRoute: () => rootRoute, path: screen.path, component: pages[screen.path] ?? (() => <ScreenPage screen={screen} />) })))
 

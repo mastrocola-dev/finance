@@ -4,13 +4,16 @@ Ordered. The agent takes the first unblocked item under **Next**. Items marked *
 
 ## Next
 
-- **W09 Net worth** (`/patrimonio`): debts, reserves, goals
 - **W10 Decisions** (`/decisoes`): propose, confirm, reject, withdraw, history
 - **W11 Activity** (`/atividade`): audit timeline with author filters and before/after table
 - **W12 PWA and quality**: `vite-plugin-pwa` manifest and icons (generated, no third-party art), offline read cache; Playwright end-to-end flow over the seed (add entry, mark paid, confirm decision); axe with zero violations on every route; Lighthouse-style budget recorded in MEMORY
 - **W13 Showcase**: README section with the screenshots (light and dark, mobile and desktop), how to run API plus web locally, architecture sketch
 
 ## Later
+
+- **L70 New goal and reserve edits**: `MobileDebts.dc.html` shows "+ Nova meta"; W09 left it out because there is no `POST /api/goals`. Add an audited `createGoal` command and route, then the button opens a small form (name, target, due month); reserve balance edits can reuse `PATCH /api/reserves/:name`
+- **L71 Next installment tick color**: the mockup's `next` tick color (`#E7B89A`/`#7A4A2E`) is not a token; W09 uses `bg-expense/40`. Add a token to `docs/design.md` if the author wants the exact hue
+- **L72 Debt next due date estimate**: `nextDueOn` is the oldest unpaid installment entry, else a month after the last recorded one (no due day on `debt`, L28); with L28 it can come from the debt itself
 
 - **L67 Quick add date and payment**: the form has no date field (mockup has none): the entry is due today in the current month, else on the first day of the shown month, and is always `planned`; add an optional date and a "já paga" toggle if the author records past expenses often
 - **L68 Quick add catalog errors**: categories and accounts that fail to load leave the selects with only "Escolher"/"Sem conta" and no message; show an inline error with retry
@@ -89,6 +92,8 @@ Ordered. The agent takes the first unblocked item under **Next**. Items marked *
 - **F10b layout choices**: built as the default: the installment column is optional (8th header cell, fixed lines only); a `total` row (kind `total`, amount = income minus expenses of the sheet) is checked against the lines when present; a month can be imported once (refused when it already holds import entries). Confirm these before F10c or any replace flow
 
 ## Done
+
+- **W09 Net worth**: `/patrimonio` renders `web/src/worth/` (pure `model.ts`: `debtView` with installment ticks, "N de M pagas · próxima dd/mm", installment, monthly rate and creditor; `monthlyInstallments`; `reserveView` and `goalView` with percent, "R$ x de R$ y" and "faltam R$/mês" until the due month; `formatSignedBrl`); "Patrimônio líquido estimado" under the title, Dívidas with 48-column installment strips (`role="img"`), Reservas e metas with conic progress rings, two columns from 1024 px; each section loads, empties and retries on its own; debt read model gains `nextDueOn` (contract, OpenAPI and web types regenerated); 1 node plus 11 web tests (135 node, 73 web); net-worth screenshots
 
 - **W08b Entries quick add**: `GET /api/categories` (optional `direction`) and `GET /api/accounts` (id, nickname, last four, owner; joint first) in `src/ledger/catalog.ts` and the contract; "Lançamento rápido" form above the toolbar (`quick-add-form.tsx`, react-hook-form with zod `quickEntry` in `quick-add.ts`: Tipo, Descrição, Valor parsed from BRL to cents, Categoria filtered by Tipo, Conta, Quem defaulting to the member filter or Conjunto); Enter submits from any field, errors in one alert linked by `aria-describedby`; success toast, new row on `accent-soft`, description and amount cleared and focused for the next one; 401 asks to choose the member; invalidates entries, split and audit; toolbar category filter renamed "Filtrar por categoria"; 2 node plus 6 web tests (134 node, 62 web); entries screenshots
 

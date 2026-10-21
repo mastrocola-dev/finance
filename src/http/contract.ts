@@ -107,6 +107,7 @@ const debt = z.strictObject({
   installmentsPaid: z.int(),
   installmentsRemaining: z.int().nullable(),
   startsOn: date,
+  nextDueOn: date.nullable().describe('Oldest unpaid installment, else a month after the last one recorded'),
 })
 
 const reserve = z.strictObject({

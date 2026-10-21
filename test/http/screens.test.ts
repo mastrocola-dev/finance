@@ -103,6 +103,18 @@ describe('http api for the screens', () => {
     assert.equal(body.netWorth.cents, (2250000n - debts).toString())
   })
 
+  test('tells the next installment of each debt', async () => {
+    const { status, body } = await get('/debts')
+    assert.equal(status, 200)
+    assert.deepEqual(
+      body.map(({ description, installmentsPaid, installmentsRemaining, nextDueOn }: Record<string, unknown>) => [description, installmentsPaid, installmentsRemaining, nextDueOn]),
+      [
+        ['Car financing', 24, 24, '2026-11-12'],
+        ['Personal loan', 7, 5, '2026-10-25'],
+      ],
+    )
+  })
+
   test('settles joint expenses paid from a member account', async () => {
     const before = await get('/months/2026-10/split')
     assert.equal(before.status, 200)

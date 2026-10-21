@@ -1508,6 +1508,18 @@
           "startsOn": {
             "type": "string",
             "description": "Date as YYYY-MM-DD"
+          },
+          "nextDueOn": {
+            "anyOf": [
+              {
+                "type": "string",
+                "description": "Date as YYYY-MM-DD"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Oldest unpaid installment, else a month after the last one recorded"
           }
         },
         "required": [
@@ -1523,7 +1535,8 @@
           "installmentsTotal",
           "installmentsPaid",
           "installmentsRemaining",
-          "startsOn"
+          "startsOn",
+          "nextDueOn"
         ],
         "additionalProperties": false
       },
