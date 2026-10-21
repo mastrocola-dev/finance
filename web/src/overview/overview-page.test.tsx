@@ -38,6 +38,7 @@ const responses: Record<string, unknown> = {
   '/api/audit': {
     items: [{ id: '3', at: '2026-10-20T12:14:00.000Z', author: 'claude', member: 'Marcio', entity: 'entry', entityId: '9', action: 'update', before: { description: 'Energia', status: 'planned' }, after: { description: 'Energia', status: 'paid' } }],
     counts: { member: 0, claude: 1, import: 0, system: 0 },
+    memberCounts: [],
     next: null,
   },
 }

@@ -17,7 +17,7 @@ const cents = (record: Record<string, unknown> | null, key: string) => {
   return typeof value === 'number' || typeof value === 'string' ? formatBrl(BigInt(value)) : undefined
 }
 
-const entities: Record<string, string> = {
+export const entities: Record<string, string> = {
   entry: 'lançamento',
   decision: 'decisão',
   decision_confirmation: 'confirmação',

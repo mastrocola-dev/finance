@@ -166,6 +166,7 @@ const auditItem = z.strictObject({
 const auditPage = z.strictObject({
   items: z.array(auditItem),
   counts: z.strictObject(Object.fromEntries(authors.map((name) => [name, z.int()])) as Record<(typeof authors)[number], z.ZodInt>),
+  memberCounts: z.array(z.strictObject({ name: z.string(), total: z.int() })).describe('Entries written by each member themselves'),
   next: id.nullable().describe('Pass as before to read the next page'),
 })
 

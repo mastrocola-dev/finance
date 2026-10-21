@@ -538,6 +538,11 @@ export type components = {
                 import: number;
                 system: number;
             };
+            /** @description Entries written by each member themselves */
+            memberCounts: {
+                name: string;
+                total: number;
+            }[];
             /** @description Pass as before to read the next page */
             next: string | null;
         };

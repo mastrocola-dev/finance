@@ -149,6 +149,7 @@ describe('http api for the screens', () => {
     assert.ok(first.body.counts.system > 0)
     assert.equal(first.body.counts.member, 2)
     assert.equal(first.body.counts.claude, 0)
+    assert.deepEqual(first.body.memberCounts, [{ name: 'Marcio', total: 2 }])
     const second = await get(`/audit?limit=2&before=${first.body.next}`)
     assert.ok(Number(second.body.items[0].id) < Number(first.body.next))
     const created = first.body.items.find(({ entity }: { entity: string }) => entity === 'entry')
@@ -161,6 +162,7 @@ describe('http api for the screens', () => {
   test('filters the audit log by author, member and entity', async () => {
     const byMember = await get('/audit?member=marcio')
     assert.deepEqual(byMember.body.counts, { member: 2, claude: 0, import: 0, system: 0 })
+    assert.deepEqual((await get('/audit?member=gabriela')).body.memberCounts, [])
     assert.ok(byMember.body.items.every(({ member }: { member: string }) => member === 'Marcio'))
     const members = await get('/audit?entity=member&author=system')
     assert.deepEqual(

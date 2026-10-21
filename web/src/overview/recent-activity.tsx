@@ -1,6 +1,6 @@
 import { Link } from '@tanstack/react-router'
+import { type AuditItem, authorLabel, describeAudit, formatWhen } from '../activity/describe.ts'
 import { cn } from '../lib/utils.ts'
-import { type AuditItem, authorLabel, describeAudit, formatWhen } from './activity.ts'
 import { Card } from './card.tsx'
 
 export const RecentActivity = ({ items }: { items: AuditItem[] }) => (

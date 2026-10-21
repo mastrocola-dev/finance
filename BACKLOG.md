@@ -4,8 +4,9 @@ Ordered. The agent takes the first unblocked item under **Next**. Items marked *
 
 ## Next
 
-- **W11 Activity** (`/atividade`): audit timeline with author filters and before/after table
-- **W12 PWA and quality**: `vite-plugin-pwa` manifest and icons (generated, no third-party art), offline read cache; Playwright end-to-end flow over the seed (add entry, mark paid, confirm decision); axe with zero violations on every route; Lighthouse-style budget recorded in MEMORY
+- **W12a PWA and bundle**: `vite-plugin-pwa` manifest and icons (generated, no third-party art), offline read cache for GET `/api/*`; split routes with lazy imports (L60) so the main chunk is under Vite's 500 kB warning
+- **W12b End-to-end and axe**: Playwright flow over the seed (add entry, mark paid with the undo toast screenshot (L63), confirm decision), leaving the seed as it was or reseeding; `@axe-core/playwright` with zero violations on every route, light and dark
+- **W12c Budget**: Lighthouse-style budget (bundle size, first load over the preview) measured and recorded in MEMORY; fix what breaks it
 - **W13 Showcase**: README section with the screenshots (light and dark, mobile and desktop), how to run API plus web locally, architecture sketch
 
 ## Later
@@ -89,6 +90,11 @@ Ordered. The agent takes the first unblocked item under **Next**. Items marked *
 - **L75 Closed decisions filter**: the history asks `GET /api/decisions?status=all&limit=30` and drops proposed ones in the browser, so it can show fewer than 30 closed decisions; add `status=closed` (confirmed, rejected or withdrawn) to `decisionQuery` and page by cursor
 - **L76 Concurrent decision notices**: per-call `mutate` callbacks fire only for the latest call, so answering two cards quickly shows only the last notice; move notices to mutation-level handlers like `usePayment` if it matters
 
+- **L77 Import chip color**: the mockup paints Importação with `imp`/`impSoft` (`#3D4250`/`#ECECE7`), which are not tokens in `docs/design.md`; W11 uses `bg-sunken text-muted` for import and system. Add the token if the author wants the mockup's hue
+- **L78 Activity filters in the URL and by entity**: author filters live in component state (like L65); there is no entity picker (L47) nor a link from a record to its own history. Move the filter to the search params and add `entity`/`entityId` filters when wanted
+- **L79 Activity next page errors**: a failed "Carregar mais" turns the whole timeline into the error state (QueryView sees `isError`); keep the loaded pages and show an inline retry under them instead
+- **L80 Seed audit noise**: the seed writes 219 `system` rows at the same second, so the timeline's first pages are seed creation; with L74 the seed could spread them over the past year or the activity screen could hide `system` by default
+
 ## Needs author
 
 - **W03 settlement rule** (built as default, not blocking): only joint expenses (no member) with status `paid` count, and only when paid from an account owned by a member; joint expenses paid from a joint account are already shared and count for nobody; leftover cents of the share go to members in id order. Confirm or change
@@ -96,6 +102,7 @@ Ordered. The agent takes the first unblocked item under **Next**. Items marked *
 
 ## Done
 
+- **W11 Activity**: `/atividade` renders `web/src/activity/` (pure `model.ts`: author filters Todos, Claude, each member, Importação and Sistema when present; days in São Paulo time as Hoje/Ontem/"20 de outubro"; changed fields with pt-BR names, BRL, statuses and timestamps; record link per entity, entries to their month); events with time, author chip, "a pedido de" for Claude, action and record, summary from the shared `describe.ts` (moved from the overview) and a Campo/Antes/Depois table for updates and closes; cursor paging with "Carregar mais"; `GET /api/audit` gains `memberCounts` (rows each member wrote themselves); placeholder `ScreenPage` removed since every route has its screen; 0 new node tests (2 assertions) plus 11 web tests (137 node, 95 web); activity screenshots refreshed
 - **W10 Decisions**: `/decisoes` renders `web/src/decisions/` (pure `model.ts`: people in member order with Confirmou/Aguardando, answers per member — Confirmar while awaited, Retirar proposta for the proposer, Rejeitar for the others —, "Proposta por X via Claude · dd/mm, hh:mm" in São Paulo time, zod `proposal` and `toNewDecision`); cards with Proposta and via Claude chips, amount, details and confirmations; history (Confirmada, Rejeitada, Retirada with day); "Propor decisão" form (título, valor and detalhes opcionais); toasts for success, 422 ("a decisão mudou") and 401; answers invalidate decisions and audit, so the overview card and sidebar count follow; without identity the buttons give way to "Escolha quem você é"; `seedDecisions` plants four fictional decisions through the ledger commands for `db:seed` (L73); 2 node plus 11 web tests (137 node, 84 web); all screenshots refreshed (overview and activity now show decisions)
 
 - **W09 Net worth**: `/patrimonio` renders `web/src/worth/` (pure `model.ts`: `debtView` with installment ticks, "N de M pagas · próxima dd/mm", installment, monthly rate and creditor; `monthlyInstallments`; `reserveView` and `goalView` with percent, "R$ x de R$ y" and "faltam R$/mês" until the due month; `formatSignedBrl`); "Patrimônio líquido estimado" under the title, Dívidas with 48-column installment strips (`role="img"`), Reservas e metas with conic progress rings, two columns from 1024 px; each section loads, empties and retries on its own; debt read model gains `nextDueOn` (contract, OpenAPI and web types regenerated); 1 node plus 11 web tests (135 node, 73 web); net-worth screenshots

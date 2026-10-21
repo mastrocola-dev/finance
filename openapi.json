@@ -1967,6 +1967,28 @@
             ],
             "additionalProperties": false
           },
+          "memberCounts": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "name": {
+                  "type": "string"
+                },
+                "total": {
+                  "type": "integer",
+                  "minimum": -9007199254740991,
+                  "maximum": 9007199254740991
+                }
+              },
+              "required": [
+                "name",
+                "total"
+              ],
+              "additionalProperties": false
+            },
+            "description": "Entries written by each member themselves"
+          },
           "next": {
             "anyOf": [
               {
@@ -1983,6 +2005,7 @@
         "required": [
           "items",
           "counts",
+          "memberCounts",
           "next"
         ],
         "additionalProperties": false

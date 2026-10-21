@@ -1,5 +1,5 @@
 import { expect, test } from 'vitest'
-import { type AuditItem, authorLabel, describeAudit, formatWhen } from './activity.ts'
+import { type AuditItem, authorLabel, describeAudit, formatWhen } from './describe.ts'
 
 const item = (changes: Partial<AuditItem>): AuditItem => ({ id: '1', at: '2026-10-20T12:14:00.000Z', author: 'member', member: 'Gabriela', entity: 'entry', entityId: '9', action: 'create', before: null, after: null, ...changes })
 

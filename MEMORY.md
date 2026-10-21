@@ -40,6 +40,7 @@
 - W08b: `@hookform/resolvers` pinned to 5.9.2 (6.x has optional peers on `effect` 4 that npm cannot resolve); web `zod` 4.6.7 as root. Quick add due date is today in the current month else the month's first day (L67); form ids `quick-<field>` with `<label htmlFor>` (Biome rejects labels wrapping a child component's input); form row is `lg:flex-nowrap` so Lançar stays inline at 1440
 - W09: `/patrimonio` in `web/src/worth/`; three queries (`debts`, `savings` = reserves plus goals, `net-worth`) each with its own `QueryView`. Tailwind `@theme inline` emits no `--color-*` variables at runtime: inline styles use the raw tokens (`var(--ok)`, `var(--sunken)`). Query client retries once (1 s), so error-state tests wait with `{ timeout: 3000 }`. Biome rejects array index keys (ticks carry a `number`)
 - W03: settlement counts only paid joint expenses on member-owned accounts (Needs author); the seed has none, so split is empty over the seed (L44). Audit `next` is a string cursor (bigint would become money via `toJson`); counts ignore the author filter and cursor so filter chips keep their numbers
+- W11: `/atividade` in `web/src/activity/` (`describe.ts` shared with the overview card); chips count from a separate `['audit','counts']` query (`limit=1`, unscoped) because API counts are scoped by `member`; member chip = `author=member&member=X`; timeline is `useInfiniteQuery` keyed `['audit','timeline',filter]`. `memberCounts` in `GET /api/audit`. Tests avoid the clock with 2025 dates and regex day names
 - W10: `/decisoes` in `web/src/decisions/`; pending list reuses `useProposedDecisions` (key `['decisions','proposed']`), history is `['decisions','history']` (status all, filtered in the browser, L75); answers use mutation key `decision-reply` and invalidate `decisions` and `audit`. Mobile shell note: top bar (brand, identity, theme) is not in the mockups; `main` has `pb-28` for the fixed tab bar
 
 ## Notes for next items
@@ -54,7 +55,6 @@
 
 ## Status
 
-- Tests: 137 node plus 84 web after W10; `npm run check` and all 24 screenshots green. Next is W11 (activity, `/atividade`; mockup `Audit.dc.html`; `GET /api/audit` with author counts and cursor exists, W03). The seeded decisions now give the audit log member and Claude rows to show
-- 2026-10-20: the author approved the web app (W01–W13 in BACKLOG), the design in `docs/design.md` and `docs/mockups/`, and rules in CLAUDE.md "Web app"
-- Later items stay parked until the web app is done, except where a W item needs one (L32, L52, L58, L59; L60 belongs to W12)
+- Tests: 137 node plus 95 web after W11; `npm run check` green; activity screenshots refreshed (others unchanged). Next is W12a (PWA and lazy routes); W12 was split into W12a/b/c to fit a run
+- 2026-10-20: the author approved the web app (W01–W13), `docs/design.md`, `docs/mockups/` and CLAUDE.md "Web app". Later items stay parked until the web app is done unless a W item needs one (L32, L52, L58, L59, L60, L63)
 - Failing-test run streak: 0
