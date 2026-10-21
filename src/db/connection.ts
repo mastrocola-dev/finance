@@ -15,9 +15,12 @@ export const connect = async (url = databaseUrl) => {
   return client
 }
 
-export const connectPool = (url = databaseUrl, readOnly = false) =>
-  new pg.Pool({
+export const connectPool = (url = databaseUrl, readOnly = false) => {
+  const pool = new pg.Pool({
     connectionString: url,
     max: Number(process.env.DATABASE_POOL_MAX ?? 5),
     ...(readOnly ? { options: '-c default_transaction_read_only=on' } : {}),
   })
+  pool.on('error', (error) => console.error(`database connection lost: ${error.message}`))
+  return pool
+}

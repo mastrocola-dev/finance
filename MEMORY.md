@@ -6,7 +6,7 @@
 - Node 22 is preinstalled: `npm i -g node@24` then `hash -r` (about a minute; 24.22.0 on 2026-10-20)
 - PostgreSQL 16: `pg_ctlcluster 16 main start`, then `su postgres -c "psql -c \"alter user postgres password 'local'\""`, then `cp .env.example .env` (gitignored)
 - Run setup commands one per Bash call; long chained commands were refused by the classifier
-- `npm ci` then `npm run db:reset` and `npm run db:seed`; baseline is 137 node tests plus 99 web (Vitest) tests; seed has 189 entries and `db:seed` also plants 4 decisions (`seedDecisions`, not in `seed()`, L73)
+- `npm ci` then `npm run db:reset` and `npm run db:seed`; baseline is 138 node tests plus 99 web (Vitest) tests plus 55 Playwright; seed has 189 entries and `db:seed` also plants 4 decisions (`seedDecisions`, not in `seed()`, L73)
 - `curl` to local servers needs `--noproxy '*'` (the agent proxy answers 404 otherwise); stop servers by pid, `pkill -f` matched the calling shell and killed the call
 - Web deps install with `npm i -w web ...` (add `-S` for runtime deps: a first `-w` install put react as a peer only); root scripts forwarding to the workspace need a trailing `--` or npm swallows flags
 - Single test file: `timeout 200 node --env-file=.env --test test/mcp/demo.test.ts` (capture to a log file and read the tail; piping through grep printed nothing once)
@@ -26,7 +26,7 @@
 - F10b (author to confirm, see BACKLOG Needs author): optional 8th header `installment`; optional `total` row checked against the lines; a month is importable once; import runs as actor `import` via `importMonth`
 - F11: demo is stdio only (`src/mcp/demo.ts`, `npm run mcp:demo`), reads only, pool opened with `default_transaction_read_only=on`; shared read tools live in `src/mcp/read.ts`, zod helpers in `src/mcp/schema.ts`
 - W01: no `@vitejs/plugin-react` (not on the CLAUDE.md list; Vite's built-in JSX transform, no Fast Refresh). Extra deps beyond the list: `vite` (named by W01), `@types/react`, `@types/react-dom`, `@testing-library/dom` (peer of Testing Library). Web tsconfig uses `moduleResolution: bundler`, `jsx: react-jsx`, types `vite/client` and `node`; root `tsc` still covers only `src` and `test`
-- W05: screenshots with `cd web && timeout 400 npx playwright test` (about 15 s; it builds, starts API and preview, stops them after). Names are `<screen>-<width>-<theme>.png` with screen overview, bills, entries, net-worth, decisions, activity; the spec stores `finance.member=Marcio` first. Read a few PNGs before committing
+- W05/W12b: `cd web && timeout 590 npx playwright test` (about 70 s; builds, starts API and preview) runs axe, flow, pwa and screenshots. `flow.spec.ts` reseeds the dev DB before and after (L86); `connectPool` logs pool errors so the API survives the forced drop. Axe: `-g axe`, zero violations on every route. Names are `<screen>-<width>-<theme>.png` with screen overview, bills, entries, net-worth, decisions, activity; the spec stores `finance.member=Marcio` first. Read a few PNGs before committing
 - W05 routing: code-based TanStack Router (no router plugin, not on the list); `Link` sets `aria-current="page"` on its own and `to="."` is always active, so filters and month arrows are buttons calling `navigate({ to: '.', search })`; type the search callback `(previous: AppSearch)`. Root `validateSearch: parseSearch` plus `retainSearchParams(['month', 'member'])`; read with `useSearch({ from: '__root__' })`, month via `monthOf`
 - W05 data: `useIdentity().api` is the typed client with `x-member`; wrap calls with `unwrap(await api.GET(...))` in `useQuery`; render with `QueryView` (skeleton, empty, error with retry). App tests render `<App history={createMemoryHistory(...)} fetch={stub} />`; pin the month in the URL, never rely on the clock
 - W04: `ui.shadcn.com` is blocked by the proxy (L49); shadcn files are hand-written. Extra deps: `class-variance-authority`, `clsx`, `tailwind-merge` (shadcn's own), `@fontsource-variable/geist(-mono)`, `lucide-react`. Tokens are Tailwind names without prefix (`bg-surface`, `text-muted`, `text-meta`, `rounded-card`); default Tailwind colors and shadows are cleared, so `bg-white`, `shadow` do not exist. A new token must also go into `extendTailwindMerge` in `web/src/lib/utils.ts` or `cn` drops classes. Dark mode is the `.dark` class on `<html>`; web `biome.json` enables `css.parser.tailwindDirectives`; Biome wants `<fieldset>` over `role="group"`
@@ -55,6 +55,6 @@
 
 ## Status
 
-- Tests: 137 node plus 99 web after W12a; `npm run check` green; build is 235 kB entry plus per-route chunks. Next is W12b (end-to-end flow and axe), then W12c (budget), W13 (showcase)
-- 2026-10-20: the author approved the web app (W01–W13), `docs/design.md`, `docs/mockups/` and CLAUDE.md "Web app". Later items stay parked until the web app is done unless a W item needs one (L32, L52, L58, L59, L63, L83, L84)
+- Tests: 138 node, 99 web, 55 Playwright after W12b; `npm run check` green; build is 235 kB entry plus per-route chunks. Next is W12c (budget), then W13 (showcase)
+- 2026-10-20: the author approved the web app (W01–W13), `docs/design.md`, `docs/mockups/` and CLAUDE.md "Web app". Later items stay parked until the web app is done unless a W item needs one (L32, L52, L58, L59, L83, L84, L86)
 - Failing-test run streak: 0
