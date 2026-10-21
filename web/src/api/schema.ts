@@ -221,6 +221,23 @@ export type paths = {
         patch?: never;
         trace?: never;
     };
+    "/api/entries/{id}/unpaid": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Undo a payment mark, back to planned */
+        post: operations["markUnpaid"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/reserves/{name}": {
         parameters: {
             query?: never;
@@ -1024,6 +1041,40 @@ export interface operations {
                 "application/json": components["schemas"]["MarkPaidBody"];
             };
         };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Entry"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+        };
+    };
+    markUnpaid: {
+        parameters: {
+            query?: {
+                /** @description Reference date YYYY-MM-DD for pending and late; defaults to today in America/Sao_Paulo */
+                today?: string;
+            };
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
         responses: {
             /** @description OK */
             200: {

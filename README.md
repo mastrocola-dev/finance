@@ -40,6 +40,7 @@ Write tools `create_entry` (planned or already paid income or expense, member na
 - `GET /api/audit` (`author`, `member`, `entity`, `limit`, `before` cursor from `next`), newest first with counts per author
 - `POST /api/entries` with the `create_entry` fields, answered `201`
 - `POST /api/entries/:id/paid` with an optional `paid_on`
+- `POST /api/entries/:id/unpaid` undoes a payment mark (back to planned, audited; used by the undo toast on `/contas`)
 - `PATCH /api/reserves/:name` with `balance_cents` and/or `target_cents`
 - `POST /api/decisions` with `title`, optional `description` and `amount_cents`, answered `201`
 - `POST /api/decisions/:id/confirm|reject|withdraw`

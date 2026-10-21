@@ -8,7 +8,7 @@ Rewritten by every run, at most 60 lines. Only what the next run needs and canno
 - Node 22 is preinstalled: `npm i -g node@24` then `hash -r` (about a minute; 24.22.0 on 2026-10-20)
 - PostgreSQL 16: `pg_ctlcluster 16 main start`, then `su postgres -c "psql -c \"alter user postgres password 'local'\""`, then `cp .env.example .env` (gitignored)
 - Run setup commands one per Bash call; long chained commands were refused by the classifier
-- `npm ci` then `npm run db:reset` and `npm run db:seed`; baseline is 130 node tests plus 38 web (Vitest) tests; seed has 189 entries
+- `npm ci` then `npm run db:reset` and `npm run db:seed`; baseline is 131 node tests plus 47 web (Vitest) tests; seed has 189 entries
 - `curl` to local servers needs `--noproxy '*'` (the agent proxy answers 404 otherwise); stop servers by pid, `pkill -f` matched the calling shell and killed the call
 - Use `./node_modules/.bin/biome`, not `npx biome`: npx stalled a call for 3 minutes
 - Web deps install with `npm i -w web ...` (add `-S` for runtime deps: a first `-w` install put react as a peer only); root scripts forwarding to the workspace need a trailing `--` or npm swallows flags
@@ -39,6 +39,7 @@ Rewritten by every run, at most 60 lines. Only what the next run needs and canno
 - W02: response schemas are `z.strictObject` of the wire shape (after `toJson`); request schemas reuse `month`, `date`, `id`, `today` from `src/mcp/schema.ts`; components are the keys of `schemas` plus `<OperationId>Body`/`<OperationId>Response` for unnamed ones; the error component is `ApiError` (a component named `Error` shadowed the global type)
 - W06a: overview in `web/src/overview/` (pure `model.ts`/`activity.ts`, one card per file, `Card` wrapper); one query reads current plus previous month entries; a chosen member means that member's own entries only (L55); entries wait for `/api/members` so no unfiltered flash. Web test stubs must return full API shapes (the overview reads `awaiting` etc. directly). Screenshot spec waits for `[aria-busy]` to clear. Overview only: `npx playwright test -g overview`
 - W06b: Recharts 3.10 (on the list); chart is plain `BarChart` with no axes, `accessibilityLayer={false}` (it adds a tabindex inside our `role="img"`), colors `var(--color-income|expense)`, HTML grids above/below for net and month labels (band scale aligns with equal grid columns at zero margins). The flow card is hidden under 768 px (not in `MobileOverview`). Overview desktop rows: flow + bills, then categories + side column (settlement, decisions, activity); `MonthCategories` returns null for an empty month. Seed Pharmacy (joint, `Marcio card`, Health, day 3) feeds the split; seed totals asserted in node tests: Oct expenses 1037100, Sep 1021500
+- W07: `/contas` in `web/src/bills/`; undo uses the new `POST /api/entries/:id/unpaid` (`markUnpaid`, audited back to `planned`); mutations share key and scope `payment` (serial); per-call `mutate` callbacks fire only for the latest call, so notices come through `usePayment(month, handlers)`. Shared `Toast` in `web/src/components/toast.tsx` (no Radix dep). Toast colors: border/bg tokens only, `border-late/40` for the late row (mockup's `lateBorder` is not a token). Screenshots of one screen: `npx playwright test -g bills`; clicking in e2e would change the dev seed
 - W03: settlement counts only paid joint expenses on member-owned accounts (Needs author); the seed has none, so split is empty over the seed (L44). Audit `next` is a string cursor (bigint would become money via `toJson`); counts ignore the author filter and cursor so filter chips keep their numbers
 
 ## Notes for next items
@@ -50,11 +51,10 @@ Rewritten by every run, at most 60 lines. Only what the next run needs and canno
 - `connectPool(url, true)` gives a read-only pool; `pg` returns `bigint` as `BigInt`, `date` as string, `timestamptz` as `Date`, `numeric` as string; `count(*)` needs `::int`
 - New read model: put the query in `src/ledger/<name>.ts`, cast sums `::bigint` (else numeric string) and non-money bigints `::text`
 - Seeded test DB: `testDatabase()` then `seed(db.client)` (`test/db/database.ts`); API tests use `serveApi(pool, 0, '127.0.0.1')` and `fetch`
-- `formatBrl` exists twice on purpose (src/ledger/money.ts and web/src/lib/format.ts, same output); the API already sends `brl` text, cents as string
 
 ## Status
 
-- Tests: 130 node plus 38 web after W06b; `npm run check`, `web:build` and the overview screenshots green (other screens unchanged since W05)
+- Tests: 131 node plus 47 web after W07; `npm run check` and bills screenshots green
 - 2026-10-20: the author approved the web app (W01–W13 in BACKLOG), the design in `docs/design.md` and `docs/mockups/`, and rules in CLAUDE.md "Web app"
 - Later items stay parked until the web app is done, except where a W item needs one (L32, L52, L58, L59 are good candidates; L60 belongs to W12)
 - Failing-test run streak: 0

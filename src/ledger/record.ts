@@ -68,6 +68,15 @@ export const markPaid = (client: Client, actor: Actor, id: bigint, paidOn = loca
     return id
   })
 
+export const markUnpaid = (client: Client, actor: Actor, id: bigint) =>
+  write(client, actor, async (ledger) => {
+    const [current] = (await client.query<{ status: string }>('select status from entry where id = $1 and closed_at is null for update', [id])).rows
+    if (!current) throw new RuleError(`entry ${id} not found or closed`)
+    if (current.status !== 'paid') throw new RuleError(`entry ${id} is not paid`)
+    await ledger.update('entry', id, { status: 'planned', paid_on: null })
+    return id
+  })
+
 export type ReserveChanges = { balance?: bigint; target?: bigint }
 
 export const updateReserve = (client: Client, actor: Actor, name: string, changes: ReserveChanges) =>

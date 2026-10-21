@@ -112,6 +112,23 @@ describe('http api', () => {
     )
   })
 
+  test('undoes a payment mark and refuses an entry that is not paid', async () => {
+    const created = await post(`/entries?today=${seedToday}`, { ...groceries, description: 'Bakery', paid_on: seedToday })
+    const reopened = await post(`/entries/${created.body.id}/unpaid?today=${seedToday}`, undefined, { 'x-member': 'Gabriela' })
+    assert.equal(reopened.status, 200)
+    assert.equal(reopened.body.status, 'planned')
+    assert.equal(reopened.body.state, 'pending')
+    assert.equal(reopened.body.paidOn, null)
+    const again = await post(`/entries/${created.body.id}/unpaid`, undefined)
+    assert.equal(again.status, 422)
+    assert.match(again.body.error, /is not paid/)
+    const { rows } = await pool.query<{ before: { status: string }; after: { status: string } }>("select before, after from audit_log where entity = 'entry' and entity_id = $1 and action = 'update'", [created.body.id])
+    assert.deepEqual(
+      rows.map(({ before, after }) => [before.status, after.status]),
+      [['paid', 'planned']],
+    )
+  })
+
   test('refuses writes without a member or with a bad body', async () => {
     assert.deepEqual((await post('/entries', groceries, {})).status, 401)
     assert.equal((await post('/entries', '{', { 'x-member': 'Marcio' })).status, 400)

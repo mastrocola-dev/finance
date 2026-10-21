@@ -1,10 +1,12 @@
 import { createRootRoute, createRoute, createRouter, type RouterHistory, retainSearchParams } from '@tanstack/react-router'
+import type { ReactNode } from 'react'
+import { BillsPage } from './bills/bills-page.tsx'
 import { parseSearch } from './lib/search.ts'
 import { OverviewPage } from './overview/overview-page.tsx'
 import { NotFound } from './pages/not-found.tsx'
 import { ScreenPage } from './pages/screen-page.tsx'
 import { Layout } from './shell/layout.tsx'
-import { screens } from './shell/nav.ts'
+import { type Path, screens } from './shell/nav.ts'
 
 const rootRoute = createRootRoute({
   validateSearch: parseSearch,
@@ -13,7 +15,9 @@ const rootRoute = createRootRoute({
   notFoundComponent: NotFound,
 })
 
-const routeTree = rootRoute.addChildren(screens.map((screen) => createRoute({ getParentRoute: () => rootRoute, path: screen.path, component: screen.path === '/' ? OverviewPage : () => <ScreenPage screen={screen} /> })))
+const pages: Partial<Record<Path, () => ReactNode>> = { '/': OverviewPage, '/contas': BillsPage }
+
+const routeTree = rootRoute.addChildren(screens.map((screen) => createRoute({ getParentRoute: () => rootRoute, path: screen.path, component: pages[screen.path] ?? (() => <ScreenPage screen={screen} />) })))
 
 export const createAppRouter = (history?: RouterHistory) => createRouter({ routeTree, history, defaultPreload: 'intent', scrollRestoration: true })
 

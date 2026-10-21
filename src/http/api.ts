@@ -10,7 +10,7 @@ import { findEntry, listEntries } from '../ledger/entries.ts'
 import { forecastMonth } from '../ledger/forecast.ts'
 import { listGoals } from '../ledger/goals.ts'
 import { findMember, listMembers, type Member } from '../ledger/members.ts'
-import { confirmDecision, createEntry, markPaid, proposeDecision, rejectDecision, updateReserve, withdrawDecision } from '../ledger/record.ts'
+import { confirmDecision, createEntry, markPaid, markUnpaid, proposeDecision, rejectDecision, updateReserve, withdrawDecision } from '../ledger/record.ts'
 import { findReserve, listReserves } from '../ledger/reserves.ts'
 import { RuleError } from '../ledger/rule.ts'
 import { monthSplit } from '../ledger/split.ts'
@@ -84,6 +84,10 @@ export const routes: Route[] = [
   route({ method: 'POST', path: '/entries/:id/paid', operationId: 'markPaid', summary: 'Mark an entry as paid', params: idPath, query: referenceQuery, body: payment, response: schemas.Entry }, async (input) => {
     const paid = await writing(input, (connection, actor) => markPaid(connection, actor, BigInt(input.params.id), input.body.paid_on ?? input.query.today))
     return findEntry(input.client, paid, input.query.today)
+  }),
+  route({ method: 'POST', path: '/entries/:id/unpaid', operationId: 'markUnpaid', summary: 'Undo a payment mark, back to planned', params: idPath, query: referenceQuery, response: schemas.Entry }, async (input) => {
+    const reopened = await writing(input, (connection, actor) => markUnpaid(connection, actor, BigInt(input.params.id)))
+    return findEntry(input.client, reopened, input.query.today)
   }),
   route({ method: 'PATCH', path: '/reserves/:name', operationId: 'updateReserve', summary: 'Change the balance or target of a reserve', params: namePath, body: reserveChanges, response: schemas.Reserve }, async (input) => {
     const name = decodeURIComponent(input.params.name)

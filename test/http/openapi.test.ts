@@ -90,6 +90,7 @@ describe('openapi', () => {
       listAudit: { path: '/audit?limit=5' },
       createEntry: { path: `/entries?${today}`, body: { month: '2026-10', due_on: '2026-10-26', description: 'Bakery', direction: 'expense', amount_cents: 1800, category: 'groceries', member: 'joint' } },
       markPaid: { path: `/entries/ENTRY/paid?${today}`, body: {} },
+      markUnpaid: { path: `/entries/ENTRY/unpaid?${today}` },
       updateReserve: { path: '/reserves/Emergency%20fund', body: { target_cents: 3000000 } },
       proposeDecision: { path: '/decisions', body: { title: 'Bike', description: 'Commuting' } },
       confirmDecision: { path: `/decisions/${proposed.body.id}/confirm` },
