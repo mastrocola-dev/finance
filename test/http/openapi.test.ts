@@ -84,6 +84,8 @@ describe('openapi', () => {
       listReserves: { path: '/reserves' },
       listDecisions: { path: '/decisions?status=all' },
       listMembers: { path: '/members' },
+      listCategories: { path: '/categories?direction=expense' },
+      listAccounts: { path: '/accounts' },
       listGoals: { path: '/goals' },
       getNetWorth: { path: '/net-worth' },
       getMonthSplit: { path: '/months/2026-10/split' },

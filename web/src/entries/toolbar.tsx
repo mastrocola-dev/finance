@@ -58,7 +58,7 @@ export const Toolbar = ({ filters, categories, onChange }: Props) => {
           </button>
         ))}
       </fieldset>
-      <select aria-label="Categoria" value={filters.category ?? ''} onChange={(event) => set({ category: event.target.value || undefined })} className={cn(chip, 'pr-2', filters.category && active)}>
+      <select aria-label="Filtrar por categoria" value={filters.category ?? ''} onChange={(event) => set({ category: event.target.value || undefined })} className={cn(chip, 'pr-2', filters.category && active)}>
         <option value="">Todas as categorias</option>
         {categories.map((category) => (
           <option key={category} value={category}>

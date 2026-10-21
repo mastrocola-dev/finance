@@ -419,6 +419,89 @@
         }
       }
     },
+    "/api/categories": {
+      "get": {
+        "operationId": "listCategories",
+        "summary": "Active categories, optionally of one direction",
+        "security": [
+          {},
+          {
+            "member": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "direction",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "income",
+                "expense"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ListCategoriesResponse"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/accounts": {
+      "get": {
+        "operationId": "listAccounts",
+        "summary": "Active accounts by nickname and last four digits, joint first",
+        "security": [
+          {},
+          {
+            "member": []
+          }
+        ],
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ListAccountsResponse"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/goals": {
       "get": {
         "operationId": "listGoals",
@@ -1637,6 +1720,61 @@
         ],
         "additionalProperties": false
       },
+      "Category": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^\\d+$"
+          },
+          "name": {
+            "type": "string"
+          },
+          "direction": {
+            "type": "string",
+            "enum": [
+              "income",
+              "expense"
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "direction"
+        ],
+        "additionalProperties": false
+      },
+      "Account": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^\\d+$"
+          },
+          "nickname": {
+            "type": "string"
+          },
+          "lastFour": {
+            "type": "string",
+            "description": "Last four digits only"
+          },
+          "member": {
+            "description": "Owner; null means joint",
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "nickname",
+          "lastFour",
+          "member"
+        ],
+        "additionalProperties": false
+      },
       "Goal": {
         "type": "object",
         "properties": {
@@ -2015,6 +2153,18 @@
         "type": "array",
         "items": {
           "$ref": "#/components/schemas/Member"
+        }
+      },
+      "ListCategoriesResponse": {
+        "type": "array",
+        "items": {
+          "$ref": "#/components/schemas/Category"
+        }
+      },
+      "ListAccountsResponse": {
+        "type": "array",
+        "items": {
+          "$ref": "#/components/schemas/Account"
         }
       },
       "ListGoalsResponse": {

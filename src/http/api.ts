@@ -4,6 +4,7 @@ import * as z from 'zod'
 import { connectPool, type Database } from '../db/connection.ts'
 import type { Actor } from '../db/write.ts'
 import { listAudit } from '../ledger/audit.ts'
+import { listAccounts, listCategories } from '../ledger/catalog.ts'
 import { listDebts } from '../ledger/debts.ts'
 import { findDecision, listDecisions } from '../ledger/decisions.ts'
 import { findEntry, listEntries } from '../ledger/entries.ts'
@@ -18,7 +19,7 @@ import { compareMonths } from '../ledger/summary.ts'
 import { netWorth } from '../ledger/worth.ts'
 import { toJson } from '../mcp/json.ts'
 import { HttpError, readJson } from './body.ts'
-import { auditQuery, decisionQuery, entryQuery, idPath, memberHeader, monthPath, namePath, newDecision, newEntry, payment, referenceQuery, reserveChanges, schemas, summaryQuery } from './contract.ts'
+import { auditQuery, categoryQuery, decisionQuery, entryQuery, idPath, memberHeader, monthPath, namePath, newDecision, newEntry, payment, referenceQuery, reserveChanges, schemas, summaryQuery } from './contract.ts'
 import { listen } from './node.ts'
 import { openApi } from './openapi.ts'
 
@@ -60,6 +61,8 @@ export const routes: Route[] = [
   route({ method: 'GET', path: '/reserves', operationId: 'listReserves', summary: 'Reserves with progress to target', response: z.array(schemas.Reserve) }, ({ client }) => listReserves(client)),
   route({ method: 'GET', path: '/decisions', operationId: 'listDecisions', summary: 'Decisions by status, newest first', query: decisionQuery, response: z.array(schemas.Decision) }, ({ client, query }) => listDecisions(client, query.status, query.limit)),
   route({ method: 'GET', path: '/members', operationId: 'listMembers', summary: 'Active members with their share of joint expenses', response: z.array(schemas.Member) }, ({ client }) => listMembers(client)),
+  route({ method: 'GET', path: '/categories', operationId: 'listCategories', summary: 'Active categories, optionally of one direction', query: categoryQuery, response: z.array(schemas.Category) }, ({ client, query }) => listCategories(client, query.direction)),
+  route({ method: 'GET', path: '/accounts', operationId: 'listAccounts', summary: 'Active accounts by nickname and last four digits, joint first', response: z.array(schemas.Account) }, ({ client }) => listAccounts(client)),
   route({ method: 'GET', path: '/goals', operationId: 'listGoals', summary: 'Goals with progress, nearest due first', response: z.array(schemas.Goal) }, ({ client }) => listGoals(client)),
   route({ method: 'GET', path: '/net-worth', operationId: 'getNetWorth', summary: 'Reserves and goals minus debt balances', response: schemas.NetWorth }, ({ client }) => netWorth(client)),
   route({ method: 'GET', path: '/months/:month/split', operationId: 'getMonthSplit', summary: 'Who owes whom from joint expenses paid from member accounts', params: monthPath, response: schemas.Split }, ({ client, params }) => monthSplit(client, params.month)),

@@ -4,7 +4,6 @@ Ordered. The agent takes the first unblocked item under **Next**. Items marked *
 
 ## Next
 
-- **W08b Entries quick add**: `GET /api/categories` and `GET /api/accounts` (active, by direction; nickname and last four only) in the contract; quick add form above the toolbar per `Entries.dc.html` (Tipo, Descrição, Valor in BRL parsed to cents, Categoria, Conta, Quem; Enter submits) with react-hook-form and a zod schema mirroring `newEntry`; `POST /api/entries`, 401 copy like `/contas`, highlight the new row (`fresh` ground from the mockup is not a token: use `accent-soft`), invalidate entries, split and audit; screenshots
 - **W09 Net worth** (`/patrimonio`): debts, reserves, goals
 - **W10 Decisions** (`/decisoes`): propose, confirm, reject, withdraw, history
 - **W11 Activity** (`/atividade`): audit timeline with author filters and before/after table
@@ -12,6 +11,10 @@ Ordered. The agent takes the first unblocked item under **Next**. Items marked *
 - **W13 Showcase**: README section with the screenshots (light and dark, mobile and desktop), how to run API plus web locally, architecture sketch
 
 ## Later
+
+- **L67 Quick add date and payment**: the form has no date field (mockup has none): the entry is due today in the current month, else on the first day of the shown month, and is always `planned`; add an optional date and a "já paga" toggle if the author records past expenses often
+- **L68 Quick add catalog errors**: categories and accounts that fail to load leave the selects with only "Escolher"/"Sem conta" and no message; show an inline error with retry
+- **L69 Category picker by direction in the API**: the form reads every category once and filters by direction in the client; `GET /api/categories?direction=` exists but is unused by the web app (kept for MCP or later screens)
 
 - **L64 Import and export buttons**: `Entries.dc.html` shows "Importar planilha" and "Exportar CSV"; W08a left them out. Export can be client-side over the filtered rows (no new dependency); import waits for L36
 - **L65 Entry filters in the URL**: W08a keeps search and chips in component state, reset when the month or member changes; move them to the search params if links to a filtered list are wanted
@@ -86,6 +89,8 @@ Ordered. The agent takes the first unblocked item under **Next**. Items marked *
 - **F10b layout choices**: built as the default: the installment column is optional (8th header cell, fixed lines only); a `total` row (kind `total`, amount = income minus expenses of the sheet) is checked against the lines when present; a month can be imported once (refused when it already holds import entries). Confirm these before F10c or any replace flow
 
 ## Done
+
+- **W08b Entries quick add**: `GET /api/categories` (optional `direction`) and `GET /api/accounts` (id, nickname, last four, owner; joint first) in `src/ledger/catalog.ts` and the contract; "Lançamento rápido" form above the toolbar (`quick-add-form.tsx`, react-hook-form with zod `quickEntry` in `quick-add.ts`: Tipo, Descrição, Valor parsed from BRL to cents, Categoria filtered by Tipo, Conta, Quem defaulting to the member filter or Conjunto); Enter submits from any field, errors in one alert linked by `aria-describedby`; success toast, new row on `accent-soft`, description and amount cleared and focused for the next one; 401 asks to choose the member; invalidates entries, split and audit; toolbar category filter renamed "Filtrar por categoria"; 2 node plus 6 web tests (134 node, 62 web); entries screenshots
 
 - **W08a Entries list**: `/lancamentos` renders `web/src/entries/` (pure `model.ts`: accent- and case-insensitive search over description, category, account and member, amount search by digits, direction, category and open filters, newest due date first, totals, pt-BR labels); toolbar with search (`/` focuses, Escape clears), Receitas/Despesas chips, category select and "Pendentes e atrasadas"; table from 768 px and a card list below, origin and status chips, installments `n/total`, signed amounts, footer with count and income/expense totals; empty month and "Limpar filtros"; entry read model gains `origin` (manual, claude, import, forecast for entries linked to a recurring source) and `installmentsTotal`; 1 node plus 9 web tests (132 node, 56 web); entries screenshots. Quick add split into W08b
 

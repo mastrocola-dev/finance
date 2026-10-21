@@ -24,6 +24,8 @@ export const entryQuery = z.object({
   today,
 })
 
+export const categoryQuery = z.object({ direction: direction.optional() })
+
 export const decisionQuery = z.object({
   status: z.enum([...statuses, 'all']).default('proposed'),
   limit: z.coerce.number().int().min(1).max(100).default(20),
@@ -133,6 +135,10 @@ const decision = z.strictObject({
 
 const member = z.strictObject({ id, name: z.string(), sharePercent: z.int() })
 
+const category = z.strictObject({ id, name: z.string(), direction })
+
+const account = z.strictObject({ id, nickname: z.string(), lastFour: z.string().describe('Last four digits only'), member: z.string().nullable().describe('Owner; null means joint') })
+
 const goal = z.strictObject({
   id,
   name: z.string(),
@@ -187,6 +193,8 @@ export const schemas = {
   Decision: decision,
   Forecast: forecast,
   Member: member,
+  Category: category,
+  Account: account,
   Goal: goal,
   AuditItem: auditItem,
   AuditPage: auditPage,

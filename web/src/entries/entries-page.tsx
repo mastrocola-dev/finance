@@ -1,19 +1,22 @@
 import { useSearch } from '@tanstack/react-router'
-import { useState } from 'react'
+import { useCallback, useState } from 'react'
 import { EmptyState } from '../components/empty-state.tsx'
 import { QueryView } from '../components/query-view.tsx'
 import { Skeleton } from '../components/skeleton.tsx'
+import { type Notice, Toast } from '../components/toast.tsx'
 import { Button } from '../components/ui/button.tsx'
 import { formatBrl, formatMonth } from '../lib/format.ts'
 import { firstDay, monthOf } from '../lib/search.ts'
 import type { Entry } from '../overview/model.ts'
+import { ApiFailure } from '../query/client.ts'
 import { useMembers, useSelectedMember } from '../query/shell.ts'
 import { screenOf } from '../shell/nav.ts'
 import { PageHeader } from '../shell/page-header.tsx'
 import { EntriesList } from './entries-list.tsx'
 import { EntriesTable } from './entries-table.tsx'
 import { categoriesOf, type Filters, filterEntries, isFiltered, noFilters, totalsOf } from './model.ts'
-import { useEntries } from './queries.ts'
+import { type NewEntry, useCreateEntry, useEntries } from './queries.ts'
+import { QuickAddForm } from './quick-add-form.tsx'
 import { Toolbar } from './toolbar.tsx'
 
 const EntriesSkeleton = () => (
@@ -25,7 +28,9 @@ const EntriesSkeleton = () => (
 
 const plural = (count: number) => `${count} ${count === 1 ? 'lançamento' : 'lançamentos'}`
 
-const Entries = ({ entries }: { entries: Entry[] }) => {
+const failure = (error: Error, entry: NewEntry) => (error instanceof ApiFailure && error.status === 401 ? 'Escolha quem você é para lançar.' : `Não foi possível lançar ${entry.description}. Tente de novo.`)
+
+const Entries = ({ entries, fresh }: { entries: Entry[]; fresh: string | undefined }) => {
   const [filters, setFilters] = useState<Filters>(noFilters)
   const shown = filterEntries(entries, filters)
   const totals = totalsOf(shown)
@@ -35,8 +40,8 @@ const Entries = ({ entries }: { entries: Entry[] }) => {
       <section aria-label="Lista de lançamentos" className="overflow-x-auto rounded-card border bg-surface">
         {shown.length > 0 ? (
           <>
-            <EntriesTable entries={shown} />
-            <EntriesList entries={shown} />
+            <EntriesTable entries={shown} fresh={fresh} />
+            <EntriesList entries={shown} fresh={fresh} />
           </>
         ) : (
           <div className="flex flex-col items-center gap-3 px-6 py-10 text-center">
@@ -63,13 +68,31 @@ const Entries = ({ entries }: { entries: Entry[] }) => {
 export const EntriesPage = () => {
   const month = monthOf(useSearch({ from: '__root__' }))
   const member = useSelectedMember()
-  const entries = useEntries(month, member, !useMembers().isPending)
+  const loadingMembers = useMembers().isPending
+  const entries = useEntries(month, member, !loadingMembers)
+  const create = useCreateEntry()
+  const [fresh, setFresh] = useState<string>()
+  const [notice, setNotice] = useState<Notice>()
+  const close = useCallback(() => setNotice(undefined), [])
+  const add = (entry: NewEntry, reset: () => void) => {
+    if (create.isPending) return
+    create.mutate(entry, {
+      onSuccess: (created) => {
+        setFresh(created.id)
+        setNotice({ message: `Lançado: ${created.description}` })
+        reset()
+      },
+      onError: (error) => setNotice({ tone: 'error', message: failure(error, entry) }),
+    })
+  }
   return (
     <>
       <PageHeader screen={screenOf('/lancamentos')} />
+      {!loadingMembers && <QuickAddForm key={`${month}:${member ?? 'all'}`} month={month} member={member} pending={create.isPending} onSubmit={add} />}
       <QueryView query={entries} skeleton={<EntriesSkeleton />} isEmpty={(data) => data.length === 0} empty={<EmptyState title={`Nenhum lançamento em ${formatMonth(firstDay(month))}`}>Receitas e despesas do mês aparecem aqui assim que forem lançadas ou previstas.</EmptyState>}>
-        {(data) => <Entries key={`${month}:${member ?? 'all'}`} entries={data} />}
+        {(data) => <Entries key={`${month}:${member ?? 'all'}`} entries={data} fresh={fresh} />}
       </QueryView>
+      <Toast notice={notice} onClose={close} />
     </>
   )
 }

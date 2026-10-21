@@ -1,14 +1,12 @@
 # Memory
 
-Rewritten by every run, at most 60 lines. Only what the next run needs and cannot see in the code.
-
 ## Session setup (cloud container, each run)
 
 - No `add_repo`/`register_repo_root` tools in these runs (ToolSearch finds neither). The repo already exists at /home/claude/finance: `git fetch origin && git checkout -B poc origin/poc`
 - Node 22 is preinstalled: `npm i -g node@24` then `hash -r` (about a minute; 24.22.0 on 2026-10-20)
 - PostgreSQL 16: `pg_ctlcluster 16 main start`, then `su postgres -c "psql -c \"alter user postgres password 'local'\""`, then `cp .env.example .env` (gitignored)
 - Run setup commands one per Bash call; long chained commands were refused by the classifier
-- `npm ci` then `npm run db:reset` and `npm run db:seed`; baseline is 132 node tests plus 56 web (Vitest) tests; seed has 189 entries
+- `npm ci` then `npm run db:reset` and `npm run db:seed`; baseline is 134 node tests plus 62 web (Vitest) tests; seed has 189 entries
 - `curl` to local servers needs `--noproxy '*'` (the agent proxy answers 404 otherwise); stop servers by pid, `pkill -f` matched the calling shell and killed the call
 - Use `./node_modules/.bin/biome`, not `npx biome`: npx stalled a call for 3 minutes
 - Web deps install with `npm i -w web ...` (add `-S` for runtime deps: a first `-w` install put react as a peer only); root scripts forwarding to the workspace need a trailing `--` or npm swallows flags
@@ -40,6 +38,7 @@ Rewritten by every run, at most 60 lines. Only what the next run needs and canno
 - W06b: Recharts 3.10 (on the list); chart is plain `BarChart` with no axes, `accessibilityLayer={false}` (it adds a tabindex inside our `role="img"`), colors `var(--color-income|expense)`, HTML grids above/below for net and month labels (band scale aligns with equal grid columns at zero margins). The flow card is hidden under 768 px (not in `MobileOverview`). Overview desktop rows: flow + bills, then categories + side column (settlement, decisions, activity); `MonthCategories` returns null for an empty month. Seed Pharmacy (joint, `Marcio card`, Health, day 3) feeds the split; seed totals asserted in node tests: Oct expenses 1037100, Sep 1021500
 - W07: `/contas` in `web/src/bills/`; undo uses the new `POST /api/entries/:id/unpaid` (`markUnpaid`, audited back to `planned`); mutations share key and scope `payment` (serial); per-call `mutate` callbacks fire only for the latest call, so notices come through `usePayment(month, handlers)`. Shared `Toast` in `web/src/components/toast.tsx` (no Radix dep). Toast colors: border/bg tokens only, `border-late/40` for the late row (mockup's `lateBorder` is not a token). Screenshots of one screen: `npx playwright test -g bills`; clicking in e2e would change the dev seed
 - W08a: entry read model has `origin` (`forecast` = linked to income, recurring expense or debt and not imported; seed shows only Manual and Previsto) and `installmentsTotal`; filters live in component state keyed by month and member (L65); jsdom renders both the md table and the mobile list, so page tests query `within(getByRole('table'))`; Biome flags `<kbd aria-hidden>` (used a span)
+- W08b: `@hookform/resolvers` pinned to 5.9.2 (6.x has optional peers on `effect` 4 that npm cannot resolve); web `zod` 4.6.7 as root. Quick add due date is today in the current month else the month's first day (L67); form ids `quick-<field>` with `<label htmlFor>` (Biome rejects labels wrapping a child component's input); form row is `lg:flex-nowrap` so Lançar stays inline at 1440
 - W03: settlement counts only paid joint expenses on member-owned accounts (Needs author); the seed has none, so split is empty over the seed (L44). Audit `next` is a string cursor (bigint would become money via `toJson`); counts ignore the author filter and cursor so filter chips keep their numbers
 
 ## Notes for next items
@@ -54,7 +53,7 @@ Rewritten by every run, at most 60 lines. Only what the next run needs and canno
 
 ## Status
 
-- Tests: 132 node plus 56 web after W08a; `npm run check` and entries screenshots green. Next is W08b (quick add)
+- Tests: 134 node plus 62 web after W08b; `npm run check` and entries screenshots green. Next is W09 (net worth, `/patrimonio`; mockup `MobileDebts.dc.html`)
 - 2026-10-20: the author approved the web app (W01–W13 in BACKLOG), the design in `docs/design.md` and `docs/mockups/`, and rules in CLAUDE.md "Web app"
 - Later items stay parked until the web app is done, except where a W item needs one (L32, L52, L58, L59; L60 belongs to W12)
 - Failing-test run streak: 0

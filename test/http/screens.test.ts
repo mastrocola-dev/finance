@@ -46,6 +46,37 @@ describe('http api for the screens', () => {
     assert.equal(typeof body[0].id, 'string')
   })
 
+  test('lists active categories, optionally by direction', async () => {
+    const all = await get('/categories')
+    assert.equal(all.status, 200)
+    assert.equal(all.body.length, 10)
+    const income = await get('/categories?direction=income')
+    assert.deepEqual(
+      income.body.map(({ name, direction }: { name: string; direction: string }) => [name, direction]),
+      [
+        ['Freelance', 'income'],
+        ['Salary', 'income'],
+      ],
+    )
+    assert.equal((await get('/categories?direction=transfer')).status, 400)
+  })
+
+  test('lists active accounts by nickname and last four only, joint first', async () => {
+    const { status, body } = await get('/accounts')
+    assert.equal(status, 200)
+    assert.deepEqual(Object.keys(body[0]).sort(), ['id', 'lastFour', 'member', 'nickname'])
+    assert.deepEqual(
+      body.map(({ nickname, lastFour, member }: { nickname: string; lastFour: string; member: string | null }) => [nickname, lastFour, member]),
+      [
+        ['Joint checking', '0427', null],
+        ['Joint savings', '0428', null],
+        ['Marcio card', '8812', 'Marcio'],
+        ['Marcio checking', '6093', 'Marcio'],
+        ['Gabriela checking', '3150', 'Gabriela'],
+      ],
+    )
+  })
+
   test('lists goals with progress', async () => {
     const { body } = await get('/goals')
     assert.deepEqual(body, [

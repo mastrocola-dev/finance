@@ -119,6 +119,40 @@ export type paths = {
         patch?: never;
         trace?: never;
     };
+    "/api/categories": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Active categories, optionally of one direction */
+        get: operations["listCategories"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/accounts": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Active accounts by nickname and last four digits, joint first */
+        get: operations["listAccounts"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/goals": {
         parameters: {
             query?: never;
@@ -452,6 +486,20 @@ export type components = {
             name: string;
             sharePercent: number;
         };
+        Category: {
+            id: string;
+            name: string;
+            /** @enum {string} */
+            direction: "income" | "expense";
+        };
+        Account: {
+            id: string;
+            nickname: string;
+            /** @description Last four digits only */
+            lastFour: string;
+            /** @description Owner; null means joint */
+            member: string | null;
+        };
         Goal: {
             id: string;
             name: string;
@@ -536,6 +584,8 @@ export type components = {
         ListReservesResponse: components["schemas"]["Reserve"][];
         ListDecisionsResponse: components["schemas"]["Decision"][];
         ListMembersResponse: components["schemas"]["Member"][];
+        ListCategoriesResponse: components["schemas"]["Category"][];
+        ListAccountsResponse: components["schemas"]["Account"][];
         ListGoalsResponse: components["schemas"]["Goal"][];
         CreateEntryBody: {
             /** @description Month as YYYY-MM */
@@ -585,6 +635,8 @@ export type Reserve = components['schemas']['Reserve'];
 export type Decision = components['schemas']['Decision'];
 export type Forecast = components['schemas']['Forecast'];
 export type Member = components['schemas']['Member'];
+export type Category = components['schemas']['Category'];
+export type Account = components['schemas']['Account'];
 export type Goal = components['schemas']['Goal'];
 export type AuditItem = components['schemas']['AuditItem'];
 export type AuditPage = components['schemas']['AuditPage'];
@@ -599,6 +651,8 @@ export type ListDebtsResponse = components['schemas']['ListDebtsResponse'];
 export type ListReservesResponse = components['schemas']['ListReservesResponse'];
 export type ListDecisionsResponse = components['schemas']['ListDecisionsResponse'];
 export type ListMembersResponse = components['schemas']['ListMembersResponse'];
+export type ListCategoriesResponse = components['schemas']['ListCategoriesResponse'];
+export type ListAccountsResponse = components['schemas']['ListAccountsResponse'];
 export type ListGoalsResponse = components['schemas']['ListGoalsResponse'];
 export type CreateEntryBody = components['schemas']['CreateEntryBody'];
 export type MarkPaidBody = components['schemas']['MarkPaidBody'];
@@ -853,6 +907,66 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ListMembersResponse"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+        };
+    };
+    listCategories: {
+        parameters: {
+            query?: {
+                direction?: "income" | "expense";
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ListCategoriesResponse"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+        };
+    };
+    listAccounts: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ListAccountsResponse"];
                 };
             };
             /** @description Error */
