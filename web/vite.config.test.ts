@@ -1,8 +1,31 @@
+import { readFile } from 'node:fs/promises'
+import { join } from 'node:path'
 import { expect, test } from 'vitest'
-import config, { apiTarget } from './vite.config.ts'
+import { publicDir } from './scripts/icons.ts'
+import config, { apiTarget, isApiRead, pwa } from './vite.config.ts'
 
 test('proxies /api to the local API on 3200', () => {
   expect(apiTarget).toBe(`http://127.0.0.1:${process.env.API_PORT ?? 3200}`)
   expect(config.server?.proxy).toEqual({ '/api': { target: apiTarget } })
   expect(config.preview?.proxy).toEqual({ '/api': { target: apiTarget } })
+})
+
+test('caches API reads only', () => {
+  const read = (path: string, method = 'GET') => isApiRead({ url: new URL(path, 'http://127.0.0.1:4173'), request: new Request(`http://127.0.0.1:4173${path}`, { method }) })
+  expect(read('/api/months/2026-10/entries')).toBe(true)
+  expect(read('/api/entries', 'POST')).toBe(false)
+  expect(read('/assets/index.js')).toBe(false)
+  expect(read('/apis')).toBe(false)
+})
+
+test('declares an installable manifest whose icons exist at their sizes', async () => {
+  const manifest = pwa.manifest
+  expect(manifest).toMatchObject({ name: 'Caixa', lang: 'pt-BR', start_url: '/', display: 'standalone' })
+  const icons = manifest ? (manifest.icons ?? []) : []
+  expect(icons.map((icon) => icon.purpose ?? 'any')).toEqual(['any', 'any', 'maskable'])
+  for (const icon of icons) {
+    const png = await readFile(join(publicDir, icon.src))
+    const size = `${png.readUInt32BE(16)}x${png.readUInt32BE(20)}`
+    expect(size).toBe(icon.sizes)
+  }
 })

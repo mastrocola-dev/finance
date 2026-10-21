@@ -1,15 +1,8 @@
-import { createRootRoute, createRoute, createRouter, type RouterHistory, retainSearchParams } from '@tanstack/react-router'
-import type { ReactNode } from 'react'
-import { ActivityPage } from './activity/activity-page.tsx'
-import { BillsPage } from './bills/bills-page.tsx'
-import { DecisionsPage } from './decisions/decisions-page.tsx'
-import { EntriesPage } from './entries/entries-page.tsx'
+import { createRootRoute, createRoute, createRouter, lazyRouteComponent, type RouterHistory, retainSearchParams } from '@tanstack/react-router'
 import { parseSearch } from './lib/search.ts'
-import { OverviewPage } from './overview/overview-page.tsx'
 import { NotFound } from './pages/not-found.tsx'
 import { Layout } from './shell/layout.tsx'
 import { type Path, screens } from './shell/nav.ts'
-import { WorthPage } from './worth/worth-page.tsx'
 
 const rootRoute = createRootRoute({
   validateSearch: parseSearch,
@@ -18,7 +11,14 @@ const rootRoute = createRootRoute({
   notFoundComponent: NotFound,
 })
 
-const pages: Record<Path, () => ReactNode> = { '/': OverviewPage, '/contas': BillsPage, '/lancamentos': EntriesPage, '/patrimonio': WorthPage, '/decisoes': DecisionsPage, '/atividade': ActivityPage }
+const pages: Record<Path, ReturnType<typeof lazyRouteComponent>> = {
+  '/': lazyRouteComponent(() => import('./overview/overview-page.tsx'), 'OverviewPage'),
+  '/contas': lazyRouteComponent(() => import('./bills/bills-page.tsx'), 'BillsPage'),
+  '/lancamentos': lazyRouteComponent(() => import('./entries/entries-page.tsx'), 'EntriesPage'),
+  '/patrimonio': lazyRouteComponent(() => import('./worth/worth-page.tsx'), 'WorthPage'),
+  '/decisoes': lazyRouteComponent(() => import('./decisions/decisions-page.tsx'), 'DecisionsPage'),
+  '/atividade': lazyRouteComponent(() => import('./activity/activity-page.tsx'), 'ActivityPage'),
+}
 
 const routeTree = rootRoute.addChildren(screens.map((screen) => createRoute({ getParentRoute: () => rootRoute, path: screen.path, component: pages[screen.path] })))
 
