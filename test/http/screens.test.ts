@@ -128,4 +128,15 @@ describe('http api for the screens', () => {
     assert.equal((await get('/audit?author=robot')).status, 400)
     assert.equal((await get('/audit?before=abc')).status, 400)
   })
+
+  test('tells entry origin and installment count apart', async () => {
+    const created = await post('/entries?today=2026-10-18', { month: '2026-11', due_on: '2026-11-03', description: 'Bakery', direction: 'expense', amount_cents: 2500, category: 'Groceries', member: 'joint' })
+    assert.equal(created.status, 201)
+    assert.equal(created.body.origin, 'manual')
+    const { body } = await get('/months/2026-10/entries?today=2026-10-18')
+    const of = (description: string) => body.find((entry: { description: string }) => entry.description === description)
+    assert.deepEqual([of('Sofa').origin, of('Sofa').installmentNumber, of('Sofa').installmentsTotal], ['forecast', 9, 10])
+    assert.deepEqual([of('Car financing').installmentNumber, of('Car financing').installmentsTotal], [24, 48])
+    assert.deepEqual([of('Pharmacy').origin, of('Pharmacy').installmentsTotal], ['manual', null])
+  })
 })

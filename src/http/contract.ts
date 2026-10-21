@@ -1,7 +1,7 @@
 import * as z from 'zod'
 import { authors } from '../ledger/audit.ts'
 import { statuses } from '../ledger/decisions.ts'
-import { states } from '../ledger/entries.ts'
+import { origins, states } from '../ledger/entries.ts'
 import { date, id, month, today } from '../mcp/schema.ts'
 
 export const memberHeader = 'x-member'
@@ -75,6 +75,8 @@ const entry = z.strictObject({
   state: z.enum(states),
   paidOn: date.nullable(),
   installmentNumber: z.int().nullable(),
+  installmentsTotal: z.int().nullable(),
+  origin: z.enum(origins).describe('forecast marks entries planned from a recurring source'),
 })
 
 const totals = { count: z.int(), total: money, paid: money, pending: money, late: money }

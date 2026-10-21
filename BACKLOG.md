@@ -4,7 +4,7 @@ Ordered. The agent takes the first unblocked item under **Next**. Items marked *
 
 ## Next
 
-- **W08 Entries** (`/lancamentos`): quick add with react-hook-form and the API's zod rules, search, filters, table, totals
+- **W08b Entries quick add**: `GET /api/categories` and `GET /api/accounts` (active, by direction; nickname and last four only) in the contract; quick add form above the toolbar per `Entries.dc.html` (Tipo, Descrição, Valor in BRL parsed to cents, Categoria, Conta, Quem; Enter submits) with react-hook-form and a zod schema mirroring `newEntry`; `POST /api/entries`, 401 copy like `/contas`, highlight the new row (`fresh` ground from the mockup is not a token: use `accent-soft`), invalidate entries, split and audit; screenshots
 - **W09 Net worth** (`/patrimonio`): debts, reserves, goals
 - **W10 Decisions** (`/decisoes`): propose, confirm, reject, withdraw, history
 - **W11 Activity** (`/atividade`): audit timeline with author filters and before/after table
@@ -12,6 +12,10 @@ Ordered. The agent takes the first unblocked item under **Next**. Items marked *
 - **W13 Showcase**: README section with the screenshots (light and dark, mobile and desktop), how to run API plus web locally, architecture sketch
 
 ## Later
+
+- **L64 Import and export buttons**: `Entries.dc.html` shows "Importar planilha" and "Exportar CSV"; W08a left them out. Export can be client-side over the filtered rows (no new dependency); import waits for L36
+- **L65 Entry filters in the URL**: W08a keeps search and chips in component state, reset when the month or member changes; move them to the search params if links to a filtered list are wanted
+- **L66 Seed language**: seed categories and descriptions are English (Housing, Rent) while the interface is pt-BR; translate the seed (node tests assert English names) or map category names in the web app
 
 - **L61 MCP undo of a payment mark**: `markUnpaid` exists for the API (`POST /api/entries/:id/unpaid`) only; add a `mark_unpaid` MCP write tool so Claude can correct a wrong `mark_paid`
 - **L62 Bill meta on mobile**: with the account nickname the meta line wraps to two lines at 390 px (the mockup shows one); drop the account under 768 px or show it only for member accounts
@@ -82,6 +86,8 @@ Ordered. The agent takes the first unblocked item under **Next**. Items marked *
 - **F10b layout choices**: built as the default: the installment column is optional (8th header cell, fixed lines only); a `total` row (kind `total`, amount = income minus expenses of the sheet) is checked against the lines when present; a month can be imported once (refused when it already holds import entries). Confirm these before F10c or any replace flow
 
 ## Done
+
+- **W08a Entries list**: `/lancamentos` renders `web/src/entries/` (pure `model.ts`: accent- and case-insensitive search over description, category, account and member, amount search by digits, direction, category and open filters, newest due date first, totals, pt-BR labels); toolbar with search (`/` focuses, Escape clears), Receitas/Despesas chips, category select and "Pendentes e atrasadas"; table from 768 px and a card list below, origin and status chips, installments `n/total`, signed amounts, footer with count and income/expense totals; empty month and "Limpar filtros"; entry read model gains `origin` (manual, claude, import, forecast for entries linked to a recurring source) and `installmentsTotal`; 1 node plus 9 web tests (132 node, 56 web); entries screenshots. Quick add split into W08b
 
 - **W07 Bills checklist**: `/contas` renders `web/src/bills/` (pure `model.ts`: `billsOf` late then open by due date then paid, `progressOf`, `billMeta`, `withPayment`, `stableOrder` keeping rows in place after a tap); header with "N de M pagas", "falta R$" and progress bar, rows as `aria-pressed` buttons per `MobileBills.dc.html`; `usePayment` optimistic mutation (serial scope, rollback of the one bill on error, taps on a row with a pending mark ignored, invalidates entries, split and audit when the last one settles); shared `Toast` (`components/toast.tsx`, live region, 6 s, action) with "Desfazer" and error copy (401 asks to choose the member); new `markUnpaid` ledger command and `POST /api/entries/:id/unpaid` (audited, back to planned) for the undo; skeleton and empty month; 1 node plus 9 web tests (131 node, 47 web); bills screenshots refreshed
 - **W06b Overview flow chart and seed settlement**: "Receitas × despesas" card (`flow-chart.tsx`, Recharts `BarChart` without axes, 6 columns of net labels above and month labels below, current month bold, `role="img"` with income and expense ranges) next to "Para pagar" from 768 px, hidden on mobile as in `MobileOverview.dc.html`; `flow` and `flowSummary` in `model.ts`, `useMonthFlow` reads six months with the member filter; desktop rows follow `Main.dc.html` (flow + bills, then categories beside a column of settlement, decisions, activity); `Card` takes a `note`; pt-BR formatters `formatThousandsBrl`, `formatNetShort`, `formatMonthShort`; seed adds a joint Pharmacy expense on `Marcio card` each month (189 entries), so October's settlement is Gabriela → Marcio R$ 66,50 (L44 done); node tests adjusted to the new totals; 2 new web tests (130 node, 38 web); overview screenshots refreshed

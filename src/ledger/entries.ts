@@ -2,6 +2,7 @@ import type { Queryable } from '../db/connection.ts'
 import { assertDate, competenceOf, localToday } from './summary.ts'
 
 export const states = ['paid', 'pending', 'late'] as const
+export const origins = ['manual', 'claude', 'import', 'forecast'] as const
 export type State = (typeof states)[number]
 
 export type EntryFilters = {
@@ -27,17 +28,23 @@ export type Entry = {
   state: State
   paidOn: string | null
   installmentNumber: number | null
+  installmentsTotal: number | null
+  origin: (typeof origins)[number]
 }
 
 const select = `
     select e.id, e.competence::text as competence, e.due_on::text as "dueOn", e.description, e.direction, e.amount_cents as amount,
       c.name as category, a.nickname as account, m.name as member, e.status,
       case when e.status = 'paid' then 'paid' when e.status = 'late' or e.due_on < $2 then 'late' else 'pending' end as state,
-      e.paid_on::text as "paidOn", e.installment_number as "installmentNumber"
+      e.paid_on::text as "paidOn", e.installment_number as "installmentNumber",
+      coalesce(r.installments_total, d.installments_total) as "installmentsTotal",
+      case when e.origin <> 'import' and coalesce(e.income_id, e.recurring_expense_id, e.debt_id) is not null then 'forecast' else e.origin end as origin
     from entry e
     join category c on c.id = e.category_id
     left join account a on a.id = e.account_id
-    left join member m on m.id = e.member_id`
+    left join member m on m.id = e.member_id
+    left join recurring_expense r on r.id = e.recurring_expense_id
+    left join debt d on d.id = e.debt_id`
 
 const query = `
   select * from (${select}

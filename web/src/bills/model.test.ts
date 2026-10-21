@@ -16,6 +16,8 @@ const bill = (id: string, description: string, state: Entry['state'], dueOn: str
   state,
   paidOn: state === 'paid' ? dueOn : null,
   installmentNumber: null,
+  installmentsTotal: null,
+  origin: 'manual',
   ...extra,
 })
 

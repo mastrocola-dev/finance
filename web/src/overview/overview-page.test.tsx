@@ -19,6 +19,8 @@ const entry = (id: string, description: string, direction: 'income' | 'expense',
   state,
   paidOn: null,
   installmentNumber: null,
+  installmentsTotal: null,
+  origin: 'manual',
 })
 
 const months: Record<string, unknown[]> = {

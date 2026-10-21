@@ -352,6 +352,12 @@ export type components = {
             state: "paid" | "pending" | "late";
             paidOn: string | null;
             installmentNumber: number | null;
+            installmentsTotal: number | null;
+            /**
+             * @description forecast marks entries planned from a recurring source
+             * @enum {string}
+             */
+            origin: "manual" | "claude" | "import" | "forecast";
         };
         CategoryTotals: {
             category: string;

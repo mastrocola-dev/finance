@@ -1134,6 +1134,28 @@
                 "type": "null"
               }
             ]
+          },
+          "installmentsTotal": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": -9007199254740991,
+                "maximum": 9007199254740991
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "origin": {
+            "type": "string",
+            "enum": [
+              "manual",
+              "claude",
+              "import",
+              "forecast"
+            ],
+            "description": "forecast marks entries planned from a recurring source"
           }
         },
         "required": [
@@ -1149,7 +1171,9 @@
           "status",
           "state",
           "paidOn",
-          "installmentNumber"
+          "installmentNumber",
+          "installmentsTotal",
+          "origin"
         ],
         "additionalProperties": false
       },

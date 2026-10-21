@@ -18,6 +18,8 @@ const entry = (id: string, description: string, state: 'paid' | 'pending' | 'lat
   state,
   paidOn: state === 'paid' ? dueOn : null,
   installmentNumber: null,
+  installmentsTotal: null,
+  origin: 'manual',
 })
 
 const seed = () => [entry('1', 'Aluguel', 'paid', '2026-10-05', 380000), entry('2', 'Plano de saúde', 'late', '2026-10-15', 75000), entry('3', 'Internet', 'pending', '2026-10-25', 12990)]

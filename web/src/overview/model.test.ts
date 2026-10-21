@@ -15,6 +15,8 @@ const entry = (id: string, direction: Entry['direction'], category: string, cent
   state,
   paidOn: state === 'paid' ? dueOn : null,
   installmentNumber: null,
+  installmentsTotal: null,
+  origin: 'manual',
 })
 
 const month = [

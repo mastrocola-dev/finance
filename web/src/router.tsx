@@ -1,6 +1,7 @@
 import { createRootRoute, createRoute, createRouter, type RouterHistory, retainSearchParams } from '@tanstack/react-router'
 import type { ReactNode } from 'react'
 import { BillsPage } from './bills/bills-page.tsx'
+import { EntriesPage } from './entries/entries-page.tsx'
 import { parseSearch } from './lib/search.ts'
 import { OverviewPage } from './overview/overview-page.tsx'
 import { NotFound } from './pages/not-found.tsx'
@@ -15,7 +16,7 @@ const rootRoute = createRootRoute({
   notFoundComponent: NotFound,
 })
 
-const pages: Partial<Record<Path, () => ReactNode>> = { '/': OverviewPage, '/contas': BillsPage }
+const pages: Partial<Record<Path, () => ReactNode>> = { '/': OverviewPage, '/contas': BillsPage, '/lancamentos': EntriesPage }
 
 const routeTree = rootRoute.addChildren(screens.map((screen) => createRoute({ getParentRoute: () => rootRoute, path: screen.path, component: pages[screen.path] ?? (() => <ScreenPage screen={screen} />) })))
 
