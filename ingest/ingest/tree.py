@@ -4,7 +4,7 @@ from collections.abc import Iterator
 from pathlib import Path
 from xml.etree import ElementTree
 
-from ingest.segment import PREVIEW_KEYS, PREVIEW_SAMPLES, Segment, clip
+from ingest.segment import CELL_LIMIT, PREVIEW_KEYS, PREVIEW_SAMPLES, Segment, clip
 
 Branch = tuple[str, list[object]]
 
@@ -25,14 +25,27 @@ def walk(nodes: list[object], path: str) -> Iterator[Branch]:
         yield from walk([node[key] for node in objects if key in node], step(path, key))
 
 
-def bounded(value: object, depth: int = 0) -> object:
+def bounded(value: object, depth: int = 2, limit: int = CELL_LIMIT) -> object:
     if isinstance(value, list):
         return f'[{len(value)} items]'
     if isinstance(value, dict):
-        if depth > 1:
+        if depth == 0:
             return f'{{{len(value)} keys}}'
-        return {key: bounded(value[key], depth + 1) for key in list(value)[:PREVIEW_KEYS]}
-    return clip(value)
+        return {key: bounded(value[key], depth - 1, limit) for key in list(value)[:PREVIEW_KEYS]}
+    return clip(value, limit)
+
+
+def resolve(root: object, tokens: list[str | int | None], path: str = '$') -> list[tuple[str, object]]:
+    if not tokens:
+        return [(path, root)]
+    token, rest = tokens[0], tokens[1:]
+    if token is None and isinstance(root, list):
+        return [match for index, item in enumerate(root) for match in resolve(item, rest, f'{path}[{index}]')]
+    if isinstance(token, int) and isinstance(root, list) and -1 < token < len(root):
+        return resolve(root[token], rest, f'{path}[{token}]')
+    if isinstance(token, str) and isinstance(root, dict) and token in root:
+        return resolve(root[token], rest, step(path, token))
+    return []
 
 
 def tree_segments(root: object) -> list[Segment]:
@@ -76,10 +89,10 @@ def element(node: ElementTree.Element) -> object:
     return value
 
 
-def read_json(path: Path) -> list[Segment]:
-    return tree_segments(json.loads(path.read_text(encoding='utf-8-sig')))
+def load_json(path: Path) -> object:
+    return json.loads(path.read_text(encoding='utf-8-sig'))
 
 
-def read_xml(path: Path) -> list[Segment]:
+def load_xml(path: Path) -> dict:
     root = ElementTree.parse(path).getroot()
-    return tree_segments({local(root.tag): element(root)})
+    return {local(root.tag): element(root)}

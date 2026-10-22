@@ -127,3 +127,8 @@ def test_cli_prints_json(fixtures, capsys):
 def test_cli_reports_errors(tmp_path, capsys):
     assert main(['inspect', str(tmp_path / 'ausente.csv')]) == 1
     assert capsys.readouterr().err.startswith('ingest: ')
+
+
+def test_cli_serve_needs_a_folder(tmp_path, capsys):
+    assert main(['serve', str(tmp_path / 'ausente')]) == 1
+    assert 'is not a folder' in capsys.readouterr().err

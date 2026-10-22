@@ -38,13 +38,17 @@ def passages(lines: list[str], prefix: str = '') -> list[Segment]:
     ]
 
 
-def read_txt(path: Path) -> list[Segment]:
-    return passages(decode(path.read_bytes()).splitlines())
+def text_segments(pages: dict[str, list[str]]) -> list[Segment]:
+    return [segment for prefix, lines in pages.items() for segment in passages(lines, prefix)]
 
 
-def read_pdf(path: Path) -> list[Segment]:
+def load_txt(path: Path) -> dict[str, list[str]]:
+    return {'': decode(path.read_bytes()).splitlines()}
+
+
+def load_pdf(path: Path) -> dict[str, list[str]]:
     with pdfplumber.open(path) as document:
-        pages = [(page.page_number, page.extract_text() or '') for page in document.pages]
-    if not any(text.strip() for _, text in pages):
+        pages = {f'p{page.page_number}:': (page.extract_text() or '').splitlines() for page in document.pages}
+    if not any(line.strip() for lines in pages.values() for line in lines):
         raise NoText(f'{path.name} has no text layer')
-    return [segment for number, text in pages for segment in passages(text.splitlines(), f'p{number}:')]
+    return pages

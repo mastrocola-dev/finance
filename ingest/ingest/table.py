@@ -74,3 +74,7 @@ def table_segments(sheet: str, grid: list[list[object]]) -> list[Segment]:
         shape = {'rows': bottom - top + 1, 'columns': right - left + 1}
         segments.append(Segment('table', address(sheet, box), shape, preview))
     return segments
+
+
+def sheet_segments(sheets: dict[str, list[list[object]]]) -> list[Segment]:
+    return [segment for sheet, grid in sheets.items() for segment in table_segments(sheet, grid)]

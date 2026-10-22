@@ -2,8 +2,7 @@ import csv
 import io
 from pathlib import Path
 
-from ingest.segment import Segment, plain
-from ingest.table import table_segments
+from ingest.segment import plain
 
 
 def decode(data: bytes) -> str:
@@ -20,7 +19,7 @@ def dialect(sample: str) -> type[csv.Dialect] | str:
         return 'excel'
 
 
-def read_csv(path: Path) -> list[Segment]:
+def load_csv(path: Path) -> dict[str, list[list[object]]]:
     text = decode(path.read_bytes())
     rows = csv.reader(io.StringIO(text, newline=''), dialect(text[:8192]))
-    return table_segments(path.stem, [[plain(value) for value in row] for row in rows])
+    return {path.stem: [[plain(value) for value in row] for row in rows]}

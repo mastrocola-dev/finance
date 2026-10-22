@@ -2,8 +2,7 @@ import re
 from pathlib import Path
 
 from ingest.delimited import decode
-from ingest.segment import Segment
-from ingest.tree import attach, tree_segments
+from ingest.tree import attach
 
 TAG = re.compile(r'<(/?)([A-Za-z0-9._]+)>([^<]*)')
 
@@ -26,5 +25,5 @@ def parse(text: str) -> dict:
     return root
 
 
-def read_ofx(path: Path) -> list[Segment]:
-    return tree_segments(parse(decode(path.read_bytes())))
+def load_ofx(path: Path) -> dict:
+    return parse(decode(path.read_bytes()))

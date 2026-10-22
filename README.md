@@ -109,7 +109,10 @@ Copy `.env.example` to `.env` and adjust it; every script loads `.env` when pres
 npm run ingest:test
 npm run ingest:check
 cd ingest && uv run python -m ingest inspect tests/fixtures/extrato.ofx
+cd ingest && uv run python -m ingest serve tests/fixtures
 ```
+
+`serve` starts a read-only stdio MCP server over one folder with three tools: `list_segments`, `read_segment` (a segment id, cell range, path or lines, in size-bounded windows) and `apply_mapping` (column letters or relative paths applied to every row or item, each result with its source address). Runs of five or more digits are masked to their last four in every result, except dates (`20261005`) and amounts with cents (`12345,67`).
 
 | Kind | Formats | Source address |
 |---|---|---|
