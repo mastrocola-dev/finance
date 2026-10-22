@@ -4,7 +4,6 @@ Ordered. The agent takes the first unblocked item under **Next**. Items marked *
 
 ## Next
 
-- **Q05 "Ver registro" opens the record**: today it links to the generic screen; link to the entry (lançamentos filtered or highlighted by id), the decision card, or the reserve. Done when the link lands on the item itself
 - **Q06 Mobile top bar edge**: (Q03 moved the theme switch into the Mais menu, so the top bar now ends with the 44 px Mais button) the theme switch touched the right edge and the page is 391 px wide at 390; keep the 16 px gutter and no horizontal overflow (assert `scrollWidth <= innerWidth` in the e2e suite)
 - **Q07 Portuguese seed**: categories, accounts, descriptions, creditors, goals and decisions in the seed are English inside a pt-BR interface; rewrite the seed in Portuguese (Moradia, Alimentação, Conta conjunta, Energia, Aluguel…), regenerate screenshots and README. Done when the showcase screenshots have no English content
 - **Q08 Seed timeline**: every seeded audit row carries the seeding time, so Atividade shows everything at the same minute; write seed audit rows with timestamps that follow the seeded dates
@@ -123,12 +122,17 @@ Ordered. The agent takes the first unblocked item under **Next**. Items marked *
 - **L79 Activity next page errors**: a failed "Carregar mais" turns the whole timeline into the error state (QueryView sees `isError`); keep the loaded pages and show an inline retry under them instead
 - **L80 Seed audit noise**: the seed writes 219 `system` rows at the same second, so the timeline's first pages are seed creation; with L74 the seed could spread them over the past year or the activity screen could hide `system` by default
 
+- **L81 Record link for replaced entries**: "Ver registro" points at the audited id; when that entry was later closed and replaced (`replaced_by`), the month opens with nothing marked. Follow `replaced_by` in `GET /api/audit` (or resolve on the entries page) to mark the current version
+- **L82 Record link on phones**: `e2e/record.spec.ts` checks scroll and mark at 1440 only; add 390 once Q06 settles the top bar, and consider moving focus to the marked record for screen readers (today only `aria-current` and the scroll)
+
 ## Needs author
 
 - **W03 settlement rule** (built as default, not blocking): only joint expenses (no member) with status `paid` count, and only when paid from an account owned by a member; joint expenses paid from a joint account are already shared and count for nobody; leftover cents of the share go to members in id order. Confirm or change
 - **F10b layout choices**: built as the default: the installment column is optional (8th header cell, fixed lines only); a `total` row (kind `total`, amount = income minus expenses of the sheet) is checked against the lines when present; a month can be imported once (refused when it already holds import entries). Confirm these before F10c or any replace flow
 
 ## Done
+
+- **Q05 "Ver registro" opens the record** (2026-10-22): links carry a hash (`entry-<id>`, `decision-<id>` also for confirmations via `decision_id`, `reserve-`, `goal-`, `debt-`); entries, decision cards and history, debt and saving cards mark the record with `aria-current` and an accent background, and `RecordScroll` (`web/src/lib/record.tsx`) scrolls the visible copy into view; entry links drop the member filter so joint records show. 4 web tests, 6 e2e (`record.spec.ts`, `record-1440-*.png`)
 
 - **Q04 Activity text names the record** (2026-10-22): `GET /api/audit` items gain `subject` (title, description, nickname, creditor or name of the row; the decision title for a confirmation, read by subquery); Atividade and the overview card name it in every summary ("Confirmou X", "Decisão aprovada: X", "Recusou X", "Retirou X", "Alterou reserva X"); falls back to the kind only when no subject exists. 1 node test, 2 web tests (142 node, 111 web, 60 e2e); activity and overview screenshots refreshed
 

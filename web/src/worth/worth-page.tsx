@@ -2,6 +2,7 @@ import { EmptyState } from '../components/empty-state.tsx'
 import { QueryView } from '../components/query-view.tsx'
 import { Skeleton } from '../components/skeleton.tsx'
 import { formatBrl, today } from '../lib/format.ts'
+import { RecordScroll, useRecordHash } from '../lib/record.tsx'
 import { screenOf } from '../shell/nav.ts'
 import { PageHeader } from '../shell/page-header.tsx'
 import { DebtCard } from './debt-card.tsx'
@@ -28,6 +29,7 @@ const NetWorth = () => {
 
 const Debts = () => {
   const debts = useDebts()
+  const hash = useRecordHash()
   return (
     <section aria-labelledby="debts" className="flex min-w-0 flex-col gap-2.5">
       <div className="flex items-baseline">
@@ -37,7 +39,14 @@ const Debts = () => {
         {debts.isSuccess && debts.data.length > 0 && <span className="amount ml-auto text-meta text-muted">{formatBrl(monthlyInstallments(debts.data))}/mês</span>}
       </div>
       <QueryView query={debts} skeleton={<CardsSkeleton height="h-24" />} isEmpty={(data) => data.length === 0} empty={<EmptyState title="Nenhuma dívida ativa">Financiamentos e empréstimos aparecem aqui com as parcelas pagas e a próxima.</EmptyState>}>
-        {(data) => data.map((debt) => <DebtCard key={debt.id} debt={debtView(debt)} />)}
+        {(data) => (
+          <>
+            {data.map((debt) => (
+              <DebtCard key={debt.id} debt={debtView(debt)} hash={hash} />
+            ))}
+            <RecordScroll />
+          </>
+        )}
       </QueryView>
     </section>
   )
@@ -45,13 +54,21 @@ const Debts = () => {
 
 const Savings = () => {
   const query = useSavings()
+  const hash = useRecordHash()
   return (
     <section aria-labelledby="savings" className="flex min-w-0 flex-col gap-2.5">
       <h2 id="savings" className="m-0 text-section font-semibold">
         Reservas e metas
       </h2>
       <QueryView query={query} skeleton={<CardsSkeleton height="h-23" />} isEmpty={(data) => data.reserves.length + data.goals.length === 0} empty={<EmptyState title="Nenhuma reserva ou meta">Reservas e metas aparecem aqui com o progresso até o alvo.</EmptyState>}>
-        {(data) => savings(data.reserves, data.goals, today()).map((saving) => <SavingCard key={saving.id} saving={saving} />)}
+        {(data) => (
+          <>
+            {savings(data.reserves, data.goals, today()).map((saving) => (
+              <SavingCard key={saving.id} saving={saving} hash={hash} />
+            ))}
+            <RecordScroll />
+          </>
+        )}
       </QueryView>
     </section>
   )

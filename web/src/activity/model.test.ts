@@ -56,9 +56,12 @@ test('formats timestamps and statuses of decisions', () => {
   expect(formatField('tags', ['a'])).toBe('["a"]')
 })
 
-test('points each record to its screen and entries to their month', () => {
-  expect(targetOf(item({ after: { competence: '2026-09-01' } }))).toEqual({ to: '/lancamentos', month: '2026-09' })
-  expect(targetOf(item({ entity: 'decision_confirmation' }))).toEqual({ to: '/decisoes' })
-  expect(targetOf(item({ entity: 'goal' }))).toEqual({ to: '/patrimonio' })
+test('points each record to its screen, its anchor and entries to their month', () => {
+  expect(targetOf(item({ after: { competence: '2026-09-01' } }))).toEqual({ to: '/lancamentos', hash: 'entry-9', month: '2026-09' })
+  expect(targetOf(item({ entity: 'decision', entityId: '4' }))).toEqual({ to: '/decisoes', hash: 'decision-4' })
+  expect(targetOf(item({ entity: 'decision_confirmation', entityId: null, after: { decision_id: 7, member_id: 2 } }))).toEqual({ to: '/decisoes', hash: 'decision-7' })
+  expect(targetOf(item({ entity: 'decision_confirmation', entityId: null }))).toEqual({ to: '/decisoes' })
+  expect(targetOf(item({ entity: 'goal' }))).toEqual({ to: '/patrimonio', hash: 'goal-9' })
+  expect(targetOf(item({ entity: 'debt', entityId: '3' }))).toEqual({ to: '/patrimonio', hash: 'debt-3' })
   expect(targetOf(item({ entity: 'category' }))).toBeUndefined()
 })

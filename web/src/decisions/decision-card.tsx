@@ -1,5 +1,6 @@
 import { Button } from '../components/ui/button.tsx'
 import { formatBrl } from '../lib/format.ts'
+import { recordProps } from '../lib/record.tsx'
 import { cn } from '../lib/utils.ts'
 import { type Answer, answersFor, type Decision, peopleOf, proposalMeta } from './model.ts'
 
@@ -7,13 +8,13 @@ export const chip = 'inline-flex whitespace-nowrap rounded-full px-2 py-0.5 text
 
 const labels: Record<Answer, string> = { confirm: 'Confirmar', reject: 'Rejeitar', withdraw: 'Retirar proposta' }
 
-type Props = { decision: Decision; members: string[]; member: string | undefined; busy: boolean; onAnswer: (answer: Answer) => void }
+type Props = { decision: Decision; members: string[]; member: string | undefined; busy: boolean; hash: string; onAnswer: (answer: Answer) => void }
 
-export const DecisionCard = ({ decision, members, member, busy, onAnswer }: Props) => {
+export const DecisionCard = ({ decision, members, member, busy, hash, onAnswer }: Props) => {
   const answers = answersFor(decision, member)
-  const titleId = `decision-${decision.id}`
+  const titleId = `decision-title-${decision.id}`
   return (
-    <article aria-labelledby={titleId} className="flex flex-col gap-3 rounded-hero border bg-surface p-4 md:p-5">
+    <article aria-labelledby={titleId} {...recordProps(`decision-${decision.id}`, hash)} className={cn('flex flex-col gap-3 rounded-hero border bg-surface p-4 md:p-5', 'aria-[current=true]:border-accent aria-[current=true]:bg-accent-soft')}>
       <div className="flex flex-wrap gap-1.5">
         <span className={cn(chip, 'bg-pending-soft text-pending')}>Proposta</span>
         {decision.origin === 'claude' && <span className={cn(chip, 'bg-claude-soft text-claude')}>via Claude</span>}

@@ -5,7 +5,7 @@
 - No `add_repo`/`register_repo_root` tools in these runs (ToolSearch finds neither). The repo already exists at /home/claude/finance: `git fetch origin && git checkout -B poc origin/poc`
 - Node 22 is preinstalled: `npm i -g node@24` then `hash -r` (about a minute; 24.22.0 on 2026-10-20)
 - Run setup commands one per Bash call. PostgreSQL 16: `pg_ctlcluster 16 main start`, then `su postgres -c "psql -c \"alter user postgres password 'local'\""`, then `cp .env.example .env` (gitignored)
-- `npm ci` then `npm run db:reset` and `npm run db:seed`; baseline is 142 node tests plus 111 web (Vitest) tests plus 60 Playwright; seed has 189 entries and `db:seed` also plants 4 decisions (`seedDecisions`, not in `seed()`, L73)
+- `npm ci` then `npm run db:reset` and `npm run db:seed`; baseline is 142 node tests plus 115 web (Vitest) tests plus 66 Playwright; seed has 189 entries and `db:seed` also plants 4 decisions (`seedDecisions`, not in `seed()`, L73)
 - `curl` to local servers needs `--noproxy '*'` (the agent proxy answers 404 otherwise); stop servers by pid, `pkill -f` matched the calling shell and killed the call
 - Web deps install with `npm i -w web ...` (add `-S` for runtime deps: a first `-w` install put react as a peer only); root scripts forwarding to the workspace need a trailing `--` or npm swallows flags
 - Single test file: `timeout 200 node --env-file=.env --test test/mcp/demo.test.ts` (capture to a log file and read the tail; piping through grep printed nothing once)
@@ -42,6 +42,7 @@
 - W11: `/atividade` in `web/src/activity/` (`describe.ts` shared with the overview card); chips count from a separate `['audit','counts']` query (`limit=1`, unscoped) because API counts are scoped by `member`; member chip = `author=member&member=X`; timeline is `useInfiniteQuery` keyed `['audit','timeline',filter]`. `memberCounts` in `GET /api/audit`. Tests avoid the clock with 2025 dates and regex day names. Q04: audit items carry `subject` (SQL coalesce over `coalesce(after, before)` keys, decision title for confirmations); `describeAudit` reads `item.subject`, never before/after names; web stubs of `AuditItem` need `subject`
 - W12c budget (`npx playwright test -g budget`, preview gzips, SW blocked): overview first load 390 = 129 kB JS gzip, 1440 = 211 kB, fonts 53 kB, FCP/LCP about 0.3–0.4 s locally; precache 30 entries / 964 KiB (latin Geist only via `globPatterns`). Limits live at the top of `web/e2e/budget.spec.ts`; the build has no visualizer, use `vite build --sourcemap --outDir /tmp/x` and sum `sourcesContent` per package
 - Q03: mobile top bar is brand, compact identity picker and the `MoreMenu` (Mais) disclosure; the menu lists `screens` without `tab` and holds the theme switch (jsdom renders it twice: sidebar plus menu). Menu e2e only: `npx playwright test e2e/more.spec.ts`; a top bar change rewrites every `-390-` PNG, keep those and revert the 1440 ones
+- Q05: record anchors are URL hashes read with `useRecordHash()`; rows/cards spread `recordProps(key, hash)` (`data-record`, `aria-current`) and style `aria-[current=true]:...`; one `<RecordScroll />` per data branch scrolls the visible match (jsdom has no client rects, so Vitest asserts marks only). Decision title ids are `decision-title-<id>` so no element id equals a hash. Entry links set `member: undefined` explicitly (retainSearchParams keeps a key unless it is explicitly removed). `npx playwright test e2e/record.spec.ts`
 - W10: `/decisoes` in `web/src/decisions/`; pending list reuses `useProposedDecisions` (key `['decisions','proposed']`), history is `['decisions','history']` (status all, filtered in the browser, L75); answers use mutation key `decision-reply` and invalidate `decisions` and `audit`. Mobile shell note: top bar (brand, identity, theme) is not in the mockups; `main` has `pb-28` for the fixed tab bar
 
 ## Notes for next items
@@ -55,6 +56,5 @@
 
 ## Status
 
-- Tests: 142 node, 111 web, 60 Playwright after Q04; `npm run check` green. `test/docs/readme.test.ts` fails when a committed screenshot is missing from the README or a README link breaks: a new screenshot needs a README row
-- Author promoted Q01–Q08 (QA findings) and I01–I08 (ADR-009 import) to Next; Q01–Q04 done 2026-10-22; next is Q05 ("Ver registro" opens the record). A full Playwright run rewrites every screenshot (dates drift with the real day): keep only the screens the item touched, `git checkout` the rest
-- Failing-test run streak: 0
+- Tests: 142 node, 115 web, 66 Playwright after Q05; `npm run check` green; failing-test run streak 0. `test/docs/readme.test.ts` fails when a committed screenshot is missing from the README or a README link breaks: a new screenshot needs a README row
+- Author promoted Q01–Q08 (QA findings) and I01–I08 (ADR-009 import) to Next; Q01–Q05 done 2026-10-22; next is Q06 (mobile top bar edge, assert no horizontal overflow). A full Playwright run rewrites every screenshot (dates drift with the real day): keep only the screens the item touched, `git checkout` the rest

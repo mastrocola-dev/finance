@@ -116,3 +116,12 @@ test('words open income as receivable in rows and the open filter', async () => 
   expect([table.getByText('A receber'), table.getByText('Recebimento atrasado')]).toHaveLength(2)
   expect(table.queryByText(/^(Pendente|Atrasada)$/)).toBeNull()
 })
+
+test('marks the record named in the link from the activity log', async () => {
+  start('/lancamentos?month=2026-10#entry-3')
+  const table = await screen.findByRole('table')
+  const marked = document.querySelectorAll('[aria-current="true"]')
+  expect([...marked].map((element) => element.tagName)).toEqual(['TR', 'LI'])
+  expect(within(table).getByText('Car financing').closest('tr')?.getAttribute('aria-current')).toBe('true')
+  expect(within(table).getByText('Rent').closest('tr')?.hasAttribute('aria-current')).toBe(false)
+})

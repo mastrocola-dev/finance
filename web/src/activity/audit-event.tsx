@@ -13,12 +13,12 @@ const RecordLink = ({ item }: { item: AuditItem }) => {
   const className = 'col-start-2 mt-2 justify-self-start text-meta text-accent md:col-start-3 md:row-start-1 md:mt-0 md:self-center'
   if (target.to === '/lancamentos')
     return (
-      <Link to="/lancamentos" search={(previous: AppSearch) => ({ ...previous, ...(target.month && { month: target.month }) })} className={className}>
+      <Link to="/lancamentos" hash={target.hash} search={(previous: AppSearch) => ({ month: target.month ?? previous.month, member: undefined })} className={className}>
         Ver registro
       </Link>
     )
   return (
-    <Link to={target.to} className={className}>
+    <Link to={target.to} hash={target.hash} className={className}>
       Ver registro
     </Link>
   )

@@ -28,6 +28,7 @@ Household finance ledger with a Claude connector. Two members, every change audi
 | Atividade | <img src="web/screenshots/activity-1440-light.png" alt="Atividade, desktop, light" width="360"> | <img src="web/screenshots/activity-1440-dark.png" alt="Atividade, desktop, dark" width="360"> | <img src="web/screenshots/activity-390-light.png" alt="Atividade, phone, light" width="120"> | <img src="web/screenshots/activity-390-dark.png" alt="Atividade, phone, dark" width="120"> |
 | Undo after a payment mark | <img src="web/screenshots/bills-toast-1440-light.png" alt="Payment undo toast, desktop, light" width="360"> | <img src="web/screenshots/bills-toast-1440-dark.png" alt="Payment undo toast, desktop, dark" width="360"> | <img src="web/screenshots/bills-toast-390-light.png" alt="Payment undo toast, phone, light" width="120"> | <img src="web/screenshots/bills-toast-390-dark.png" alt="Payment undo toast, phone, dark" width="120"> |
 | Mais menu (phone only) | | | <img src="web/screenshots/more-390-light.png" alt="Mais menu, phone, light" width="120"> | <img src="web/screenshots/more-390-dark.png" alt="Mais menu, phone, dark" width="120"> |
+| Ver registro lands on the entry (desktop only) | <img src="web/screenshots/record-1440-light.png" alt="Entry opened from Atividade, desktop, light" width="360"> | <img src="web/screenshots/record-1440-dark.png" alt="Entry opened from Atividade, desktop, dark" width="360"> | | |
 
 </details>
 

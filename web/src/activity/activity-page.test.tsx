@@ -66,7 +66,7 @@ test('shows the timeline by day with authors, records and a before and after tab
     within(events[1] as HTMLElement)
       .getByRole('link', { name: 'Ver registro' })
       .getAttribute('href'),
-  ).toBe('/lancamentos?month=2025-10')
+  ).toBe('/lancamentos?month=2025-10#entry-5')
   const second = await day(/19 de outubro/)
   expect(within(second).getByText('Importação')).toBeTruthy()
   expect(within(second).getByText('Lançou Aluguel · R$ 2.500,00')).toBeTruthy()
@@ -96,7 +96,7 @@ test('loads older pages with the cursor', async () => {
   await userEvent.click(await screen.findByRole('button', { name: 'Carregar mais' }))
   const third = await day(/18 de outubro/)
   expect(within(third).getByText('Alterou reserva Fundo de emergência')).toBeTruthy()
-  expect(within(third).getByRole('link', { name: 'Ver registro' }).getAttribute('href')).toBe('/patrimonio')
+  expect(within(third).getByRole('link', { name: 'Ver registro' }).getAttribute('href')).toBe('/patrimonio#reserve-2')
   expect(screen.queryByRole('button', { name: 'Carregar mais' })).toBeNull()
 })
 
@@ -104,4 +104,11 @@ test('offers a retry when the log cannot be read', async () => {
   failing = true
   start()
   expect(await screen.findByRole('button', { name: /tentar/i }, { timeout: 3000 })).toBeTruthy()
+})
+
+test('links an entry to its month without the member filter so the record is shown', async () => {
+  render(<App history={createMemoryHistory({ initialEntries: ['/atividade?member=Gabriela&month=2025-08'] })} fetch={fetch} />)
+  const first = await day(/20 de outubro/)
+  const links = within(first).getAllByRole('link', { name: 'Ver registro' })
+  expect(links.map((link) => link.getAttribute('href'))).toEqual(['/lancamentos?month=2025-10#entry-6', '/lancamentos?month=2025-10#entry-5'])
 })

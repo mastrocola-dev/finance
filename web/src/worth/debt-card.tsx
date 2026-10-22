@@ -1,10 +1,11 @@
+import { recordProps } from '../lib/record.tsx'
 import { cn } from '../lib/utils.ts'
 import type { DebtView, Tick } from './model.ts'
 
 const tickColor: Record<Tick['state'], string> = { paid: 'bg-expense', next: 'bg-expense/40', open: 'bg-sunken' }
 
-export const DebtCard = ({ debt }: { debt: DebtView }) => (
-  <article className="flex flex-col gap-2.5 rounded-card border bg-surface px-4 py-3.5 md:px-6 md:py-5">
+export const DebtCard = ({ debt, hash }: { debt: DebtView; hash: string }) => (
+  <article {...recordProps(`debt-${debt.id}`, hash)} className={cn('flex flex-col gap-2.5 rounded-card border bg-surface px-4 py-3.5 md:px-6 md:py-5', 'aria-[current=true]:border-accent aria-[current=true]:bg-accent-soft')}>
     <div className="flex items-baseline gap-2">
       <h3 className="m-0 text-body font-semibold">{debt.name}</h3>
       <span className="amount ml-auto">{debt.balance}</span>

@@ -103,13 +103,20 @@ export const diffOf = ({ before, after }: AuditItem): DiffRow[] => {
   return keys.map((key) => ({ field: fields[key] ?? key.replaceAll('_', ' '), before: formatField(key, before[key]), after: formatField(key, after[key]) }))
 }
 
-type Target = { to: '/lancamentos'; month?: string } | { to: '/decisoes' | '/patrimonio' }
+type Target = { to: '/lancamentos' | '/decisoes' | '/patrimonio'; hash?: string; month?: string }
 
 const pages: Record<string, Target['to']> = { entry: '/lancamentos', decision: '/decisoes', decision_confirmation: '/decisoes', reserve: '/patrimonio', goal: '/patrimonio', debt: '/patrimonio' }
 
-export const targetOf = ({ entity, before, after }: AuditItem): Target | undefined => {
-  const to = pages[entity]
-  if (to !== '/lancamentos') return to && { to }
-  const competence = (after ?? before)?.competence
-  return { to, ...(typeof competence === 'string' && { month: competence.slice(0, 7) }) }
+const recordOf = ({ entity, entityId, after }: AuditItem) => {
+  const confirmation = entity === 'decision_confirmation'
+  const id = confirmation ? after?.decision_id : entityId
+  return typeof id === 'string' || typeof id === 'number' ? `${confirmation ? 'decision' : entity}-${id}` : undefined
+}
+
+export const targetOf = (item: AuditItem): Target | undefined => {
+  const to = pages[item.entity]
+  if (!to) return undefined
+  const hash = recordOf(item)
+  const competence = (item.after ?? item.before)?.competence
+  return { to, ...(hash && { hash }), ...(to === '/lancamentos' && typeof competence === 'string' && { month: competence.slice(0, 7) }) }
 }

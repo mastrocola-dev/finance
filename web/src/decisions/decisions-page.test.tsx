@@ -155,3 +155,13 @@ test('asks who you are before answering or proposing', async () => {
   expect(within(internet).getByText('Escolha quem você é para responder.')).toBeTruthy()
   expect((screen.getByRole('button', { name: 'Propor' }) as HTMLButtonElement).disabled).toBe(true)
 })
+
+test('marks the decision named in the link, pending or in the history', async () => {
+  render(<App history={createMemoryHistory({ initialEntries: ['/decisoes#decision-3'] })} fetch={fetch} />)
+  expect((await card('Upgrade internet')).getAttribute('aria-current')).toBe('true')
+  expect((await card('Prepay six installments')).hasAttribute('aria-current')).toBe(false)
+  cleanup()
+  render(<App history={createMemoryHistory({ initialEntries: ['/decisoes#decision-2'] })} fetch={fetch} />)
+  const history = await screen.findByRole('region', { name: 'Histórico' })
+  expect((await within(history).findByText('Raise the reserve')).closest('li')?.getAttribute('aria-current')).toBe('true')
+})

@@ -1,4 +1,5 @@
 import { formatDay } from '../lib/format.ts'
+import { recordProps } from '../lib/record.tsx'
 import { cn } from '../lib/utils.ts'
 import type { Entry } from '../overview/model.ts'
 import { OriginChip, StateChip } from './chips.tsx'
@@ -8,7 +9,7 @@ const columns = ['Data', 'Descrição', 'Categoria', 'Conta', 'Quem', 'Origem', 
 
 const cell = 'border-b px-4 py-3'
 
-export const EntriesTable = ({ entries, fresh }: { entries: Entry[]; fresh: string | undefined }) => (
+export const EntriesTable = ({ entries, fresh, hash }: { entries: Entry[]; fresh: string | undefined; hash: string }) => (
   <table className="hidden w-full min-w-[860px] border-collapse md:table">
     <thead>
       <tr className="text-left text-xs text-muted">
@@ -24,7 +25,7 @@ export const EntriesTable = ({ entries, fresh }: { entries: Entry[]; fresh: stri
     </thead>
     <tbody>
       {entries.map((entry) => (
-        <tr key={entry.id} className={cn(entry.id === fresh && 'bg-accent-soft')}>
+        <tr key={entry.id} {...recordProps(`entry-${entry.id}`, hash)} className={cn(entry.id === fresh && 'bg-accent-soft', 'aria-[current=true]:bg-accent-soft')}>
           <td className={cn(cell, 'whitespace-nowrap text-muted tabular-nums')}>{formatDay(entry.dueOn)}</td>
           <td className={cn(cell, 'font-medium')}>
             {entry.description}

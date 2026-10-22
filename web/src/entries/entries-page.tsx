@@ -6,6 +6,7 @@ import { Skeleton } from '../components/skeleton.tsx'
 import { type Notice, Toast } from '../components/toast.tsx'
 import { Button } from '../components/ui/button.tsx'
 import { formatBrl, formatMonth } from '../lib/format.ts'
+import { RecordScroll, useRecordHash } from '../lib/record.tsx'
 import { firstDay, monthOf } from '../lib/search.ts'
 import type { Entry } from '../overview/model.ts'
 import { ApiFailure } from '../query/client.ts'
@@ -32,6 +33,7 @@ const failure = (error: Error, entry: NewEntry) => (error instanceof ApiFailure 
 
 const Entries = ({ entries, fresh }: { entries: Entry[]; fresh: string | undefined }) => {
   const [filters, setFilters] = useState<Filters>(noFilters)
+  const hash = useRecordHash()
   const shown = filterEntries(entries, filters)
   const totals = totalsOf(shown)
   return (
@@ -40,8 +42,9 @@ const Entries = ({ entries, fresh }: { entries: Entry[]; fresh: string | undefin
       <section aria-label="Lista de lançamentos" className="overflow-x-auto rounded-card border bg-surface">
         {shown.length > 0 ? (
           <>
-            <EntriesTable entries={shown} fresh={fresh} />
-            <EntriesList entries={shown} fresh={fresh} />
+            <EntriesTable entries={shown} fresh={fresh} hash={hash} />
+            <EntriesList entries={shown} fresh={fresh} hash={hash} />
+            <RecordScroll />
           </>
         ) : (
           <div className="flex flex-col items-center gap-3 px-6 py-10 text-center">

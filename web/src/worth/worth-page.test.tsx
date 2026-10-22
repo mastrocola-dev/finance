@@ -99,3 +99,12 @@ test('retries a section that failed without hiding the others', async () => {
   await userEvent.click(retry)
   expect(await within(savingList).findByRole('img', { name: '37% da meta' })).toBeTruthy()
 })
+
+test('marks the debt, reserve or goal named in the link', async () => {
+  data = filled()
+  render(<App history={createMemoryHistory({ initialEntries: ['/patrimonio#goal-1'] })} fetch={fetch} />)
+  const goal = await screen.findByRole('heading', { name: 'Viagem a Lisboa' })
+  expect(goal.closest('article')?.getAttribute('aria-current')).toBe('true')
+  expect(screen.getByRole('heading', { name: 'Reserva de emergência' }).closest('article')?.hasAttribute('aria-current')).toBe(false)
+  expect(document.querySelectorAll('[aria-current="true"]')).toHaveLength(1)
+})
