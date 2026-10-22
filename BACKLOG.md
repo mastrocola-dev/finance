@@ -4,7 +4,6 @@ Ordered. The agent takes the first unblocked item under **Next**. Items marked *
 
 ## Next
 
-- **Q06 Mobile top bar edge**: (Q03 moved the theme switch into the Mais menu, so the top bar now ends with the 44 px Mais button) the theme switch touched the right edge and the page is 391 px wide at 390; keep the 16 px gutter and no horizontal overflow (assert `scrollWidth <= innerWidth` in the e2e suite)
 - **Q07 Portuguese seed**: categories, accounts, descriptions, creditors, goals and decisions in the seed are English inside a pt-BR interface; rewrite the seed in Portuguese (Moradia, Alimentação, Conta conjunta, Energia, Aluguel…), regenerate screenshots and README. Done when the showcase screenshots have no English content
 - **Q08 Seed timeline**: every seeded audit row carries the seeding time, so Atividade shows everything at the same minute; write seed audit rows with timestamps that follow the seeded dates
 - **I01 Ingest converters (Python)**: package `ingest/` (Python 3.13, `pyproject.toml`, ruff, pytest, no comments) that turns xlsx, csv, json, xml, txt, ofx and pdf with a text layer into segments: tables (cell ranges; a messy sheet yields several blocks, detected by empty rows and columns), trees (paths with samples), text (passages). Each segment has an id, kind, source address (`sheet!A1:F30`, `$.path[3]`, page and line) and a bounded preview. `python -m ingest inspect <file>` prints segments as JSON. Fictional fixtures only. See `docs/adr-009-ai-assisted-import.md`
@@ -18,6 +17,7 @@ Ordered. The agent takes the first unblocked item under **Next**. Items marked *
 
 ## Later
 
+- **Q09 Overflow guard in more states**: `edge.spec.ts` covers the seeded pages with a chosen member and the open Mais menu; add the unchosen-member state, toasts, the quick-add form and long descriptions (a fictional 80-character entry) at 320
 - **L99 Audit subject is the current row name**: `subject` comes from the audited row itself, so after a rename the older rows keep the old name (correct history) but a confirmation shows the decision title as it is now; fine while titles never change, revisit if decisions become editable
 - **L100 Audit subject for MCP**: Claude reads no audit tool today; if an `list_activity` read tool is added, reuse `listAudit` so it carries `subject` too
 
@@ -131,6 +131,8 @@ Ordered. The agent takes the first unblocked item under **Next**. Items marked *
 - **F10b layout choices**: built as the default: the installment column is optional (8th header cell, fixed lines only); a `total` row (kind `total`, amount = income minus expenses of the sheet) is checked against the lines when present; a month can be imported once (refused when it already holds import entries). Confirm these before F10c or any replace flow
 
 ## Done
+
+- **Q06 Mobile top bar edge** (2026-10-22): already fixed by Q03 (Mais button ends at 374 px at 390, 304 at 320, menu inside the gutter); added `web/e2e/edge.spec.ts` guarding every route at 320, 390 and 1440 for `scrollWidth <= innerWidth`, a 16 px gutter after the 44 px Mais button and the open menu inside the gutters (mutation check: `px-2` on the top bar fails it). 3 e2e (142 node, 115 web, 69 e2e)
 
 - **Q05 "Ver registro" opens the record** (2026-10-22): links carry a hash (`entry-<id>`, `decision-<id>` also for confirmations via `decision_id`, `reserve-`, `goal-`, `debt-`); entries, decision cards and history, debt and saving cards mark the record with `aria-current` and an accent background, and `RecordScroll` (`web/src/lib/record.tsx`) scrolls the visible copy into view; entry links drop the member filter so joint records show. 4 web tests, 6 e2e (`record.spec.ts`, `record-1440-*.png`)
 
