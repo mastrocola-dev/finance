@@ -4,7 +4,14 @@ Ordered. The agent takes the first unblocked item under **Next**. Items marked *
 
 ## Next
 
-(empty: the web app W01–W13 is done; the author promotes Later items to continue)
+- **Q01 Quick add of something already paid**: an expense or income added with a date today or earlier is created as planned, so a pharmacy purchase shows up as a bill to pay. Add a "Já pago" / "Já recebido" switch to the quick add, on by default when the date is today or earlier, and a date field defaulting to today; the API already accepts `paid_on`. Done when adding "Farmácia R$ 84,90" today lands as paid and does not appear in Contas do mês as open
+- **Q02 Income wording**: income entries show the expense statuses ("Pendente", "Atrasada"). Show "A receber", "Recebida" and "Recebimento atrasado" for income in entries, overview and chips. Done when no income row reads Pendente or Atrasada
+- **Q03 Mobile navigation**: on phones Lançamentos is reachable only through the + button and Atividade not at all. Add a "Mais" tab (or a menu in the top bar) listing Lançamentos, Atividade and the theme switch, keeping the tab bar at five targets. Done when every route is two taps away at 390 px
+- **Q04 Activity text names the record**: "Encerrou decisão" and "Confirmou uma decisão" do not say which; include the decision, entry or reserve title in every summary (the before/after rows carry it). Done when no summary is generic
+- **Q05 "Ver registro" opens the record**: today it links to the generic screen; link to the entry (lançamentos filtered or highlighted by id), the decision card, or the reserve. Done when the link lands on the item itself
+- **Q06 Mobile top bar edge**: the theme switch touches the right edge and the page is 391 px wide at 390; keep the 16 px gutter and no horizontal overflow (assert `scrollWidth <= innerWidth` in the e2e suite)
+- **Q07 Portuguese seed**: categories, accounts, descriptions, creditors, goals and decisions in the seed are English inside a pt-BR interface; rewrite the seed in Portuguese (Moradia, Alimentação, Conta conjunta, Energia, Aluguel…), regenerate screenshots and README. Done when the showcase screenshots have no English content
+- **Q08 Seed timeline**: every seeded audit row carries the seeding time, so Atividade shows everything at the same minute; write seed audit rows with timestamps that follow the seeded dates
 
 ## Later
 
