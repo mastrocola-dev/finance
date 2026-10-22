@@ -6,6 +6,7 @@ const item = (changes: Partial<AuditItem>): AuditItem => ({ id: '1', at: '2026-1
 test('describes entries, payments, decisions and other changes in Portuguese', () => {
   expect(describeAudit(item({ after: { description: 'Mercado', amount_cents: 38620 } }))).toBe('Lançou Mercado · R$ 386,20')
   expect(describeAudit(item({ action: 'update', before: { description: 'Energia', status: 'planned' }, after: { description: 'Energia', status: 'paid' } }))).toBe('Marcou Energia como paga')
+  expect(describeAudit(item({ action: 'update', before: { description: 'Salário', status: 'planned' }, after: { description: 'Salário', status: 'paid', direction: 'income' } }))).toBe('Marcou Salário como recebida')
   expect(describeAudit(item({ action: 'close', before: { description: 'Energia' } }))).toBe('Encerrou Energia')
   expect(describeAudit(item({ entity: 'decision', after: { title: 'Trocar plano de internet' } }))).toBe('Propôs Trocar plano de internet')
   expect(describeAudit(item({ entity: 'decision_confirmation' }))).toBe('Confirmou uma decisão')

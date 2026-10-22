@@ -1,7 +1,7 @@
 import { Search } from 'lucide-react'
 import { useEffect, useRef } from 'react'
 import { cn } from '../lib/utils.ts'
-import type { Filters } from './model.ts'
+import { type Filters, openLabel } from './model.ts'
 
 const chip = 'min-h-11 rounded-full border bg-surface px-3 text-meta text-text md:min-h-9'
 const active = 'border-accent bg-accent-soft text-accent'
@@ -67,7 +67,7 @@ export const Toolbar = ({ filters, categories, onChange }: Props) => {
         ))}
       </select>
       <button type="button" aria-pressed={filters.open} onClick={() => set({ open: !filters.open })} className={cn(chip, filters.open && active)}>
-        Pendentes e atrasadas
+        {openLabel(filters.direction)}
       </button>
     </div>
   )

@@ -1,7 +1,7 @@
 import { createMemoryHistory } from '@tanstack/react-router'
 import { cleanup, render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { afterEach, expect, test, vi } from 'vitest'
+import { afterEach, expect, onTestFinished, test, vi } from 'vitest'
 import { App } from '../app.tsx'
 
 const entry = (id: string, description: string, direction: 'income' | 'expense', state: 'paid' | 'pending' | 'late', dueOn: string, cents: number, extra: Record<string, unknown> = {}) => ({
@@ -97,7 +97,22 @@ test('reads the chosen member entries and shows an empty month', async () => {
   const { unmount } = render(<App history={createMemoryHistory({ initialEntries: ['/lancamentos?month=2026-10&member=Marcio'] })} fetch={fetch} />)
   await screen.findByRole('table')
   expect(descriptions()).toEqual(['Salary'])
+  expect(within(screen.getByRole('table')).getByText('Recebida')).toBeTruthy()
   unmount()
   start('/lancamentos?month=2026-11')
   expect(await screen.findByText('Nenhum lançamento em novembro de 2026')).toBeTruthy()
+})
+
+test('words open income as receivable in rows and the open filter', async () => {
+  const user = userEvent.setup()
+  october.push(entry('5', 'Freelance', 'income', 'late', '2026-10-10', 90000), entry('6', 'Bonus', 'income', 'pending', '2026-10-30', 50000))
+  onTestFinished(() => void october.splice(4))
+  start('/lancamentos?month=2026-10')
+  await screen.findByRole('table')
+  await user.click(screen.getByRole('button', { name: 'Receitas' }))
+  await user.click(screen.getByRole('button', { name: 'A receber e atrasadas' }))
+  const table = within(screen.getByRole('table'))
+  expect(descriptions()).toEqual(['Bonus', 'Freelance'])
+  expect([table.getByText('A receber'), table.getByText('Recebimento atrasado')]).toHaveLength(2)
+  expect(table.queryByText(/^(Pendente|Atrasada)$/)).toBeNull()
 })

@@ -36,7 +36,7 @@ const verbs = { create: 'Criou', update: 'Alterou', close: 'Encerrou' }
 const describeEntry = ({ action, before, after }: AuditItem) => {
   const name = text(after, 'description') ?? text(before, 'description') ?? 'lançamento'
   if (action === 'create') return [`Lançou ${name}`, cents(after, 'amount_cents')].filter(Boolean).join(' · ')
-  if (action === 'update' && text(after, 'status') === 'paid' && text(before, 'status') !== 'paid') return `Marcou ${name} como paga`
+  if (action === 'update' && text(after, 'status') === 'paid' && text(before, 'status') !== 'paid') return `Marcou ${name} como ${text(after, 'direction') === 'income' ? 'recebida' : 'paga'}`
   return `${verbs[action]} ${name}`
 }
 

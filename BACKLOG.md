@@ -4,7 +4,6 @@ Ordered. The agent takes the first unblocked item under **Next**. Items marked *
 
 ## Next
 
-- **Q02 Income wording**: income entries show the expense statuses ("Pendente", "Atrasada"). Show "A receber", "Recebida" and "Recebimento atrasado" for income in entries, overview and chips. Done when no income row reads Pendente or Atrasada
 - **Q03 Mobile navigation**: on phones Lançamentos is reachable only through the + button and Atividade not at all. Add a "Mais" tab (or a menu in the top bar) listing Lançamentos, Atividade and the theme switch, keeping the tab bar at five targets. Done when every route is two taps away at 390 px
 - **Q04 Activity text names the record**: "Encerrou decisão" and "Confirmou uma decisão" do not say which; include the decision, entry or reserve title in every summary (the before/after rows carry it). Done when no summary is generic
 - **Q05 "Ver registro" opens the record**: today it links to the generic screen; link to the entry (lançamentos filtered or highlighted by id), the decision card, or the reserve. Done when the link lands on the item itself
@@ -25,6 +24,8 @@ Ordered. The agent takes the first unblocked item under **Next**. Items marked *
 - **I09 Images and scanned pdf** (phase 2 of ADR-009): needs image tool results in `service-agent`; then receipts and scanned statements as image segments, always reviewed
 - **I10 Monthly statements** (phase 3): the same pipeline with duplicate detection against the ledger and reconciliation by statement balance
 
+- **L96 Sidebar height on long pages**: at 1440 the desktop sidebar background stops at the first viewport height (about 1000 px) on long pages such as Lançamentos; make the sidebar full height (sticky, `h-dvh`) and check the 1440 screenshots
+- **L97 Bills toast and undo wording for income**: Contas lists expenses only today; if income ever joins it (or a "Recebimentos" view), the toast and activity for undo (`markUnpaid`) need the same receivable wording as Q02
 - **L94 Date input locale in screenshots**: headless Chromium draws the quick add date as `mm/dd/yyyy` although the context locale is pt-BR (the date input follows the browser UI language); launch Playwright Chromium with `--lang=pt-BR` and check axe and screenshots
 - **L95 Paid date of a past entry**: Q01 uses the entry date as `paid_on`; a bill paid on another day than its due date needs a separate paid date (or a later `mark_paid` with a date in Contas)
 
@@ -127,6 +128,7 @@ Ordered. The agent takes the first unblocked item under **Next**. Items marked *
 
 ## Done
 
+- **Q02 Income wording**: income states read "Recebida", "A receber" and "Recebimento atrasado" (one `stateLabels` table by direction in `entries/model.ts`); the open filter chip reads "A receber e atrasadas" when Receitas is chosen; activity says "Marcou X como recebida" for income (audit `after.direction`). Overview and Contas list expenses only, so no income row shows Pendente or Atrasada. 1 new web test plus assertions (141 node, 107 web, 58 e2e); entries screenshots refreshed
 - **Q01 Quick add of something already paid**: quick add gains a Data field (defaults to today in the current month, else the 1st; limited to the shown month) and a "Já pago" / "Já recebido" checkbox, on when the date is today or earlier and reset when the date changes; a future date marked paid is refused in the form; the body sends `paid_on` = date. The form row now wraps (Data, checkbox and Lançar on a second line at 1440). E2E adds "Farmácia R$ 84,90" today and finds it paid in Contas. 4 web tests (141 node, 106 web, 58 e2e); entries screenshots refreshed
 - **W13 Showcase**: README gains Showcase (overview desktop and phone in light and dark, a collapsible table of every screen at both widths and themes plus the undo toast), "Quick start: API plus web" (seed, API, Vite dev server, preview on 4173 with the same `/api` proxy) and Architecture (Mermaid sketch of web and Claude over the HTTP and MCP adapters, ledger, audited `write()`, PostgreSQL, plus five lines on the layering and safety rules); "Run locally" renamed Development; `test/docs/readme.test.ts` checks that every local link and image exists, every committed screenshot is shown and every image has alt text. 3 node tests (141 node, 102 web, 58 e2e); no screen changed, screenshots unchanged
 

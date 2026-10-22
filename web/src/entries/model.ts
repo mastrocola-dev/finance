@@ -35,7 +35,14 @@ export const categoriesOf = (entries: Entry[]) => [...new Set(entries.map((entry
 
 export const originLabels: Record<Entry['origin'], string> = { manual: 'Manual', claude: 'Claude', import: 'Planilha', forecast: 'Previsto' }
 
-export const stateLabel = (entry: Entry) => (entry.state === 'paid' ? (entry.direction === 'income' ? 'Recebida' : 'Paga') : entry.state === 'late' ? 'Atrasada' : 'Pendente')
+const stateLabels: Record<Entry['direction'], Record<Entry['state'], string>> = {
+  income: { paid: 'Recebida', pending: 'A receber', late: 'Recebimento atrasado' },
+  expense: { paid: 'Paga', pending: 'Pendente', late: 'Atrasada' },
+}
+
+export const stateLabel = (entry: Entry) => stateLabels[entry.direction][entry.state]
+
+export const openLabel = (direction?: Entry['direction']) => (direction === 'income' ? 'A receber e atrasadas' : 'Pendentes e atrasadas')
 
 export const installmentOf = ({ installmentNumber, installmentsTotal }: Entry) => (installmentNumber ? (installmentsTotal ? `${installmentNumber}/${installmentsTotal}` : `parcela ${installmentNumber}`) : undefined)
 

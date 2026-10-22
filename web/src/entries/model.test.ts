@@ -1,6 +1,6 @@
 import { expect, test } from 'vitest'
 import type { Entry } from '../overview/model.ts'
-import { categoriesOf, filterEntries, installmentOf, isFiltered, matches, noFilters, signedAmount, stateLabel, totalsOf } from './model.ts'
+import { categoriesOf, filterEntries, installmentOf, isFiltered, matches, noFilters, openLabel, signedAmount, stateLabel, totalsOf } from './model.ts'
 
 const entry = (id: string, description: string, overrides: Partial<Entry> = {}): Entry => ({
   id,
@@ -57,6 +57,8 @@ test('sums income and expenses in cents and lists categories once', () => {
 
 test('labels state, installments and signed amounts in Portuguese', () => {
   expect([pharmacy, salary, car, health].map(stateLabel)).toEqual(['Paga', 'Recebida', 'Pendente', 'Atrasada'])
+  expect([salary, { ...salary, state: 'pending' as const }, { ...salary, state: 'late' as const }].map(stateLabel)).toEqual(['Recebida', 'A receber', 'Recebimento atrasado'])
+  expect([openLabel(), openLabel('expense'), openLabel('income')]).toEqual(['Pendentes e atrasadas', 'Pendentes e atrasadas', 'A receber e atrasadas'])
   expect(installmentOf(car)).toBe('18/48')
   expect(installmentOf({ ...car, installmentsTotal: null })).toBe('parcela 18')
   expect(installmentOf(pharmacy)).toBeUndefined()
