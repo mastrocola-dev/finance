@@ -101,6 +101,22 @@ npm run fix
 
 Copy `.env.example` to `.env` and adjust it; every script loads `.env` when present. `DATABASE_URL` defaults to `postgres://postgres@localhost:5432/finance`. `npm run db:migrate` applies pending migrations from `db/migrations`; `npm run db:reset` drops and recreates the database; `npm run db:seed` fills an empty database with an invented household (twelve months up to 2026-10, as if today were 2026-10-18). Tests create and drop their own `finance_test_*` databases on the same server.
 
+### Import converters (Python)
+
+`ingest/` is the first stage of the AI-assisted import ([ADR-009](docs/adr-009-ai-assisted-import.md)): it turns a file into segments with a source address and a bounded preview. Requires Python 3.13 and [uv](https://docs.astral.sh/uv/).
+
+```sh
+npm run ingest:test
+npm run ingest:check
+cd ingest && uv run python -m ingest inspect tests/fixtures/extrato.ofx
+```
+
+| Kind | Formats | Source address |
+|---|---|---|
+| `table` | xlsx, csv (one block per region separated by empty rows and columns) | `2026-10!A3:C5` |
+| `tree` | json, xml, ofx (one segment per repeated list) | `$.accounts[*].transactions` |
+| `text` | txt, pdf with a text layer (passages split on blank lines, at most 40 lines) | `L3-L4`, `p2:L1-L12` |
+
 ## Claude connector
 
 `npm run mcp:stdio` serves the read tools `month_summary`, `list_entries`, `list_debts`, `list_reserves` and `list_decisions` (status `proposed` by default, or `all`) over stdio against `DATABASE_URL`. Amounts are cents as strings with a BRL display, for example `{ "cents": "123456", "brl": "R$ 1.234,56" }`.

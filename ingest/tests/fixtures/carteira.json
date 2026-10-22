@@ -1,0 +1,14 @@
+{
+  "exportedAt": "2026-10-20",
+  "accounts": [
+    {
+      "name": "Conta conjunta",
+      "transactions": [{ "date": "2026-10-01", "description": "Aluguel", "amount": -2400.0, "tags": ["moradia"] }, { "date": "2026-10-02", "description": "Internet", "amount": -119.9, "tags": ["contas"] }]
+    },
+    {
+      "name": "Cartão Gabriela",
+      "transactions": [{ "date": "2026-10-04", "description": "Cinema", "amount": -56.0, "tags": [] }]
+    }
+  ],
+  "budget": { "month": "2026-10", "limit": 6000 }
+}
