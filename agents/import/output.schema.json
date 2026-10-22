@@ -1,0 +1,583 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "properties": {
+    "candidates": {
+      "type": "array",
+      "items": {
+        "anyOf": [
+          {
+            "type": "object",
+            "properties": {
+              "kind": {
+                "type": "string",
+                "const": "entry"
+              },
+              "source": {
+                "type": "string",
+                "description": "Source address of the segment or record, such as 2026-10!A3:G3, $.transactions[12] or p2:L4-L5"
+              },
+              "confidence": {
+                "type": "number",
+                "description": "Confidence from 0 to 1 that the payload matches the source"
+              },
+              "payload": {
+                "type": "object",
+                "properties": {
+                  "date": {
+                    "type": "string",
+                    "format": "date",
+                    "description": "Due or transaction date, YYYY-MM-DD"
+                  },
+                  "description": {
+                    "type": "string",
+                    "description": "Description as written in the source, without numbers that identify accounts or people"
+                  },
+                  "direction": {
+                    "type": "string",
+                    "enum": [
+                      "income",
+                      "expense"
+                    ]
+                  },
+                  "amountCents": {
+                    "type": "integer",
+                    "description": "Absolute amount, integer cents of BRL"
+                  },
+                  "category": {
+                    "type": "string",
+                    "description": "Category name as written in the source or the closest household category"
+                  },
+                  "account": {
+                    "type": "string",
+                    "description": "Account nickname, never a number"
+                  },
+                  "member": {
+                    "type": "string",
+                    "description": "Member name as written in the source, 'joint' when shared by the household; omit when unknown"
+                  },
+                  "paid": {
+                    "type": "boolean",
+                    "description": "True when the source shows it as paid or received"
+                  },
+                  "installment": {
+                    "type": "object",
+                    "properties": {
+                      "number": {
+                        "type": "integer",
+                        "description": "Installment number"
+                      },
+                      "total": {
+                        "type": "integer",
+                        "description": "Total installments"
+                      }
+                    },
+                    "required": [
+                      "number",
+                      "total"
+                    ],
+                    "additionalProperties": false
+                  }
+                },
+                "required": [
+                  "date",
+                  "description",
+                  "direction",
+                  "amountCents",
+                  "category",
+                  "paid"
+                ],
+                "additionalProperties": false
+              }
+            },
+            "required": [
+              "kind",
+              "source",
+              "confidence",
+              "payload"
+            ],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "properties": {
+              "kind": {
+                "type": "string",
+                "const": "account"
+              },
+              "source": {
+                "type": "string",
+                "description": "Source address of the segment or record, such as 2026-10!A3:G3, $.transactions[12] or p2:L4-L5"
+              },
+              "confidence": {
+                "type": "number",
+                "description": "Confidence from 0 to 1 that the payload matches the source"
+              },
+              "payload": {
+                "type": "object",
+                "properties": {
+                  "institution": {
+                    "type": "string",
+                    "description": "Bank or institution name"
+                  },
+                  "nickname": {
+                    "type": "string",
+                    "description": "Short name for the account"
+                  },
+                  "lastFour": {
+                    "type": "string",
+                    "pattern": "^\\d{4}$",
+                    "description": "Last four digits only"
+                  },
+                  "kind": {
+                    "type": "string",
+                    "enum": [
+                      "checking",
+                      "savings",
+                      "credit_card",
+                      "investment",
+                      "cash"
+                    ]
+                  },
+                  "member": {
+                    "type": "string",
+                    "description": "Member name as written in the source, 'joint' when shared by the household; omit when unknown"
+                  }
+                },
+                "required": [
+                  "institution",
+                  "nickname",
+                  "lastFour",
+                  "kind"
+                ],
+                "additionalProperties": false
+              }
+            },
+            "required": [
+              "kind",
+              "source",
+              "confidence",
+              "payload"
+            ],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "properties": {
+              "kind": {
+                "type": "string",
+                "const": "category"
+              },
+              "source": {
+                "type": "string",
+                "description": "Source address of the segment or record, such as 2026-10!A3:G3, $.transactions[12] or p2:L4-L5"
+              },
+              "confidence": {
+                "type": "number",
+                "description": "Confidence from 0 to 1 that the payload matches the source"
+              },
+              "payload": {
+                "type": "object",
+                "properties": {
+                  "name": {
+                    "type": "string",
+                    "description": "Category name"
+                  },
+                  "kind": {
+                    "type": "string",
+                    "enum": [
+                      "income",
+                      "expense"
+                    ]
+                  }
+                },
+                "required": [
+                  "name",
+                  "kind"
+                ],
+                "additionalProperties": false
+              }
+            },
+            "required": [
+              "kind",
+              "source",
+              "confidence",
+              "payload"
+            ],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "properties": {
+              "kind": {
+                "type": "string",
+                "const": "income"
+              },
+              "source": {
+                "type": "string",
+                "description": "Source address of the segment or record, such as 2026-10!A3:G3, $.transactions[12] or p2:L4-L5"
+              },
+              "confidence": {
+                "type": "number",
+                "description": "Confidence from 0 to 1 that the payload matches the source"
+              },
+              "payload": {
+                "type": "object",
+                "properties": {
+                  "description": {
+                    "type": "string",
+                    "description": "Recurring income description"
+                  },
+                  "amountCents": {
+                    "type": "integer",
+                    "description": "Monthly amount, integer cents of BRL"
+                  },
+                  "dayOfMonth": {
+                    "type": "integer",
+                    "description": "Day of the month it falls due"
+                  },
+                  "startsOn": {
+                    "type": "string",
+                    "format": "date",
+                    "description": "First month it applies, YYYY-MM-DD"
+                  },
+                  "endsOn": {
+                    "type": "string",
+                    "format": "date",
+                    "description": "Last date it applies, YYYY-MM-DD"
+                  },
+                  "category": {
+                    "type": "string",
+                    "description": "Category name as written in the source or the closest household category"
+                  },
+                  "account": {
+                    "type": "string",
+                    "description": "Account nickname, never a number"
+                  },
+                  "member": {
+                    "type": "string",
+                    "description": "Member name as written in the source, 'joint' when shared by the household; omit when unknown"
+                  }
+                },
+                "required": [
+                  "description",
+                  "amountCents",
+                  "dayOfMonth",
+                  "startsOn"
+                ],
+                "additionalProperties": false
+              }
+            },
+            "required": [
+              "kind",
+              "source",
+              "confidence",
+              "payload"
+            ],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "properties": {
+              "kind": {
+                "type": "string",
+                "const": "recurring_expense"
+              },
+              "source": {
+                "type": "string",
+                "description": "Source address of the segment or record, such as 2026-10!A3:G3, $.transactions[12] or p2:L4-L5"
+              },
+              "confidence": {
+                "type": "number",
+                "description": "Confidence from 0 to 1 that the payload matches the source"
+              },
+              "payload": {
+                "type": "object",
+                "properties": {
+                  "description": {
+                    "type": "string",
+                    "description": "Recurring expense description"
+                  },
+                  "amountCents": {
+                    "type": "integer",
+                    "description": "Monthly amount, integer cents of BRL"
+                  },
+                  "dayOfMonth": {
+                    "type": "integer",
+                    "description": "Day of the month it falls due"
+                  },
+                  "startsOn": {
+                    "type": "string",
+                    "format": "date",
+                    "description": "First month it applies, YYYY-MM-DD"
+                  },
+                  "endsOn": {
+                    "type": "string",
+                    "format": "date",
+                    "description": "Last date it applies, YYYY-MM-DD"
+                  },
+                  "installmentsTotal": {
+                    "type": "integer",
+                    "description": "Total installments when it is paid in installments"
+                  },
+                  "category": {
+                    "type": "string",
+                    "description": "Category name as written in the source or the closest household category"
+                  },
+                  "account": {
+                    "type": "string",
+                    "description": "Account nickname, never a number"
+                  },
+                  "member": {
+                    "type": "string",
+                    "description": "Member name as written in the source, 'joint' when shared by the household; omit when unknown"
+                  }
+                },
+                "required": [
+                  "description",
+                  "amountCents",
+                  "dayOfMonth",
+                  "startsOn",
+                  "category"
+                ],
+                "additionalProperties": false
+              }
+            },
+            "required": [
+              "kind",
+              "source",
+              "confidence",
+              "payload"
+            ],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "properties": {
+              "kind": {
+                "type": "string",
+                "const": "debt"
+              },
+              "source": {
+                "type": "string",
+                "description": "Source address of the segment or record, such as 2026-10!A3:G3, $.transactions[12] or p2:L4-L5"
+              },
+              "confidence": {
+                "type": "number",
+                "description": "Confidence from 0 to 1 that the payload matches the source"
+              },
+              "payload": {
+                "type": "object",
+                "properties": {
+                  "creditor": {
+                    "type": "string",
+                    "description": "Creditor name"
+                  },
+                  "description": {
+                    "type": "string",
+                    "description": "What the debt is"
+                  },
+                  "principalCents": {
+                    "type": "integer",
+                    "description": "Original amount, integer cents of BRL"
+                  },
+                  "balanceCents": {
+                    "type": "integer",
+                    "description": "Outstanding balance, integer cents of BRL"
+                  },
+                  "monthlyRatePercent": {
+                    "description": "Monthly interest rate in percent",
+                    "type": "number"
+                  },
+                  "installmentCents": {
+                    "type": "integer",
+                    "description": "Installment amount, integer cents of BRL"
+                  },
+                  "installmentsTotal": {
+                    "type": "integer",
+                    "description": "Total installments"
+                  },
+                  "installmentsPaid": {
+                    "description": "Installments already paid",
+                    "type": "integer"
+                  },
+                  "startsOn": {
+                    "type": "string",
+                    "format": "date",
+                    "description": "Start date, YYYY-MM-DD"
+                  },
+                  "account": {
+                    "type": "string",
+                    "description": "Account nickname, never a number"
+                  },
+                  "member": {
+                    "type": "string",
+                    "description": "Member name as written in the source, 'joint' when shared by the household; omit when unknown"
+                  }
+                },
+                "required": [
+                  "creditor",
+                  "description",
+                  "principalCents",
+                  "balanceCents",
+                  "startsOn"
+                ],
+                "additionalProperties": false
+              }
+            },
+            "required": [
+              "kind",
+              "source",
+              "confidence",
+              "payload"
+            ],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "properties": {
+              "kind": {
+                "type": "string",
+                "const": "reserve"
+              },
+              "source": {
+                "type": "string",
+                "description": "Source address of the segment or record, such as 2026-10!A3:G3, $.transactions[12] or p2:L4-L5"
+              },
+              "confidence": {
+                "type": "number",
+                "description": "Confidence from 0 to 1 that the payload matches the source"
+              },
+              "payload": {
+                "type": "object",
+                "properties": {
+                  "name": {
+                    "type": "string",
+                    "description": "Reserve name"
+                  },
+                  "balanceCents": {
+                    "type": "integer",
+                    "description": "Current balance, integer cents of BRL"
+                  },
+                  "targetCents": {
+                    "type": "integer",
+                    "description": "Target, integer cents of BRL"
+                  },
+                  "account": {
+                    "type": "string",
+                    "description": "Account nickname, never a number"
+                  }
+                },
+                "required": [
+                  "name",
+                  "balanceCents"
+                ],
+                "additionalProperties": false
+              }
+            },
+            "required": [
+              "kind",
+              "source",
+              "confidence",
+              "payload"
+            ],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "properties": {
+              "kind": {
+                "type": "string",
+                "const": "goal"
+              },
+              "source": {
+                "type": "string",
+                "description": "Source address of the segment or record, such as 2026-10!A3:G3, $.transactions[12] or p2:L4-L5"
+              },
+              "confidence": {
+                "type": "number",
+                "description": "Confidence from 0 to 1 that the payload matches the source"
+              },
+              "payload": {
+                "type": "object",
+                "properties": {
+                  "name": {
+                    "type": "string",
+                    "description": "Goal name"
+                  },
+                  "targetCents": {
+                    "type": "integer",
+                    "description": "Target, integer cents of BRL"
+                  },
+                  "savedCents": {
+                    "type": "integer",
+                    "description": "Saved so far, integer cents of BRL"
+                  },
+                  "dueOn": {
+                    "type": "string",
+                    "format": "date",
+                    "description": "Target date, YYYY-MM-DD"
+                  },
+                  "reserve": {
+                    "type": "string",
+                    "description": "Reserve that funds the goal"
+                  }
+                },
+                "required": [
+                  "name",
+                  "targetCents",
+                  "savedCents"
+                ],
+                "additionalProperties": false
+              }
+            },
+            "required": [
+              "kind",
+              "source",
+              "confidence",
+              "payload"
+            ],
+            "additionalProperties": false
+          }
+        ]
+      }
+    },
+    "questions": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "question": {
+            "type": "string",
+            "description": "Question for the household in Portuguese, such as \"GMA é a Gabriela?\""
+          },
+          "options": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Suggested answers, empty for free text"
+          },
+          "source": {
+            "type": "string",
+            "description": "Source address of the segment or record, such as 2026-10!A3:G3, $.transactions[12] or p2:L4-L5"
+          },
+          "candidate": {
+            "description": "Index in candidates of the item the question is about",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "question",
+          "options"
+        ],
+        "additionalProperties": false
+      }
+    }
+  },
+  "required": [
+    "candidates",
+    "questions"
+  ],
+  "additionalProperties": false
+}
