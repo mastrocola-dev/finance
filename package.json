@@ -20,7 +20,7 @@
     "check": "biome ci && tsc && tsc -p web",
     "fix": "biome check --write",
     "test": "node --env-file-if-exists=.env --test 'test/**/*.test.ts' && npm test -w web",
-    "test:coverage": "node --env-file-if-exists=.env --test --experimental-test-coverage --test-coverage-exclude='test/**' 'test/**/*.test.ts'",
+    "test:coverage": "node --env-file-if-exists=.env --test --experimental-test-coverage --test-coverage-exclude='test/**' 'test/**/*.test.ts' && npm test -w web",
     "web:dev": "npm run dev -w web --",
     "web:build": "npm run build -w web --",
     "openapi": "node src/http/document.ts && node web/scripts/openapi-types.ts",
