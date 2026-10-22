@@ -4,7 +4,7 @@ export const authors = ['member', 'claude', 'import', 'system'] as const
 
 export type Author = (typeof authors)[number]
 export type AuditFilter = { author?: Author; member?: string; entity?: string; before?: bigint; limit?: number }
-export type AuditItem = { id: bigint; at: Date; author: Author; member: string | null; entity: string; entityId: string | null; action: 'create' | 'update' | 'close'; before: unknown; after: unknown }
+export type AuditItem = { id: bigint; at: Date; author: Author; member: string | null; entity: string; entityId: string | null; action: 'create' | 'update' | 'close'; subject: string | null; before: unknown; after: unknown }
 export type AuditPage = { items: AuditItem[]; counts: Record<Author, number>; memberCounts: { name: string; total: number }[]; next: string | null }
 
 const scope = `
@@ -12,8 +12,12 @@ const scope = `
   left join member m on m.id = l.member_id
   where ($1::text is null or lower(m.name) = lower($1)) and ($2::text is null or l.entity = $2)`
 
+const record = 'coalesce(l.after, l.before)'
+
+const subject = `coalesce(${record}->>'title', ${record}->>'description', ${record}->>'nickname', ${record}->>'creditor', ${record}->>'name', (select d.title from decision d where l.entity = 'decision_confirmation' and d.id = (${record}->>'decision_id')::bigint))`
+
 const page = `
-  select l.id, l.at, l.author, m.name as member, l.entity, l.entity_id::text as "entityId", l.action, l.before, l.after
+  select l.id, l.at, l.author, m.name as member, l.entity, l.entity_id::text as "entityId", l.action, ${subject} as subject, l.before, l.after
   ${scope} and ($3::text is null or l.author = $3) and ($4::bigint is null or l.id < $4)
   order by l.id desc
   limit $5`

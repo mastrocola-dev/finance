@@ -1884,6 +1884,12 @@
               "close"
             ]
           },
+          "subject": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
           "before": {
             "anyOf": [
               {
@@ -1921,6 +1927,7 @@
           "entity",
           "entityId",
           "action",
+          "subject",
           "before",
           "after"
         ],

@@ -36,7 +36,7 @@ const responses: Record<string, unknown> = {
   '/api/decisions': [{ id: '7', title: 'Trocar plano de internet', description: '', amount: money(4000, 'R$ 40,00'), status: 'proposed', proposedBy: 'Gabriela', origin: 'claude', confirmedBy: ['Gabriela'], awaiting: ['Marcio'], createdAt: '2026-10-19T12:00:00.000Z', closedAt: null }],
   '/api/months/2026-10/split': { month: '2026-10-01', total: money(42860, ''), members: [], transfers: [{ from: 'Marcio', to: 'Gabriela', amount: money(21430, 'R$ 214,30') }] },
   '/api/audit': {
-    items: [{ id: '3', at: '2026-10-20T12:14:00.000Z', author: 'claude', member: 'Marcio', entity: 'entry', entityId: '9', action: 'update', before: { description: 'Energia', status: 'planned' }, after: { description: 'Energia', status: 'paid' } }],
+    items: [{ id: '3', at: '2026-10-20T12:14:00.000Z', author: 'claude', member: 'Marcio', entity: 'entry', entityId: '9', action: 'update', subject: 'Energia', before: { description: 'Energia', status: 'planned' }, after: { description: 'Energia', status: 'paid' } }],
     counts: { member: 0, claude: 1, import: 0, system: 0 },
     memberCounts: [],
     next: null,

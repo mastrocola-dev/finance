@@ -159,6 +159,7 @@ const auditItem = z.strictObject({
   entity: z.string(),
   entityId: z.string().nullable(),
   action: z.enum(['create', 'update', 'close']),
+  subject: z.string().nullable(),
   before: z.record(z.string(), z.unknown()).nullable(),
   after: z.record(z.string(), z.unknown()).nullable(),
 })

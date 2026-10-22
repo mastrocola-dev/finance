@@ -2,7 +2,7 @@ import { expect, test } from 'vitest'
 import type { AuditItem } from './describe.ts'
 import { authorFilters, dayLabel, diffOf, entityLabel, formatField, groupByDay, onBehalfOf, targetOf, timeOf, whoLabel } from './model.ts'
 
-const item = (changes: Partial<AuditItem>): AuditItem => ({ id: '1', at: '2026-10-20T12:14:00.000Z', author: 'member', member: 'Gabriela', entity: 'entry', entityId: '9', action: 'create', before: null, after: null, ...changes })
+const item = (changes: Partial<AuditItem>): AuditItem => ({ id: '1', at: '2026-10-20T12:14:00.000Z', author: 'member', member: 'Gabriela', entity: 'entry', entityId: '9', action: 'create', subject: null, before: null, after: null, ...changes })
 
 const now = new Date('2026-10-20T15:00:00.000Z')
 

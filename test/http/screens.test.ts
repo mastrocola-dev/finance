@@ -184,4 +184,15 @@ describe('http api for the screens', () => {
     assert.deepEqual([of('Car financing').installmentNumber, of('Car financing').installmentsTotal], [24, 48])
     assert.deepEqual([of('Pharmacy').origin, of('Pharmacy').installmentsTotal], ['manual', null])
   })
+
+  test('names the record of every audit row', async () => {
+    const accounts = await get('/audit?entity=account&limit=1')
+    assert.equal(typeof accounts.body.items[0].subject, 'string')
+    assert.deepEqual((await get('/audit?entity=member')).body.items.map(({ subject }: { subject: string }) => subject).sort(), ['Gabriela', 'Marcio'])
+    const proposed = await post('/decisions', { title: 'Swap the phone plan', description: 'Cheaper family plan' })
+    await post(`/decisions/${proposed.body.id}/confirm`, {}, 'Gabriela')
+    const confirmations = await get('/audit?entity=decision_confirmation&limit=1')
+    assert.equal(confirmations.body.items[0].subject, 'Swap the phone plan')
+    assert.equal((await get('/audit?entity=decision&limit=1')).body.items[0].subject, 'Swap the phone plan')
+  })
 })

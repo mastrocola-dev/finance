@@ -4,7 +4,6 @@ Ordered. The agent takes the first unblocked item under **Next**. Items marked *
 
 ## Next
 
-- **Q04 Activity text names the record**: "Encerrou decisão" and "Confirmou uma decisão" do not say which; include the decision, entry or reserve title in every summary (the before/after rows carry it). Done when no summary is generic
 - **Q05 "Ver registro" opens the record**: today it links to the generic screen; link to the entry (lançamentos filtered or highlighted by id), the decision card, or the reserve. Done when the link lands on the item itself
 - **Q06 Mobile top bar edge**: (Q03 moved the theme switch into the Mais menu, so the top bar now ends with the 44 px Mais button) the theme switch touched the right edge and the page is 391 px wide at 390; keep the 16 px gutter and no horizontal overflow (assert `scrollWidth <= innerWidth` in the e2e suite)
 - **Q07 Portuguese seed**: categories, accounts, descriptions, creditors, goals and decisions in the seed are English inside a pt-BR interface; rewrite the seed in Portuguese (Moradia, Alimentação, Conta conjunta, Energia, Aluguel…), regenerate screenshots and README. Done when the showcase screenshots have no English content
@@ -19,6 +18,9 @@ Ordered. The agent takes the first unblocked item under **Next**. Items marked *
 - **I08 Evaluations**: `evals/` with fictional hard files (a messy household workbook with one tab per month and blocks for income, fixed and variable expenses and totals; a JSON export of another finance app; an XML file; an OFX statement; a bank CSV with Portuguese headers; free-text notes) and expected candidates; scorer for precision and recall per field, totals reconciliation and cost; `npm run eval` uses recorded responses (CI), `npm run eval -- --live` calls the real model with `ANTHROPIC_API_KEY` from `.env` (author's machine only)
 
 ## Later
+
+- **L99 Audit subject is the current row name**: `subject` comes from the audited row itself, so after a rename the older rows keep the old name (correct history) but a confirmation shows the decision title as it is now; fine while titles never change, revisit if decisions become editable
+- **L100 Audit subject for MCP**: Claude reads no audit tool today; if an `list_activity` read tool is added, reuse `listAudit` so it carries `subject` too
 
 - **L98 Mais menu focus**: the Q03 menu closes on Escape, outside tap and link choice, but not when focus tabs out of it; close on `focusout` leaving the menu, and consider Recebimentos/Importar entries as screens are added (I07)
 - **I09 Images and scanned pdf** (phase 2 of ADR-009): needs image tool results in `service-agent`; then receipts and scanned statements as image segments, always reviewed
@@ -127,6 +129,8 @@ Ordered. The agent takes the first unblocked item under **Next**. Items marked *
 - **F10b layout choices**: built as the default: the installment column is optional (8th header cell, fixed lines only); a `total` row (kind `total`, amount = income minus expenses of the sheet) is checked against the lines when present; a month can be imported once (refused when it already holds import entries). Confirm these before F10c or any replace flow
 
 ## Done
+
+- **Q04 Activity text names the record** (2026-10-22): `GET /api/audit` items gain `subject` (title, description, nickname, creditor or name of the row; the decision title for a confirmation, read by subquery); Atividade and the overview card name it in every summary ("Confirmou X", "Decisão aprovada: X", "Recusou X", "Retirou X", "Alterou reserva X"); falls back to the kind only when no subject exists. 1 node test, 2 web tests (142 node, 111 web, 60 e2e); activity and overview screenshots refreshed
 
 - **Q03 Mobile navigation** (2026-10-22): "Mais" button in the mobile top bar (`web/src/shell/more-menu.tsx`) opens a menu with every screen that has no tab (Lançamentos, Atividade) plus the theme switch; tab bar stays at five; Vitest checks tabs plus menu cover all routes, e2e `more.spec.ts` (axe with menu open, two taps to Atividade, `more-390-*.png`)
 

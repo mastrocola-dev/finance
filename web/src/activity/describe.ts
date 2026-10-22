@@ -33,18 +33,31 @@ export const entities: Record<string, string> = {
 
 const verbs = { create: 'Criou', update: 'Alterou', close: 'Encerrou' }
 
-const describeEntry = ({ action, before, after }: AuditItem) => {
-  const name = text(after, 'description') ?? text(before, 'description') ?? 'lançamento'
+const describeEntry = ({ action, subject, before, after }: AuditItem) => {
+  const name = subject ?? 'lançamento'
   if (action === 'create') return [`Lançou ${name}`, cents(after, 'amount_cents')].filter(Boolean).join(' · ')
   if (action === 'update' && text(after, 'status') === 'paid' && text(before, 'status') !== 'paid') return `Marcou ${name} como ${text(after, 'direction') === 'income' ? 'recebida' : 'paga'}`
   return `${verbs[action]} ${name}`
 }
 
+const closedDecision: Record<string, (title: string) => string> = {
+  confirmed: (title) => `Decisão aprovada: ${title}`,
+  rejected: (title) => `Recusou ${title}`,
+  withdrawn: (title) => `Retirou ${title}`,
+}
+
+const describeDecision = ({ action, subject, after }: AuditItem) => {
+  const title = subject ?? 'uma decisão'
+  if (action === 'create') return `Propôs ${title}`
+  const closed = action === 'close' ? closedDecision[text(after, 'status') ?? ''] : undefined
+  return closed ? closed(title) : `${verbs[action]} decisão ${title}`
+}
+
 export const describeAudit = (item: AuditItem) => {
   if (item.entity === 'entry') return describeEntry(item)
-  if (item.entity === 'decision' && item.action === 'create') return `Propôs ${text(item.after, 'title') ?? 'uma decisão'}`
-  if (item.entity === 'decision_confirmation') return 'Confirmou uma decisão'
-  return `${verbs[item.action]} ${entities[item.entity] ?? item.entity}`
+  if (item.entity === 'decision') return describeDecision(item)
+  if (item.entity === 'decision_confirmation') return `Confirmou ${item.subject ?? 'uma decisão'}`
+  return [verbs[item.action], entities[item.entity] ?? item.entity, item.subject].filter(Boolean).join(' ')
 }
 
 export const authorLabel = ({ author, member }: AuditItem) => {

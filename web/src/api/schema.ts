@@ -523,6 +523,7 @@ export type components = {
             entityId: string | null;
             /** @enum {string} */
             action: "create" | "update" | "close";
+            subject: string | null;
             before: {
                 [key: string]: unknown;
             } | null;

@@ -5,15 +5,15 @@ import { afterEach, expect, test, vi } from 'vitest'
 import { App } from '../app.tsx'
 import type { AuditItem } from './describe.ts'
 
-const event = (id: string, changes: Partial<AuditItem>): AuditItem => ({ id, at: '2025-10-20T12:14:00.000Z', author: 'member', member: 'Gabriela', entity: 'entry', entityId: id, action: 'create', before: null, after: null, ...changes })
+const event = (id: string, changes: Partial<AuditItem>): AuditItem => ({ id, at: '2025-10-20T12:14:00.000Z', author: 'member', member: 'Gabriela', entity: 'entry', entityId: id, action: 'create', subject: null, before: null, after: null, ...changes })
 
 const items = [
-  event('6', { author: 'claude', member: 'Marcio', action: 'update', before: { description: 'Energia', status: 'planned', paid_on: null, competence: '2025-10-01' }, after: { description: 'Energia', status: 'paid', paid_on: '2025-10-20', competence: '2025-10-01' } }),
-  event('5', { after: { description: 'Mercado', amount_cents: 38620, competence: '2025-10-01' } }),
-  event('4', { at: '2025-10-19T21:02:00.000Z', author: 'import', member: null, after: { description: 'Aluguel', amount_cents: 250000, competence: '2025-09-01' } }),
+  event('6', { author: 'claude', member: 'Marcio', action: 'update', subject: 'Energia', before: { description: 'Energia', status: 'planned', paid_on: null, competence: '2025-10-01' }, after: { description: 'Energia', status: 'paid', paid_on: '2025-10-20', competence: '2025-10-01' } }),
+  event('5', { subject: 'Mercado', after: { description: 'Mercado', amount_cents: 38620, competence: '2025-10-01' } }),
+  event('4', { at: '2025-10-19T21:02:00.000Z', author: 'import', member: null, subject: 'Aluguel', after: { description: 'Aluguel', amount_cents: 250000, competence: '2025-09-01' } }),
 ]
 
-const older = event('2', { at: '2025-10-18T10:00:00.000Z', entity: 'reserve', action: 'update', before: { balance_cents: 100000 }, after: { balance_cents: 150000 } })
+const older = event('2', { at: '2025-10-18T10:00:00.000Z', entity: 'reserve', action: 'update', subject: 'Fundo de emergência', before: { balance_cents: 100000 }, after: { balance_cents: 150000 } })
 
 const counts = { counts: { member: 2, claude: 1, import: 1, system: 0 }, memberCounts: [{ name: 'Gabriela', total: 2 }] }
 
@@ -95,7 +95,7 @@ test('loads older pages with the cursor', async () => {
   start()
   await userEvent.click(await screen.findByRole('button', { name: 'Carregar mais' }))
   const third = await day(/18 de outubro/)
-  expect(within(third).getByText('Alterou reserva')).toBeTruthy()
+  expect(within(third).getByText('Alterou reserva Fundo de emergência')).toBeTruthy()
   expect(within(third).getByRole('link', { name: 'Ver registro' }).getAttribute('href')).toBe('/patrimonio')
   expect(screen.queryByRole('button', { name: 'Carregar mais' })).toBeNull()
 })
