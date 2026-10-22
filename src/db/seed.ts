@@ -1,7 +1,7 @@
 import type { Client } from 'pg'
 import { connect } from './connection.ts'
 import { seedDecisions } from './seed-decisions.ts'
-import { type Row, type Writer, write } from './write.ts'
+import { type Entity, type Row, setClock, type Writer, write } from './write.ts'
 
 export const seedToday = '2026-10-18'
 const addMonths = (date: string, count: number) => new Date(Date.UTC(Number(date.slice(0, 4)), Number(date.slice(5, 7)) - 1 + count, 1)).toISOString().slice(0, 10)
@@ -60,47 +60,69 @@ const debts = [
 
 const monthsBetween = (from: string, to: string) => (Number(to.slice(0, 4)) - Number(from.slice(0, 4))) * 12 + Number(to.slice(5, 7)) - Number(from.slice(5, 7))
 
+const setupDay = '2025-10-31'
+const recordedOn = ({ due_on, competence }: { due_on: string; competence: string }) => (due_on < seedToday ? due_on : competence)
+const clockTime = (step: number) => `${String(8 + Math.floor((step * 7) / 60)).padStart(2, '0')}:${String((step * 7) % 60).padStart(2, '0')}:00`
+
+const seedClock = (client: Client) => {
+  const steps = new Map<string, number>()
+  return (date: string) => {
+    const step = steps.get(date) ?? 0
+    steps.set(date, step + 1)
+    return setClock(client, `${date}T${clockTime(step)}-03:00`)
+  }
+}
+
+type Clock = ReturnType<typeof seedClock>
+
 const settle = (description: string, due_on: string) => {
   const current = due_on.slice(0, 7) === seedToday.slice(0, 7)
   if (current && lateInCurrentMonth.has(description) && due_on < seedToday) return { status: 'late' }
   return due_on < seedToday ? { status: 'paid', paid_on: due_on } : { status: 'planned' }
 }
 
-const plant = async (ledger: Writer) => {
+const plant = async (ledger: Writer, clock: Clock) => {
+  const setup = async (entity: Entity, values: Row) => {
+    await clock(setupDay)
+    return ledger.create(entity, values)
+  }
   const id = (row: Row) => row.id as bigint
   const members = {
-    marcio: id(await ledger.create('member', { name: 'Marcio', share_percent: 50 })),
-    gabriela: id(await ledger.create('member', { name: 'Gabriela', share_percent: 50 })),
+    marcio: id(await setup('member', { name: 'Marcio', share_percent: 50 })),
+    gabriela: id(await setup('member', { name: 'Gabriela', share_percent: 50 })),
   }
   const memberOf = (key: MemberKey | null) => (key ? members[key] : null)
 
   const accountIds = {} as Record<AccountKey, bigint>
   for (const [key, { member, ...values }] of Object.entries(accounts)) {
-    accountIds[key as AccountKey] = id(await ledger.create('account', { ...values, member_id: memberOf(member) }))
+    accountIds[key as AccountKey] = id(await setup('account', { ...values, member_id: memberOf(member) }))
   }
 
   const categoryIds = new Map<string, bigint>()
   for (const [kind, names] of Object.entries(categories)) {
-    for (const name of names) categoryIds.set(name, id(await ledger.create('category', { name, kind })))
+    for (const name of names) categoryIds.set(name, id(await setup('category', { name, kind })))
   }
   const category = (name: string) => categoryIds.get(name) as bigint
 
-  const entry = (values: Row & { description: string; due_on: string }) => ledger.create('entry', { origin: 'manual', competence: day(values.due_on, 1), ...values, ...settle(values.description, values.due_on) })
+  const entries: (Row & { due_on: string; competence: string })[] = []
+  const entry = (values: Row & { description: string; due_on: string }) => {
+    entries.push({ origin: 'manual', competence: day(values.due_on, 1), ...values, ...settle(values.description, values.due_on) })
+  }
 
   for (const income of incomes) {
-    const { id: income_id } = await ledger.create('income', { description: income.description, member_id: members[income.member], category_id: category('Salário'), account_id: accountIds[income.account], amount_cents: income.amount, day_of_month: income.day, starts_on: '2024-01-01' })
+    const { id: income_id } = await setup('income', { description: income.description, member_id: members[income.member], category_id: category('Salário'), account_id: accountIds[income.account], amount_cents: income.amount, day_of_month: income.day, starts_on: '2024-01-01' })
     for (const month of seedMonths) {
-      await entry({ description: income.description, due_on: day(month, income.day), direction: 'income', amount_cents: income.amount, category_id: category('Salário'), account_id: accountIds[income.account], member_id: members[income.member], income_id })
+      entry({ description: income.description, due_on: day(month, income.day), direction: 'income', amount_cents: income.amount, category_id: category('Salário'), account_id: accountIds[income.account], member_id: members[income.member], income_id })
     }
   }
 
   for (const [index, month] of seedMonths.entries()) {
-    if (index % 3 === 2) await entry({ description: 'Freela de design', due_on: day(month, 20), direction: 'income', amount_cents: 150000n + BigInt(index * 10000), category_id: category('Freelance'), account_id: accountIds.gabriela, member_id: members.gabriela })
+    if (index % 3 === 2) entry({ description: 'Freela de design', due_on: day(month, 20), direction: 'income', amount_cents: 150000n + BigInt(index * 10000), category_id: category('Freelance'), account_id: accountIds.gabriela, member_id: members.gabriela })
   }
 
   for (const expense of recurring) {
     const ends_on = expense.installments_total ? day(addMonths(expense.starts_on, expense.installments_total - 1), 28) : null
-    const { id: recurring_expense_id } = await ledger.create('recurring_expense', {
+    const { id: recurring_expense_id } = await setup('recurring_expense', {
       description: expense.description,
       category_id: category(expense.category),
       account_id: accountIds[expense.account],
@@ -114,7 +136,7 @@ const plant = async (ledger: Writer) => {
     for (const [index, month] of seedMonths.entries()) {
       if (month < expense.starts_on || (ends_on && month > ends_on)) continue
       const installment_number = expense.installments_total ? monthsBetween(expense.starts_on, month) + 1 : null
-      await entry({
+      entry({
         description: expense.description,
         due_on: day(month, expense.day),
         direction: 'expense',
@@ -130,14 +152,14 @@ const plant = async (ledger: Writer) => {
 
   for (const [index, month] of seedMonths.entries()) {
     for (const expense of variable) {
-      await entry({ description: expense.description, due_on: day(month, expense.day), direction: 'expense', amount_cents: expense.amount(index), category_id: category(expense.category), account_id: accountIds[expense.account], member_id: memberOf(expense.member) })
+      entry({ description: expense.description, due_on: day(month, expense.day), direction: 'expense', amount_cents: expense.amount(index), category_id: category(expense.category), account_id: accountIds[expense.account], member_id: memberOf(expense.member) })
     }
   }
 
   for (const debt of debts) {
     const dueDates = Array.from({ length: debt.total }, (_, index) => day(addMonths(debt.starts_on, index), debt.day))
     const paid = dueDates.filter((due) => due < seedToday).length
-    const { id: debt_id } = await ledger.create('debt', {
+    const { id: debt_id } = await setup('debt', {
       creditor: debt.creditor,
       description: debt.description,
       member_id: memberOf(debt.member),
@@ -152,19 +174,29 @@ const plant = async (ledger: Writer) => {
     })
     for (const [index, due_on] of dueDates.entries()) {
       if (due_on < firstMonth || due_on.slice(0, 7) > seedToday.slice(0, 7)) continue
-      await entry({ description: debt.description, due_on, direction: 'expense', amount_cents: debt.installment, category_id: category('Dívidas'), account_id: accountIds[debt.account], member_id: memberOf(debt.member), debt_id, installment_number: index + 1 })
+      entry({ description: debt.description, due_on, direction: 'expense', amount_cents: debt.installment, category_id: category('Dívidas'), account_id: accountIds[debt.account], member_id: memberOf(debt.member), debt_id, installment_number: index + 1 })
     }
   }
 
-  await ledger.create('reserve', { name: 'Reserva de emergência', account_id: accountIds.savings, balance_cents: 1800000n, target_cents: 3000000n })
-  await ledger.create('goal', { name: 'Viagem a Lisboa', target_cents: 1200000n, saved_cents: 450000n, due_on: '2027-07-01' })
+  await setup('reserve', { name: 'Reserva de emergência', account_id: accountIds.savings, balance_cents: 1800000n, target_cents: 3000000n })
+  await setup('goal', { name: 'Viagem a Lisboa', target_cents: 1200000n, saved_cents: 450000n, due_on: '2027-07-01' })
+
+  const chronological = entries.toSorted((left, right) => recordedOn(left).localeCompare(recordedOn(right)))
+  for (const values of chronological) {
+    await clock(recordedOn(values))
+    await ledger.create('entry', values)
+  }
   return members
 }
 
 export const seed = async (client: Client) => {
   const { rows } = await client.query<{ total: number }>('select count(*)::int as total from member')
   if (rows[0]?.total) throw new Error('database already has members, run db:reset before seeding')
-  return write(client, { author: 'system' }, plant)
+  try {
+    return await write(client, { author: 'system' }, (ledger) => plant(ledger, seedClock(client)))
+  } finally {
+    await setClock(client, null)
+  }
 }
 
 if (import.meta.main) {

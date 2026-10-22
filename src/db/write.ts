@@ -46,7 +46,7 @@ const writer = (client: Client, actor: Actor, touched: Set<Entity>): Writer => {
   const change = async (action: 'update' | 'close', entity: Closable, id: bigint, changes: Row) => {
     const columns = columnsOf(changes)
     const assignments = columns.map((column, index) => `${name(column)} = $${index + 5}`)
-    if (action === 'close') assignments.push('closed_at = now()')
+    if (action === 'close') assignments.push('closed_at = ledger_now()')
     if (!assignments.length) throw new Error('nothing to update')
     const { rows } = await client.query(
       `with previous as (select to_jsonb(t) as doc from ${table(entity)} t where id = $3 and closed_at is null for update),
@@ -94,3 +94,5 @@ export const write = async <T>(client: Client, actor: Actor, work: (ledger: Writ
     throw error
   }
 }
+
+export const setClock = (client: Client, at: string | null) => client.query("select set_config('finance.clock', $1, false)", [at ?? ''])

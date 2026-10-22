@@ -4,7 +4,6 @@ Ordered. The agent takes the first unblocked item under **Next**. Items marked *
 
 ## Next
 
-- **Q08 Seed timeline**: every seeded audit row carries the seeding time, so Atividade shows everything at the same minute; write seed audit rows with timestamps that follow the seeded dates
 - **I01 Ingest converters (Python)**: package `ingest/` (Python 3.13, `pyproject.toml`, ruff, pytest, no comments) that turns xlsx, csv, json, xml, txt, ofx and pdf with a text layer into segments: tables (cell ranges; a messy sheet yields several blocks, detected by empty rows and columns), trees (paths with samples), text (passages). Each segment has an id, kind, source address (`sheet!A1:F30`, `$.path[3]`, page and line) and a bounded preview. `python -m ingest inspect <file>` prints segments as JSON. Fictional fixtures only. See `docs/adr-009-ai-assisted-import.md`
 - **I02 Ingest MCP server**: stdio MCP server in `ingest/` (Python `mcp` SDK) with read-only tools `list_segments`, `read_segment` (range, page or path window, size-bounded) and `apply_mapping` (runs a column or path mapping over a whole segment and returns rows with source addresses). Digit runs of five or more are masked in every tool result. Tests through an MCP client
 - **I03 Staging schema**: migration with `import_batch` (status draft, verified, committed, closed; file name, format, hash, cost), `import_candidate` (kind entry, account, category, recurring income or expense, debt, reserve, goal; payload; source address; confidence; status pending, accepted, rejected, edited; check results) and `import_question`. The candidate zod schema is the single source and exports the JSON Schema used as the agent output schema. Staging writes are audited like the ledger
@@ -16,6 +15,8 @@ Ordered. The agent takes the first unblocked item under **Next**. Items marked *
 
 ## Later
 
+- **L101 Timeline order by time**: `listAudit` orders by `id desc` and pages with an id cursor; the seed now inserts in time order so both agree, but an import or backfill dated in the past would land at the top. Order by `at desc, id desc` with an `(at, id)` cursor if dated writes ever reach production paths
+- **L102 Ledger clock scope**: `setClock` sets the session setting `finance.clock` read by `ledger_now()` (migration 002) and is used only by the seed; if L87 adds an `API_TODAY` for local mode, reuse it there and keep it off in any non-local configuration
 - **Q10 Portuguese web stubs**: Vitest stubs and `test/import/sheet.test.ts` cases still carry some English sample names (Farmers market, Bakery, stub categories); rewrite them in pt-BR so every fixture matches the seed language
 - **Q11 Date input locale off Playwright**: the native `<input type=date>` follows the OS `LANG`, not the page `lang` or the context locale; Playwright now launches Chromium with `LANG=pt_BR.UTF-8`, but a user's browser in another locale shows mm/dd. Consider a pt-BR text field with a mask or a custom picker if the author wants the format fixed
 - **Q09 Overflow guard in more states**: `edge.spec.ts` covers the seeded pages with a chosen member and the open Mais menu; add the unchosen-member state, toasts, the quick-add form and long descriptions (a fictional 80-character entry) at 320
@@ -133,6 +134,7 @@ Ordered. The agent takes the first unblocked item under **Next**. Items marked *
 
 ## Done
 
+- **Q08 Seed timeline** (2026-10-22): migration 002 adds `ledger_now()` (session setting `finance.clock`, else `now()`) as the default of every `created_at`, `confirmed_at` and `audit_log.at` and for `closed_at` in `write()`; `setClock` in `src/db/write.ts`; the seed dates setup rows 2025-10-31, inserts entries in date order dated by due date (past) or competence (open), and decisions on 17–18 Oct; Atividade now reads as a timeline (activity, overview, decisions, record screenshots refreshed). 2 node tests plus assertions (144 node, 115 web, 69 e2e)
 - **Q07 Portuguese seed** (2026-10-22): seed categories, accounts, descriptions, debts, reserve, goal and the 4 decisions in pt-BR (Moradia, Contas da casa, Alimentação, Conta conjunta, Cartão Marcio, Energia, Aluguel, Reserva de emergência, Viagem a Lisboa…); import fixture xlsx rewritten to match; node and e2e tests follow; Playwright launches Chromium with `LANG=pt_BR.UTF-8` so the date input reads dd/mm/aaaa; all 32 screenshots regenerated. 142 node, 115 web, 69 e2e
 - **Q06 Mobile top bar edge** (2026-10-22): already fixed by Q03 (Mais button ends at 374 px at 390, 304 at 320, menu inside the gutter); added `web/e2e/edge.spec.ts` guarding every route at 320, 390 and 1440 for `scrollWidth <= innerWidth`, a 16 px gutter after the 44 px Mais button and the open menu inside the gutters (mutation check: `px-2` on the top bar fails it). 3 e2e (142 node, 115 web, 69 e2e)
 

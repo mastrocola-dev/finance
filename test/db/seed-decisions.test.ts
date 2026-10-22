@@ -32,6 +32,13 @@ describe('fictional decisions', () => {
     )
     const { rows } = await client.query("select count(*)::int as total from audit_log where entity like 'decision%' and author = 'system'")
     assert.equal(rows[0]?.total, 0)
+    const times = await client.query<{ at: string }>("select to_char(at at time zone 'America/Sao_Paulo', 'YYYY-MM-DD HH24:MI') as at from audit_log where entity like 'decision%' order by id")
+    assert.deepEqual(
+      times.rows.map((row) => row.at),
+      ['2026-10-17 19:30', '2026-10-17 21:05', '2026-10-18 08:10', '2026-10-18 08:10', '2026-10-18 09:02', '2026-10-18 09:02', '2026-10-18 09:40', '2026-10-18 09:40', '2026-10-18 10:15'],
+    )
+    const order = await client.query<{ backwards: number }>('select count(*)::int as backwards from (select at < lag(at) over (order by id) as earlier from audit_log) steps where earlier')
+    assert.equal(order.rows[0]?.backwards, 0)
   })
 
   test('runs once', async () => {
