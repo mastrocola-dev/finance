@@ -35,6 +35,13 @@ Stop the schedule (`update_trigger` with `enabled: false` on this task) and say 
 - Playwright: the browser is preinstalled; launch Chromium with `executablePath: '/opt/pw-browsers/chromium'` and never run `playwright install`
 - New dependencies only from this list unless an item needs one more (record why in MEMORY): `react`, `react-dom`, `@tanstack/react-router`, `@tanstack/react-query`, `tailwindcss`, `@tailwindcss/vite`, shadcn/ui and its Radix peers, `lucide-react`, `recharts`, `react-hook-form`, `@hookform/resolvers`, `zod`, `openapi-fetch`, `openapi-typescript`, `vite-plugin-pwa`, Geist font packages, `vitest`, `@testing-library/react`, `@testing-library/user-event`, `jsdom`, `@playwright/test`, `@axe-core/playwright`
 
+## Import and Python (`ingest/`, `agents/import/`, `evals/`)
+
+- Design in `docs/adr-009-ai-assisted-import.md`: converters read formats, the agent understands content, verification and a person guarantee correctness; the agent never writes to the ledger
+- Python 3.13 in a virtualenv (`python3 -m venv .venv`), dependencies pinned in `pyproject.toml`; allowed: `pandas`, `openpyxl`, `lxml`, `pdfplumber`, `ofxparse`, `mcp`, `pytest`, `ruff`; same style rules as TypeScript (minimal, no comments); `ruff check` and `pytest` join `npm run check` and `npm test`
+- No session of the build agent has an Anthropic key: tests and evaluations use recorded model responses; never call the model from tests; `--live` runs are for the author's machine
+- `service-agent` is a sibling checkout (`git clone https://github.com/mastrocola-dev/service-agent ../service-agent`); never commit to it; if a change there is needed, write it under **Needs author**
+
 ## Security and integrity rules (non-negotiable)
 
 - Fictional data only. Never ask for, fetch or commit real financial data; the seed is invented
