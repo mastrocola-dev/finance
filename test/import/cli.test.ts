@@ -57,8 +57,8 @@ describe('import command', () => {
     assert.equal(result.candidates.length, sample.candidates.length)
     assert.deepEqual(progress, [[1, 1]])
     const { rows } = await db.client.query('select file_name, format, status, input_tokens, output_tokens, cost_usd_micros from import_batch where id = $1', [result.batchId])
-    assert.deepEqual(rows[0], { file_name: 'notas.txt', format: 'txt', status: 'draft', input_tokens: 1200n, output_tokens: 300n, cost_usd_micros: 8100n })
-    assert.equal(importSummary(result).split('\n')[0], `batch ${result.batchId}: 9 candidates, 1 questions from 1 of 1 chunks`)
+    assert.deepEqual(rows[0], { file_name: 'notas.txt', format: 'txt', status: 'verified', input_tokens: 1200n, output_tokens: 300n, cost_usd_micros: 8100n })
+    assert.deepEqual(importSummary(result).split('\n').slice(0, 2), [`batch ${result.batchId}: 9 candidates, 1 questions from 1 of 1 chunks`, 'verified: 5 with failed checks, 2 low confidence, 6 new questions'])
   })
 
   test('opens no batch when the agent CLI is missing', async () => {

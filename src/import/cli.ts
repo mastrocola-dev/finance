@@ -9,6 +9,7 @@ import { type Extractor, runImport, type Segment } from './agent.ts'
 import { ingestSegments } from './ingest.ts'
 import { serviceAgentExtractor } from './service-agent.ts'
 import { formats, type ImportFile, maskDigits, openBatch } from './staging.ts'
+import { verifyBatch } from './verify.ts'
 
 export const maxBytes = 20 * 1024 * 1024
 
@@ -39,12 +40,14 @@ export const importFile = async (client: Client, path: string, { segments = inge
   const found = await segments(folder, file.name)
   const batchId = await openBatch(client, actor, file)
   const result = await runImport(client, actor, batchId, { file: file.name, segments: found, extractor: agent, onProgress })
-  return { batchId, ...result }
+  const verification = await verifyBatch(client, actor, batchId)
+  return { batchId, ...result, verification }
 }
 
-export const importSummary = ({ batchId, candidates, questions, usage, failures, done, total, stopped }: Awaited<ReturnType<typeof importFile>>) =>
+export const importSummary = ({ batchId, candidates, questions, usage, failures, done, total, stopped, verification }: Awaited<ReturnType<typeof importFile>>) =>
   [
     `batch ${batchId}: ${candidates.length} candidates, ${questions.length} questions from ${done} of ${total} chunks`,
+    `verified: ${verification.failed.length} with failed checks, ${verification.lowConfidence.length} low confidence, ${verification.questions.length} new questions`,
     `tokens ${usage.inputTokens} in, ${usage.outputTokens} out, US$ ${(usage.costUsdMicros / 1_000_000).toFixed(4)}`,
     ...(stopped ? [`stopped: ${stopped}`] : []),
     ...failures.map(({ source, offset, reason }) => `failed ${source}@${offset}: ${reason}`),
