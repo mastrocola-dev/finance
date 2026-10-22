@@ -154,7 +154,7 @@ const sameChecks = (a: Check[], b: Check[]) => JSON.stringify(a) === JSON.string
 
 export const verifyBatch = (client: Client, actor: Actor, batchId: bigint, threshold = confidenceThreshold) =>
   write(client, actor, async (ledger) => {
-    const batch = (await client.query<{ status: string; totals: unknown; checks: Check[] }>('select status, totals, checks from import_batch where id = $1 and closed_at is null for update', [batchId])).rows[0]
+    const batch = (await client.query<{ status: string; totals: Record<string, unknown>[]; checks: Check[] }>('select status, totals, checks from import_batch where id = $1 and closed_at is null for update', [batchId])).rows[0]
     if (batch?.status !== 'draft' && batch?.status !== 'verified') throw new RuleError(`import batch ${batchId} is not open for verification`)
     const { rows } = await client.query<Omit<Staged, 'confidence'> & { confidence: string }>("select id, kind, source, confidence, payload, checks from import_candidate where batch_id = $1 and closed_at is null and status <> 'rejected' order by id", [batchId])
     const candidates = rows.map((row) => ({ ...row, confidence: Number(row.confidence) }))
@@ -173,7 +173,7 @@ export const verifyBatch = (client: Client, actor: Actor, batchId: bigint, thres
       const row = await ledger.create('import_question', { batch_id: batchId, candidate_id: ask.candidate, question, options: JSON.stringify(options), source: candidates.find((item) => item.id === ask.candidate)?.source ?? null })
       questions.push(row.id as bigint)
     }
-    const stated = totals.parse(batch.totals)
+    const stated = totals.parse(batch.totals.map(({ chunk, ...item }) => item))
     const mismatches = reconcile(candidates, stated)
     const changes = { ...(batch.status === 'draft' && { status: 'verified' }), ...(!sameChecks(mismatches, batch.checks) && { checks: JSON.stringify(mismatches) }) }
     if (Object.keys(changes).length > 0) await ledger.update('import_batch', batchId, changes)

@@ -28,7 +28,7 @@ describe('migrations', () => {
   }
 
   test('applies every migration to an empty database', async () => {
-    assert.deepEqual(db.applied, ['001-ledger.sql', '002-ledger-clock.sql', '003-import-staging.sql', '004-import-totals.sql'])
+    assert.deepEqual(db.applied, ['001-ledger.sql', '002-ledger-clock.sql', '003-import-staging.sql', '004-import-totals.sql', '005-import-retry.sql'])
     const { rows } = await client.query<{ table_name: string }>("select table_name from information_schema.tables where table_schema = 'public' order by table_name")
     assert.deepEqual(
       rows.map((row) => row.table_name),
@@ -119,5 +119,8 @@ describe('migrations', () => {
     await assert.rejects(insert('entry', '[]', 'p1:L3', 0.9), /check constraint/)
     await assert.rejects(insert('entry', '{}', '', 0.9), /check constraint/)
     await assert.rejects(insert('entry', '{}', 'p1:L3', 1.5), /check constraint/)
+    await assert.rejects(client.query("insert into import_candidate (batch_id, kind, payload, source, confidence, status) values ($1, 'entry', '{}', 'p1:L3', 0.5, 'replaced')", [batch]), /check constraint/)
+    await assert.rejects(client.query("insert into import_candidate (batch_id, kind, payload, source, confidence, chunk) values ($1, 'entry', '{}', 'p1:L3', 0.5, ' ')", [batch]), /check constraint/)
+    await assert.rejects(client.query("update import_batch set failures = '{}' where id = $1", [batch]), /check constraint/)
   })
 })

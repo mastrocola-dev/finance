@@ -5,7 +5,7 @@ import { copyFile, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { after, before, describe, test } from 'node:test'
-import { describeFile, importFile, importSummary } from '../../src/import/cli.ts'
+import { describeFile, importFile, importSummary, parseArgs, retryFile } from '../../src/import/cli.ts'
 import { ingestSegments } from '../../src/import/ingest.ts'
 import { serviceAgentExtractor } from '../../src/import/service-agent.ts'
 import { testDatabase } from '../db/database.ts'
@@ -59,6 +59,30 @@ describe('import command', () => {
     const { rows } = await db.client.query('select file_name, format, status, input_tokens, output_tokens, cost_usd_micros from import_batch where id = $1', [result.batchId])
     assert.deepEqual(rows[0], { file_name: 'notas.txt', format: 'txt', status: 'verified', input_tokens: 1200n, output_tokens: 300n, cost_usd_micros: 8100n })
     assert.deepEqual(importSummary(result).split('\n').slice(0, 2), [`batch ${result.batchId}: 9 candidates, 1 questions from 1 of 1 chunks`, 'verified: 5 with failed checks, 2 low confidence, 6 new questions, 0 of 0 totals mismatched'])
+  })
+
+  test('retries the low-confidence chunks of a batch from the same file only', async () => {
+    const path = join(folder, 'retry.txt')
+    await writeFile(path, 'farmácia 89,90\n')
+    const segments = async () => [{ id: 'text-1', kind: 'text' as const, source: 'L1-L1', shape: { lines: 1 } }]
+    const extractor = (at: string) => serviceAgentExtractor({ folder: at, cli })
+    const first = await importFile(db.client, path, { segments, extractor })
+    const retried = await retryFile(db.client, first.batchId, path, { segments, extractor })
+    assert.deepEqual(retried.targets, ['L1-L1@0'])
+    assert.deepEqual(retried.replaced, first.candidates)
+    assert.equal(importSummary(retried).split('\n')[0], `batch ${first.batchId}: 9 candidates, 1 questions from 1 of 1 chunks, 9 replaced`)
+    const { rows } = await db.client.query('select status, input_tokens from import_batch where id = $1', [first.batchId])
+    assert.deepEqual(rows[0], { status: 'verified', input_tokens: 2400n })
+    const other = join(folder, 'other.txt')
+    await writeFile(other, 'outra coisa\n')
+    await assert.rejects(retryFile(db.client, first.batchId, other, { segments, extractor }), /other\.txt is not the file of import batch/)
+    await assert.rejects(retryFile(db.client, 999_999n, path, { segments, extractor }), /import batch 999999 not found/)
+  })
+
+  test('parses an import or a retry of a batch', () => {
+    assert.deepEqual(parseArgs(['notas.txt']), { path: 'notas.txt' })
+    assert.deepEqual(parseArgs(['--retry', '12', 'notas.txt']), { batchId: 12n, path: 'notas.txt' })
+    for (const args of [[], ['a', 'b'], ['--retry', 'x', 'a'], ['--retry', '12']]) assert.equal(parseArgs(args), undefined)
   })
 
   test('opens no batch when the agent CLI is missing', async () => {

@@ -122,6 +122,8 @@ cd ingest && uv run python -m ingest serve tests/fixtures
 
 `npm run import -- <file>` (at most 20 MB) opens a draft `import_batch`, lists the file's segments through the `ingest` server, runs the import agent once per chunk through the service-agent CLI (`SERVICE_AGENT_CLI`, default `../service-agent/src/cli.ts`, with the task as JSON on stdin and `{ output, usage }` on stdout) and stages the candidates and questions for review; nothing reaches the ledger. The agent process gets `IMPORT_FOLDER` and the model key but not `DATABASE_URL`, and the token budget is `IMPORT_TOKEN_CAP`.
 
+`npm run import -- --retry <batch> <file>` takes the same file again (its sha-256 must match the batch) and re-extracts only the chunks that failed or hold pending candidates below 0.8 confidence. Candidates of a chunk that succeeds this time are closed as `replaced` with their questions and totals, a chunk that fails again keeps its rows, and the batch is verified again; usage adds to the batch under a fresh `IMPORT_TOKEN_CAP`.
+
 ## Claude connector
 
 `npm run mcp:stdio` serves the read tools `month_summary`, `list_entries`, `list_debts`, `list_reserves` and `list_decisions` (status `proposed` by default, or `all`) over stdio against `DATABASE_URL`. Amounts are cents as strings with a BRL display, for example `{ "cents": "123456", "brl": "R$ 1.234,56" }`.
