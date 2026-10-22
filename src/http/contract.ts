@@ -1,4 +1,6 @@
 import * as z from 'zod'
+import { batchStatuses } from '../import/batches.ts'
+import { kinds } from '../import/candidate.ts'
 import { authors } from '../ledger/audit.ts'
 import { statuses } from '../ledger/decisions.ts'
 import { origins, states } from '../ledger/entries.ts'
@@ -38,6 +40,25 @@ export const auditQuery = z.object({
   before: id.optional().describe('Cursor: the next value of the previous page'),
   limit: z.coerce.number().int().min(1).max(200).default(50),
 })
+
+export const importQuery = z.object({ status: z.enum(batchStatuses).optional() })
+
+export const uploadQuery = z.object({ consent: z.literal('true').describe('Confirms the member agreed that the file content is sent to the model for extraction') })
+
+const fileName = z
+  .string()
+  .min(1)
+  .max(600)
+  .transform((value, context) => {
+    try {
+      return decodeURIComponent(value)
+    } catch {
+      context.addIssue({ code: 'custom', message: 'file name must be percent-encoded' })
+      return z.NEVER
+    }
+  })
+
+export const uploadHeaders = z.object({ 'x-file-name': fileName.describe('Original file name, percent-encoded; the extension sets the format') })
 
 export const newEntry = z.object({
   month,
@@ -179,6 +200,55 @@ const netWorth = z.strictObject({ reserves: money, goals: money.describe('Goals 
 
 const forecast = z.strictObject({ month: date, skipped: z.int(), created: z.array(entry) })
 
+const check = z.strictObject({ code: z.string(), detail: z.string().optional() })
+
+const progress = z.strictObject({
+  state: z.enum(['extracting', 'done', 'failed']),
+  done: z.int().describe('Chunks extracted'),
+  total: z.int().describe('Chunks planned'),
+  error: z.string().nullable(),
+})
+
+const importBatch = z.strictObject({
+  id,
+  fileName: z.string(),
+  format: z.string(),
+  status: z.enum(batchStatuses),
+  createdAt: z.iso.datetime(),
+  closedAt: z.iso.datetime().nullable(),
+  inputTokens: z.int(),
+  outputTokens: z.int(),
+  costUsd: z.string().describe('Model cost in US dollars, four decimals'),
+  checks: z.array(check).describe('Batch checks such as total_mismatch'),
+  failures: z.array(z.strictObject({ source: z.string(), offset: z.int(), reason: z.string() })).describe('Chunks whose extraction failed'),
+  totals: z.array(z.record(z.string(), z.unknown())).describe('Totals printed in the source'),
+  candidates: z.int().describe('Open candidates'),
+  flagged: z.int().describe('Open candidates with at least one check'),
+  openQuestions: z.int(),
+  progress: progress.nullable().describe('Extraction progress while this API process runs it; null otherwise'),
+})
+
+const importCandidate = z.strictObject({
+  id,
+  kind: z.enum(kinds),
+  source: z.string().describe('Where in the file the candidate was read'),
+  chunk: z.string().nullable(),
+  confidence: z.string(),
+  status: z.enum(['pending', 'accepted', 'rejected', 'edited']),
+  payload: z.record(z.string(), z.unknown()).describe('Candidate fields in camelCase, amounts in integer cents'),
+  checks: z.array(check),
+})
+
+const importQuestion = z.strictObject({
+  id,
+  candidateId: id.nullable(),
+  question: z.string(),
+  options: z.array(z.string()),
+  source: z.string().nullable(),
+  chunk: z.string().nullable(),
+  answer: z.string().nullable(),
+})
+
 const error = z.strictObject({ error: z.string(), issues: z.array(z.strictObject({ path: z.string(), message: z.string() })).optional() })
 
 const document = z.looseObject({ openapi: z.string() })
@@ -205,6 +275,9 @@ export const schemas = {
   Transfer: transfer,
   Split: split,
   NetWorth: netWorth,
+  ImportBatch: importBatch,
+  ImportCandidate: importCandidate,
+  ImportQuestion: importQuestion,
   ApiError: error,
   OpenApiDocument: document,
 }

@@ -1,4 +1,5 @@
 import type { Client } from 'pg'
+import type { Queryable } from '../db/connection.ts'
 import { type Actor, type Writer, write } from '../db/write.ts'
 import { RuleError } from '../ledger/rule.ts'
 import type { Failure, Origin, Usage } from './agent.ts'
@@ -12,10 +13,15 @@ const date = /^(19|20)\d\d(0[1-9]|1[0-2])(0[1-9]|[12]\d|3[01])(([01]\d|2[0-3])[0
 
 export const maskDigits = (value: string) => value.replace(/\d{5,}/g, (digits, offset: number) => (date.test(digits) || /^[.,]\d\d(?!\d)/.test(value.slice(offset + digits.length)) ? digits : `•${digits.slice(-4)}`))
 
+export const batchOfFile = async (client: Queryable, hash: string) => (await client.query<{ id: bigint }>("select id from import_batch where file_hash = $1 and status in ('draft', 'verified', 'committed') order by id limit 1", [hash])).rows[0]?.id
+
 export const openBatch = (client: Client, actor: Actor, file: ImportFile) =>
   write(client, actor, async (ledger) => {
     if (!formats.includes(file.format)) throw new RuleError(`unsupported format ${file.format}`)
     if (!/^[0-9a-f]{64}$/.test(file.hash)) throw new RuleError('hash must be a sha-256 hex digest')
+    await client.query('select pg_advisory_xact_lock(hashtext($1))', [file.hash])
+    const existing = await batchOfFile(client, file.hash)
+    if (existing) throw new RuleError(`this file is already in import batch ${existing}`)
     const row = await ledger.create('import_batch', { file_name: maskDigits(file.name), format: file.format, file_hash: file.hash })
     return row.id as bigint
   })

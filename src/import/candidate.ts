@@ -127,6 +127,8 @@ export const payloads = {
 
 export type CandidateKind = keyof typeof payloads
 
+export const kinds = Object.keys(payloads) as [CandidateKind, ...CandidateKind[]]
+
 const source = text('Source address of the segment or record, such as 2026-10!A3:G3, $.transactions[12] or p2:L4-L5')
 const confidence = z.number().min(0).max(1).describe('Confidence from 0 to 1 that the payload matches the source')
 

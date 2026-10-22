@@ -1,3 +1,7 @@
+import { randomBytes } from 'node:crypto'
+
+export const freshHash = () => randomBytes(32).toString('hex')
+
 export const sample = {
   candidates: [
     { kind: 'entry', source: '2026-10!A3:G3', confidence: 0.95, payload: { date: '2026-10-10', description: 'Aluguel', direction: 'expense', amountCents: 150000, category: 'Moradia', account: 'Conta conjunta', member: 'joint', paid: true } },

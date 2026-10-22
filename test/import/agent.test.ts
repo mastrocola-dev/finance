@@ -7,7 +7,7 @@ import { type Recording, recordedExtractor } from '../../src/import/recorded.ts'
 import { openBatch } from '../../src/import/staging.ts'
 import { verifyBatch } from '../../src/import/verify.ts'
 import { testDatabase } from '../db/database.ts'
-import { sample } from './sample.ts'
+import { freshHash, sample } from './sample.ts'
 
 const [rent, pharmacy, card] = sample.candidates
 const table = (rows: number): Segment => ({ id: 'table-1', kind: 'table', source: `2026-10!A1:G${rows}`, shape: { rows, columns: 7 } })
@@ -124,7 +124,6 @@ describe('import agent orchestration', () => {
 describe('import run against staging', () => {
   let db: Awaited<ReturnType<typeof testDatabase>>
   let client: Client
-  const hash = 'd'.repeat(64)
 
   before(async () => {
     db = await testDatabase()
@@ -134,7 +133,7 @@ describe('import run against staging', () => {
   after(() => db.drop())
 
   test('stages the merged output and adds usage and totals to the batch in one audited write', async () => {
-    const batch = await openBatch(client, actor, { name: 'carteira.json', format: 'json', hash })
+    const batch = await openBatch(client, actor, { name: 'carteira.json', format: 'json', hash: freshHash() })
     const run = { file: 'carteira.json', segments: [table(3), tree], extractor: recordedExtractor(recordings), tokenCap: 10_000 }
     const first = await runImport(client, actor, batch, run)
     assert.equal(first.candidates.length, 3)
@@ -174,7 +173,7 @@ describe('import run against staging', () => {
   const sure = recordings.map((item) => (item.source === '$.accounts' ? item : { ...item, output: { ...item.output, candidates: [rent, { ...pharmacy, confidence: 0.9 }] } }))
 
   test('records the chunk of every staged row and the failed chunks on the batch', async () => {
-    const batch = await openBatch(client, actor, { name: 'notas.json', format: 'json', hash })
+    const batch = await openBatch(client, actor, { name: 'notas.json', format: 'json', hash: freshHash() })
     await runImport(client, actor, batch, { file: 'notas.json', segments: [table(3), tree, shortNotes], extractor: failing(['L1-L95'], recordings), tokenCap: 10_000 })
     const candidates = await client.query('select source, chunk from import_candidate where batch_id = $1 order by id', [batch])
     assert.deepEqual(
@@ -189,7 +188,7 @@ describe('import run against staging', () => {
   })
 
   test('retries low-confidence and failed chunks, replacing their rows and totals', async () => {
-    const batch = await openBatch(client, actor, { name: 'retry.json', format: 'json', hash })
+    const batch = await openBatch(client, actor, { name: 'retry.json', format: 'json', hash: freshHash() })
     const segments = [table(3), tree, shortNotes]
     const first = await runImport(client, actor, batch, { file: 'retry.json', segments, extractor: failing(['L1-L95'], recordings), tokenCap: 10_000 })
     const verified = await verifyBatch(client, actor, batch)
@@ -218,7 +217,7 @@ describe('import run against staging', () => {
   })
 
   test('keeps the rows of a chunk whose retry fails again', async () => {
-    const batch = await openBatch(client, actor, { name: 'again.json', format: 'json', hash })
+    const batch = await openBatch(client, actor, { name: 'again.json', format: 'json', hash: freshHash() })
     const first = await runImport(client, actor, batch, { file: 'again.json', segments: [table(3)], extractor: recordedExtractor(recordings), tokenCap: 10_000 })
     const retried = await retryImport(client, actor, batch, { file: 'again.json', segments: [table(3)], extractor: failing(['2026-10!A1:G3'], recordings), tokenCap: 10_000 })
     assert.deepEqual(retried.replaced, [])

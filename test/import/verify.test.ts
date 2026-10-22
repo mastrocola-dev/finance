@@ -6,9 +6,9 @@ import type { Actor } from '../../src/db/write.ts'
 import { openBatch, stageOutput } from '../../src/import/staging.ts'
 import { findChecks, normalize, questionFor, type References, reconcile, type Staged, verifyBatch } from '../../src/import/verify.ts'
 import { testDatabase } from '../db/database.ts'
+import { freshHash } from './sample.ts'
 
 const actor: Actor = { author: 'import' }
-const hash = 'd'.repeat(64)
 
 const entry = (id: number, payload: Record<string, unknown>, confidence = 0.95): Staged => ({
   id: BigInt(id),
@@ -109,7 +109,7 @@ describe('verifyBatch', () => {
   }
 
   const stage = async (name: string) => {
-    const batch = await openBatch(client, actor, { name, format: 'xlsx', hash })
+    const batch = await openBatch(client, actor, { name, format: 'xlsx', hash: freshHash() })
     const staged = await stageOutput(client, actor, batch, output)
     return { batch, ids: staged.candidates }
   }

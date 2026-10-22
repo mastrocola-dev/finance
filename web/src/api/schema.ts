@@ -357,6 +357,75 @@ export type paths = {
         patch?: never;
         trace?: never;
     };
+    "/api/imports": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Import batches, newest first */
+        get: operations["listImports"];
+        put?: never;
+        /** Upload a file to import; extraction runs in the background */
+        post: operations["uploadImport"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/imports/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** One import batch with its extraction progress */
+        get: operations["getImport"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/imports/{id}/candidates": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Open candidates of an import batch */
+        get: operations["listImportCandidates"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/imports/{id}/questions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Open questions of an import batch */
+        get: operations["listImportQuestions"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 };
 export type webhooks = Record<string, never>;
 export type components = {
@@ -575,6 +644,78 @@ export type components = {
             debts: components["schemas"]["Money"];
             netWorth: components["schemas"]["Money"];
         };
+        ImportBatch: {
+            id: string;
+            fileName: string;
+            format: string;
+            /** @enum {string} */
+            status: "draft" | "verified" | "committed" | "closed";
+            /** Format: date-time */
+            createdAt: string;
+            closedAt: string | null;
+            inputTokens: number;
+            outputTokens: number;
+            /** @description Model cost in US dollars, four decimals */
+            costUsd: string;
+            /** @description Batch checks such as total_mismatch */
+            checks: {
+                code: string;
+                detail?: string;
+            }[];
+            /** @description Chunks whose extraction failed */
+            failures: {
+                source: string;
+                offset: number;
+                reason: string;
+            }[];
+            /** @description Totals printed in the source */
+            totals: {
+                [key: string]: unknown;
+            }[];
+            /** @description Open candidates */
+            candidates: number;
+            /** @description Open candidates with at least one check */
+            flagged: number;
+            openQuestions: number;
+            /** @description Extraction progress while this API process runs it; null otherwise */
+            progress: {
+                /** @enum {string} */
+                state: "extracting" | "done" | "failed";
+                /** @description Chunks extracted */
+                done: number;
+                /** @description Chunks planned */
+                total: number;
+                error: string | null;
+            } | null;
+        };
+        ImportCandidate: {
+            id: string;
+            /** @enum {string} */
+            kind: "entry" | "account" | "category" | "income" | "recurring_expense" | "debt" | "reserve" | "goal";
+            /** @description Where in the file the candidate was read */
+            source: string;
+            chunk: string | null;
+            confidence: string;
+            /** @enum {string} */
+            status: "pending" | "accepted" | "rejected" | "edited";
+            /** @description Candidate fields in camelCase, amounts in integer cents */
+            payload: {
+                [key: string]: unknown;
+            };
+            checks: {
+                code: string;
+                detail?: string;
+            }[];
+        };
+        ImportQuestion: {
+            id: string;
+            candidateId: string | null;
+            question: string;
+            options: string[];
+            source: string | null;
+            chunk: string | null;
+            answer: string | null;
+        };
         ApiError: {
             error: string;
             issues?: {
@@ -624,6 +765,9 @@ export type components = {
             description?: string;
             amount_cents?: number;
         };
+        ListImportsResponse: components["schemas"]["ImportBatch"][];
+        ListImportCandidatesResponse: components["schemas"]["ImportCandidate"][];
+        ListImportQuestionsResponse: components["schemas"]["ImportQuestion"][];
     };
     responses: never;
     parameters: never;
@@ -652,6 +796,9 @@ export type SplitPart = components['schemas']['SplitPart'];
 export type Transfer = components['schemas']['Transfer'];
 export type Split = components['schemas']['Split'];
 export type NetWorth = components['schemas']['NetWorth'];
+export type ImportBatch = components['schemas']['ImportBatch'];
+export type ImportCandidate = components['schemas']['ImportCandidate'];
+export type ImportQuestion = components['schemas']['ImportQuestion'];
 export type ApiError = components['schemas']['ApiError'];
 export type OpenApiDocument = components['schemas']['OpenApiDocument'];
 export type ListEntriesResponse = components['schemas']['ListEntriesResponse'];
@@ -666,6 +813,9 @@ export type CreateEntryBody = components['schemas']['CreateEntryBody'];
 export type MarkPaidBody = components['schemas']['MarkPaidBody'];
 export type UpdateReserveBody = components['schemas']['UpdateReserveBody'];
 export type ProposeDecisionBody = components['schemas']['ProposeDecisionBody'];
+export type ListImportsResponse = components['schemas']['ListImportsResponse'];
+export type ListImportCandidatesResponse = components['schemas']['ListImportCandidatesResponse'];
+export type ListImportQuestionsResponse = components['schemas']['ListImportQuestionsResponse'];
 export type $defs = Record<string, never>;
 export interface operations {
     getOpenApi: {
@@ -1375,6 +1525,169 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["Forecast"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+        };
+    };
+    listImports: {
+        parameters: {
+            query?: {
+                status?: "draft" | "verified" | "committed" | "closed";
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ListImportsResponse"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+        };
+    };
+    uploadImport: {
+        parameters: {
+            query: {
+                /** @description Confirms the member agreed that the file content is sent to the model for extraction */
+                consent: "true";
+            };
+            header: {
+                /** @description Original file name, percent-encoded; the extension sets the format */
+                "x-file-name": string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/octet-stream": string;
+            };
+        };
+        responses: {
+            /** @description Accepted */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ImportBatch"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+        };
+    };
+    getImport: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ImportBatch"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+        };
+    };
+    listImportCandidates: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ListImportCandidatesResponse"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+        };
+    };
+    listImportQuestions: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ListImportQuestionsResponse"];
                 };
             };
             /** @description Error */

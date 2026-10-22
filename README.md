@@ -124,6 +124,8 @@ cd ingest && uv run python -m ingest serve tests/fixtures
 
 `npm run import -- --retry <batch> <file>` takes the same file again (its sha-256 must match the batch) and re-extracts only the chunks that failed or hold pending candidates below 0.8 confidence. Candidates of a chunk that succeeds this time are closed as `replaced` with their questions and totals, a chunk that fails again keeps its rows, and the batch is verified again; usage adds to the batch under a fresh `IMPORT_TOKEN_CAP`.
 
+The API takes the same flow from a browser: `POST /api/imports?consent=true` with the raw file (`application/octet-stream`, at most 20 MB, name in the percent-encoded `x-file-name` header) answers `202` with the draft batch while extraction runs in the background; `GET /api/imports/:id` reports progress, and `GET /api/imports/:id/candidates` and `/questions` list what was staged. Uploads are kept under `IMPORT_UPLOADS` (default `.imports/`, one folder per sha-256), and a file already in a draft, verified or committed batch is refused.
+
 ## Claude connector
 
 `npm run mcp:stdio` serves the read tools `month_summary`, `list_entries`, `list_debts`, `list_reserves` and `list_decisions` (status `proposed` by default, or `all`) over stdio against `DATABASE_URL`. Amounts are cents as strings with a BRL display, for example `{ "cents": "123456", "brl": "R$ 1.234,56" }`.

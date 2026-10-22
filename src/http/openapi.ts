@@ -6,9 +6,10 @@ type JsonSchema = { properties?: Record<string, { description?: string }>; requi
 
 const uri = (id: string) => `#/components/schemas/${id}`
 const json = (schema: unknown) => ({ 'application/json': { schema } })
+const descriptions: Record<number, string> = { 200: 'OK', 201: 'Created', 202: 'Accepted' }
 const capitalized = (name: string) => name.charAt(0).toUpperCase() + name.slice(1)
 
-const parameters = (place: 'path' | 'query', schema?: z.ZodType) => {
+const parameters = (place: 'path' | 'query' | 'header', schema?: z.ZodType) => {
   if (!schema) return []
   const { properties = {}, required = [] } = z.toJSONSchema(schema, { io: 'input' }) as JsonSchema
   return Object.entries(properties).map(([name, { description, ...property }]) => ({ name, in: place, required: place === 'path' || required.includes(name), ...(description ? { description } : {}), schema: property }))
@@ -31,10 +32,11 @@ export const openApi = (routes: Route[]) => {
         operationId: route.operationId,
         summary: route.summary,
         security: writes ? [{ member: [] }] : [{}, { member: [] }],
-        parameters: [...parameters('path', route.params), ...parameters('query', route.query)],
+        parameters: [...parameters('path', route.params), ...parameters('query', route.query), ...parameters('header', route.headers)],
+        ...(route.upload ? { requestBody: { required: true, content: { 'application/octet-stream': { schema: { type: 'string', format: 'binary' } } } } } : {}),
         ...(route.body ? { requestBody: { required: true, content: json(reference(route.body, `${capitalized(route.operationId)}Body`)) } } : {}),
         responses: {
-          [route.status ?? 200]: { description: route.status === 201 ? 'Created' : 'OK', content: json(reference(route.response, `${capitalized(route.operationId)}Response`)) },
+          [route.status ?? 200]: { description: descriptions[route.status ?? 200], content: json(reference(route.response, `${capitalized(route.operationId)}Response`)) },
           default: { description: 'Error', content: json({ $ref: uri('ApiError') }) },
         },
       },

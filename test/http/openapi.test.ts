@@ -1,15 +1,18 @@
 import assert from 'node:assert/strict'
-import { readFile } from 'node:fs/promises'
+import { mkdtemp, readFile, rm } from 'node:fs/promises'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
 import { after, before, describe, test } from 'node:test'
 import { connectPool } from '../../src/db/connection.ts'
 import { seed, seedToday } from '../../src/db/seed.ts'
 import { routes, serveApi } from '../../src/http/api.ts'
 import { documentFile, serialized } from '../../src/http/document.ts'
 import { openApi } from '../../src/http/openapi.ts'
+import { importUploads } from '../../src/import/uploads.ts'
 import { testDatabase } from '../db/database.ts'
 
 type Operation = { operationId: string; parameters: { name: string; in: string }[]; requestBody?: unknown; responses: Record<string, { content?: Record<string, { schema?: { $ref?: string } }> }> }
-type Sample = { path: string; body?: unknown }
+type Sample = { path: string; body?: unknown; file?: string }
 
 const document = openApi(routes) as unknown as { paths: Record<string, Record<string, Operation>>; components: { schemas: Record<string, unknown> } }
 
@@ -19,6 +22,8 @@ describe('openapi', () => {
   let db: Awaited<ReturnType<typeof testDatabase>>
   let pool: ReturnType<typeof connectPool>
   let server: Awaited<ReturnType<typeof serveApi>>
+  let uploads: ReturnType<typeof importUploads>
+  let folder: string
 
   const call = async (method: string, path: string, body?: unknown) => {
     const response = await fetch(`${server.url}/api${path}`, {
@@ -33,10 +38,14 @@ describe('openapi', () => {
     db = await testDatabase()
     await seed(db.client)
     pool = connectPool(db.url)
-    server = await serveApi(pool, 0, '127.0.0.1')
+    folder = await mkdtemp(join(tmpdir(), 'finance-openapi-'))
+    uploads = importUploads(pool, { folder, segments: async () => [], extractor: () => ({ extract: async () => ({ output: {}, usage: { inputTokens: 0, outputTokens: 0, costUsdMicros: 0 } }) }) })
+    server = await serveApi(pool, 0, '127.0.0.1', uploads)
   })
 
   after(async () => {
+    await uploads.settled()
+    await rm(folder, { recursive: true, force: true })
     await server.close()
     await pool.end()
     await db.drop()
@@ -55,7 +64,7 @@ describe('openapi', () => {
         pathNames,
         `${route.operationId} path parameters`,
       )
-      assert.equal(Boolean(operation.requestBody), Boolean(route.body), `${route.operationId} body`)
+      assert.equal(Boolean(operation.requestBody), Boolean(route.body ?? route.upload), `${route.operationId} body`)
       const reference = operation.responses[route.status ?? 200]?.content?.['application/json']?.schema?.$ref
       assert.ok(reference, `${route.operationId} has no response schema`)
       assert.ok(document.components.schemas[reference.replace('#/components/schemas/', '')], `${route.operationId} response schema ${reference} is missing`)
@@ -99,22 +108,30 @@ describe('openapi', () => {
       rejectDecision: { path: `/decisions/${answered[0]?.body.id}/reject` },
       withdrawDecision: { path: `/decisions/${answered[1]?.body.id}/withdraw` },
       forecastMonth: { path: `/months/2026-12/forecast?${today}` },
+      uploadImport: { path: '/imports?consent=true', file: 'notas.txt' },
+      listImports: { path: '/imports' },
+      getImport: { path: '/imports/IMPORT' },
+      listImportCandidates: { path: '/imports/IMPORT/candidates' },
+      listImportQuestions: { path: '/imports/IMPORT/questions' },
     }
     let entry = ''
+    let batch = ''
     for (const route of routes) {
       const sample = samples[route.operationId]
       assert.ok(sample, `${route.operationId} has no sample request`)
       const member = route.operationId === 'rejectDecision' ? 'Gabriela' : 'Marcio'
-      const response = await fetch(`${server.url}/api${sample.path.replace('ENTRY', entry)}`, {
+      const upload: Record<string, string> = sample.file ? { 'content-type': 'application/octet-stream', 'x-file-name': sample.file } : {}
+      const response = await fetch(`${server.url}/api${sample.path.replace('ENTRY', entry).replace('IMPORT', batch)}`, {
         method: route.method,
-        headers: { 'x-member': member, ...(sample.body === undefined ? {} : { 'content-type': 'application/json' }) },
-        body: sample.body === undefined ? undefined : JSON.stringify(sample.body),
+        headers: { 'x-member': member, ...(sample.body === undefined ? {} : { 'content-type': 'application/json' }), ...upload },
+        body: sample.file ? 'aluguel 1500\n' : sample.body === undefined ? undefined : JSON.stringify(sample.body),
       })
       const body = await response.json()
       assert.equal(response.status, route.status ?? 200, `${route.operationId}: ${JSON.stringify(body)}`)
       const parsed = route.response.safeParse(body)
       assert.ok(parsed.success, `${route.operationId}: ${parsed.error?.message}`)
       if (route.operationId === 'createEntry') entry = body.id
+      if (route.operationId === 'uploadImport') batch = body.id
     }
   })
 })

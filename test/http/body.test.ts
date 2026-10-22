@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
-import { HttpError, readJson } from '../../src/http/body.ts'
+import { HttpError, readBytes, readJson } from '../../src/http/body.ts'
 
 const streamed = (chunks: string[]) =>
   new Request('http://localhost/', {
@@ -22,4 +22,9 @@ test('reads a streamed JSON body', async () => {
 
 test('stops a streamed body past the limit without content-length', async () => {
   await assert.rejects(readJson(streamed(['{"a":"', 'x'.repeat(20), '"}']), 16), (error) => error instanceof HttpError && error.status === 413)
+})
+
+test('reads binary bodies up to the limit', async () => {
+  assert.deepEqual([...(await readBytes(streamed(['ab', 'c']), 3))], [97, 98, 99])
+  await assert.rejects(readBytes(streamed(['ab', 'cd']), 3), (error) => error instanceof HttpError && error.status === 413)
 })

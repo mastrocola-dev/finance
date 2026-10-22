@@ -1114,6 +1114,256 @@
           }
         }
       }
+    },
+    "/api/imports": {
+      "post": {
+        "operationId": "uploadImport",
+        "summary": "Upload a file to import; extraction runs in the background",
+        "security": [
+          {
+            "member": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "consent",
+            "in": "query",
+            "required": true,
+            "description": "Confirms the member agreed that the file content is sent to the model for extraction",
+            "schema": {
+              "type": "string",
+              "const": "true"
+            }
+          },
+          {
+            "name": "x-file-name",
+            "in": "header",
+            "required": true,
+            "description": "Original file name, percent-encoded; the extension sets the format",
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 600
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/octet-stream": {
+              "schema": {
+                "type": "string",
+                "format": "binary"
+              }
+            }
+          }
+        },
+        "responses": {
+          "202": {
+            "description": "Accepted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ImportBatch"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "get": {
+        "operationId": "listImports",
+        "summary": "Import batches, newest first",
+        "security": [
+          {},
+          {
+            "member": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "status",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "draft",
+                "verified",
+                "committed",
+                "closed"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ListImportsResponse"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/imports/{id}": {
+      "get": {
+        "operationId": "getImport",
+        "summary": "One import batch with its extraction progress",
+        "security": [
+          {},
+          {
+            "member": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^\\d+$"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ImportBatch"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/imports/{id}/candidates": {
+      "get": {
+        "operationId": "listImportCandidates",
+        "summary": "Open candidates of an import batch",
+        "security": [
+          {},
+          {
+            "member": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^\\d+$"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ListImportCandidatesResponse"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/imports/{id}/questions": {
+      "get": {
+        "operationId": "listImportQuestions",
+        "summary": "Open questions of an import batch",
+        "security": [
+          {},
+          {
+            "member": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^\\d+$"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ListImportQuestionsResponse"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
@@ -2125,6 +2375,337 @@
         ],
         "additionalProperties": false
       },
+      "ImportBatch": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^\\d+$"
+          },
+          "fileName": {
+            "type": "string"
+          },
+          "format": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "draft",
+              "verified",
+              "committed",
+              "closed"
+            ]
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+          },
+          "closedAt": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time",
+                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "inputTokens": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
+          "outputTokens": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
+          "costUsd": {
+            "type": "string",
+            "description": "Model cost in US dollars, four decimals"
+          },
+          "checks": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "code": {
+                  "type": "string"
+                },
+                "detail": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "code"
+              ],
+              "additionalProperties": false
+            },
+            "description": "Batch checks such as total_mismatch"
+          },
+          "failures": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "source": {
+                  "type": "string"
+                },
+                "offset": {
+                  "type": "integer",
+                  "minimum": -9007199254740991,
+                  "maximum": 9007199254740991
+                },
+                "reason": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "source",
+                "offset",
+                "reason"
+              ],
+              "additionalProperties": false
+            },
+            "description": "Chunks whose extraction failed"
+          },
+          "totals": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "propertyNames": {
+                "type": "string"
+              },
+              "additionalProperties": {}
+            },
+            "description": "Totals printed in the source"
+          },
+          "candidates": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991,
+            "description": "Open candidates"
+          },
+          "flagged": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991,
+            "description": "Open candidates with at least one check"
+          },
+          "openQuestions": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
+          "progress": {
+            "anyOf": [
+              {
+                "type": "object",
+                "properties": {
+                  "state": {
+                    "type": "string",
+                    "enum": [
+                      "extracting",
+                      "done",
+                      "failed"
+                    ]
+                  },
+                  "done": {
+                    "type": "integer",
+                    "minimum": -9007199254740991,
+                    "maximum": 9007199254740991,
+                    "description": "Chunks extracted"
+                  },
+                  "total": {
+                    "type": "integer",
+                    "minimum": -9007199254740991,
+                    "maximum": 9007199254740991,
+                    "description": "Chunks planned"
+                  },
+                  "error": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  }
+                },
+                "required": [
+                  "state",
+                  "done",
+                  "total",
+                  "error"
+                ],
+                "additionalProperties": false
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Extraction progress while this API process runs it; null otherwise"
+          }
+        },
+        "required": [
+          "id",
+          "fileName",
+          "format",
+          "status",
+          "createdAt",
+          "closedAt",
+          "inputTokens",
+          "outputTokens",
+          "costUsd",
+          "checks",
+          "failures",
+          "totals",
+          "candidates",
+          "flagged",
+          "openQuestions",
+          "progress"
+        ],
+        "additionalProperties": false
+      },
+      "ImportCandidate": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^\\d+$"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "entry",
+              "account",
+              "category",
+              "income",
+              "recurring_expense",
+              "debt",
+              "reserve",
+              "goal"
+            ]
+          },
+          "source": {
+            "type": "string",
+            "description": "Where in the file the candidate was read"
+          },
+          "chunk": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "confidence": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "pending",
+              "accepted",
+              "rejected",
+              "edited"
+            ]
+          },
+          "payload": {
+            "type": "object",
+            "propertyNames": {
+              "type": "string"
+            },
+            "additionalProperties": {},
+            "description": "Candidate fields in camelCase, amounts in integer cents"
+          },
+          "checks": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "code": {
+                  "type": "string"
+                },
+                "detail": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "code"
+              ],
+              "additionalProperties": false
+            }
+          }
+        },
+        "required": [
+          "id",
+          "kind",
+          "source",
+          "chunk",
+          "confidence",
+          "status",
+          "payload",
+          "checks"
+        ],
+        "additionalProperties": false
+      },
+      "ImportQuestion": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^\\d+$"
+          },
+          "candidateId": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^\\d+$"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "question": {
+            "type": "string"
+          },
+          "options": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "source": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "chunk": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "answer": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "candidateId",
+          "question",
+          "options",
+          "source",
+          "chunk",
+          "answer"
+        ],
+        "additionalProperties": false
+      },
       "ApiError": {
         "type": "object",
         "properties": {
@@ -2311,6 +2892,24 @@
         "required": [
           "title"
         ]
+      },
+      "ListImportsResponse": {
+        "type": "array",
+        "items": {
+          "$ref": "#/components/schemas/ImportBatch"
+        }
+      },
+      "ListImportCandidatesResponse": {
+        "type": "array",
+        "items": {
+          "$ref": "#/components/schemas/ImportCandidate"
+        }
+      },
+      "ListImportQuestionsResponse": {
+        "type": "array",
+        "items": {
+          "$ref": "#/components/schemas/ImportQuestion"
+        }
       }
     },
     "securitySchemes": {

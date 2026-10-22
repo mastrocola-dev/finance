@@ -3,6 +3,9 @@ import type { PoolClient } from 'pg'
 import * as z from 'zod'
 import { connectPool, type Database } from '../db/connection.ts'
 import type { Actor } from '../db/write.ts'
+import { findBatch, listBatches, listCandidates, listQuestions } from '../import/batches.ts'
+import { maxBytes } from '../import/cli.ts'
+import { type ImportUploads, importUploads } from '../import/uploads.ts'
 import { listAudit } from '../ledger/audit.ts'
 import { listAccounts, listCategories } from '../ledger/catalog.ts'
 import { listDebts } from '../ledger/debts.ts'
@@ -18,8 +21,8 @@ import { monthSplit } from '../ledger/split.ts'
 import { compareMonths } from '../ledger/summary.ts'
 import { netWorth } from '../ledger/worth.ts'
 import { toJson } from '../mcp/json.ts'
-import { HttpError, readJson } from './body.ts'
-import { auditQuery, categoryQuery, decisionQuery, entryQuery, idPath, memberHeader, monthPath, namePath, newDecision, newEntry, payment, referenceQuery, reserveChanges, schemas, summaryQuery } from './contract.ts'
+import { HttpError, readBytes, readJson } from './body.ts'
+import { auditQuery, categoryQuery, decisionQuery, entryQuery, idPath, importQuery, memberHeader, monthPath, namePath, newDecision, newEntry, payment, referenceQuery, reserveChanges, schemas, summaryQuery, uploadHeaders, uploadQuery } from './contract.ts'
 import { listen } from './node.ts'
 import { openApi } from './openapi.ts'
 
@@ -27,8 +30,8 @@ export const apiPrefix = '/api'
 
 type Schema = z.ZodType
 type Parsed<T> = T extends Schema ? z.output<T> : undefined
-type Spec = { method: string; path: string; operationId: string; summary: string; params?: Schema; query?: Schema; body?: Schema; response: Schema; status?: number }
-type Input<S extends Spec> = { request: Request; params: Parsed<S['params']>; query: Parsed<S['query']>; body: Parsed<S['body']>; member?: Member; client: Database }
+type Spec = { method: string; path: string; operationId: string; summary: string; params?: Schema; query?: Schema; headers?: Schema; body?: Schema; upload?: true; response: Schema; status?: number }
+type Input<S extends Spec> = { request: Request; params: Parsed<S['params']>; query: Parsed<S['query']>; headers: Parsed<S['headers']>; body: Parsed<S['body']>; member?: Member; client: Database; imports: ImportUploads }
 export type Route = Spec & { pattern: URLPattern; handle: (input: Input<Spec>) => Promise<unknown> }
 
 const writing = async <T>({ client, member }: { client: Database; member?: Member }, work: (connection: PoolClient, actor: Actor) => Promise<T>) => {
@@ -44,6 +47,18 @@ const writing = async <T>({ client, member }: { client: Database; member?: Membe
 const route = <S extends Spec>(spec: S, handle: (input: Input<S>) => Promise<unknown>): Route => ({ ...spec, pattern: new URLPattern({ pathname: `${apiPrefix}${spec.path}` }), handle: handle as Route['handle'] })
 
 const cents = (value: number | undefined) => (value === undefined ? undefined : BigInt(value))
+
+const batchView = async ({ client, imports }: { client: Database; imports: ImportUploads }, id: bigint) => {
+  const batch = await findBatch(client, id)
+  if (!batch) throw new HttpError(404, `import batch ${id} not found`)
+  return { ...batch, progress: imports.progressOf(id) }
+}
+
+const existingBatch = async (client: Database, id: string) => {
+  const batch = await findBatch(client, BigInt(id))
+  if (!batch) throw new HttpError(404, `import batch ${id} not found`)
+  return BigInt(id)
+}
 
 const decisionAnswers = [
   ['confirm', 'confirmDecision', 'Confirm a proposed decision as the caller', confirmDecision],
@@ -113,6 +128,19 @@ export const routes: Route[] = [
     const created = await Promise.all(forecast.created.map((entry) => findEntry(input.client, entry, input.query.today)))
     return { month: forecast.month, skipped: forecast.skipped, created }
   }),
+  route({ method: 'POST', path: '/imports', operationId: 'uploadImport', summary: 'Upload a file to import; extraction runs in the background', query: uploadQuery, headers: uploadHeaders, upload: true, response: schemas.ImportBatch, status: 202 }, async (input) => {
+    if (!input.member) throw new HttpError(401, `writes need the ${memberHeader} header`)
+    if (input.request.headers.get('content-type') !== 'application/octet-stream') throw new HttpError(415, 'content-type must be application/octet-stream')
+    const bytes = await readBytes(input.request, maxBytes)
+    const id = await input.imports.start({ author: 'import', memberId: input.member.id }, input.headers['x-file-name'], bytes)
+    return batchView(input, id)
+  }),
+  route({ method: 'GET', path: '/imports', operationId: 'listImports', summary: 'Import batches, newest first', query: importQuery, response: z.array(schemas.ImportBatch) }, async ({ client, imports, query }) =>
+    (await listBatches(client, query.status)).map((batch) => ({ ...batch, progress: imports.progressOf(BigInt(batch.id)) })),
+  ),
+  route({ method: 'GET', path: '/imports/:id', operationId: 'getImport', summary: 'One import batch with its extraction progress', params: idPath, response: schemas.ImportBatch }, (input) => batchView(input, BigInt(input.params.id))),
+  route({ method: 'GET', path: '/imports/:id/candidates', operationId: 'listImportCandidates', summary: 'Open candidates of an import batch', params: idPath, response: z.array(schemas.ImportCandidate) }, async ({ client, params }) => listCandidates(client, await existingBatch(client, params.id))),
+  route({ method: 'GET', path: '/imports/:id/questions', operationId: 'listImportQuestions', summary: 'Open questions of an import batch', params: idPath, response: z.array(schemas.ImportQuestion) }, async ({ client, params }) => listQuestions(client, await existingBatch(client, params.id))),
 ]
 
 const error = (message: string, status: number, extra = {}) => Response.json({ error: message, ...extra }, { status })
@@ -132,30 +160,33 @@ const memberOf = async (client: Database, request: Request) => {
   return member
 }
 
-export const api = (client: Database) => async (request: Request) => {
-  const rejected = hostHeaderValidationResponse(request, localhostAllowedHostnames()) ?? originValidationResponse(request, localhostAllowedOrigins())
-  if (rejected) return rejected
-  const url = new URL(request.url)
-  const matches = routes.flatMap((candidate) => {
-    const match = candidate.pattern.exec(url)
-    return match ? [{ ...candidate, groups: match.pathname.groups }] : []
-  })
-  if (!matches.length) return error('not found', 404)
-  const matched = matches.find(({ method }) => method === request.method)
-  if (!matched) return Response.json({ error: 'method not allowed' }, { status: 405, headers: { allow: matches.map(({ method }) => method).join(', ') } })
-  try {
-    const member = await memberOf(client, request)
-    if (request.method !== 'GET' && !member) throw new HttpError(401, `writes need the ${memberHeader} header`)
-    const params = matched.params?.parse(matched.groups)
-    const parsedQuery = matched.query?.parse(Object.fromEntries(url.searchParams))
-    const body = matched.body?.parse(await readJson(request))
-    return Response.json(toJson(await matched.handle({ request, params, query: parsedQuery, body, member, client })), { status: matched.status ?? 200 })
-  } catch (caught) {
-    return failure(caught)
+export const api =
+  (client: Database, imports = importUploads(client)) =>
+  async (request: Request) => {
+    const rejected = hostHeaderValidationResponse(request, localhostAllowedHostnames()) ?? originValidationResponse(request, localhostAllowedOrigins())
+    if (rejected) return rejected
+    const url = new URL(request.url)
+    const matches = routes.flatMap((candidate) => {
+      const match = candidate.pattern.exec(url)
+      return match ? [{ ...candidate, groups: match.pathname.groups }] : []
+    })
+    if (!matches.length) return error('not found', 404)
+    const matched = matches.find(({ method }) => method === request.method)
+    if (!matched) return Response.json({ error: 'method not allowed' }, { status: 405, headers: { allow: matches.map(({ method }) => method).join(', ') } })
+    try {
+      const member = await memberOf(client, request)
+      if (request.method !== 'GET' && !member) throw new HttpError(401, `writes need the ${memberHeader} header`)
+      const params = matched.params?.parse(matched.groups)
+      const parsedQuery = matched.query?.parse(Object.fromEntries(url.searchParams))
+      const headers = matched.headers?.parse(Object.fromEntries(request.headers))
+      const body = matched.body?.parse(await readJson(request))
+      return Response.json(toJson(await matched.handle({ request, params, query: parsedQuery, headers, body, member, client, imports })), { status: matched.status ?? 200 })
+    } catch (caught) {
+      return failure(caught)
+    }
   }
-}
 
-export const serveApi = (client: Database, port = Number(process.env.API_PORT ?? 3200), host = process.env.API_HOST ?? '127.0.0.1') => listen(api(client), port, host)
+export const serveApi = (client: Database, port = Number(process.env.API_PORT ?? 3200), host = process.env.API_HOST ?? '127.0.0.1', imports?: ImportUploads) => listen(api(client, imports), port, host)
 
 if (import.meta.main) {
   const pool = connectPool()
