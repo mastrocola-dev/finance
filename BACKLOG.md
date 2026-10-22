@@ -4,10 +4,9 @@ Ordered. The agent takes the first unblocked item under **Next**. Items marked *
 
 ## Next
 
-- **Q03 Mobile navigation**: on phones Lançamentos is reachable only through the + button and Atividade not at all. Add a "Mais" tab (or a menu in the top bar) listing Lançamentos, Atividade and the theme switch, keeping the tab bar at five targets. Done when every route is two taps away at 390 px
 - **Q04 Activity text names the record**: "Encerrou decisão" and "Confirmou uma decisão" do not say which; include the decision, entry or reserve title in every summary (the before/after rows carry it). Done when no summary is generic
 - **Q05 "Ver registro" opens the record**: today it links to the generic screen; link to the entry (lançamentos filtered or highlighted by id), the decision card, or the reserve. Done when the link lands on the item itself
-- **Q06 Mobile top bar edge**: the theme switch touches the right edge and the page is 391 px wide at 390; keep the 16 px gutter and no horizontal overflow (assert `scrollWidth <= innerWidth` in the e2e suite)
+- **Q06 Mobile top bar edge**: (Q03 moved the theme switch into the Mais menu, so the top bar now ends with the 44 px Mais button) the theme switch touched the right edge and the page is 391 px wide at 390; keep the 16 px gutter and no horizontal overflow (assert `scrollWidth <= innerWidth` in the e2e suite)
 - **Q07 Portuguese seed**: categories, accounts, descriptions, creditors, goals and decisions in the seed are English inside a pt-BR interface; rewrite the seed in Portuguese (Moradia, Alimentação, Conta conjunta, Energia, Aluguel…), regenerate screenshots and README. Done when the showcase screenshots have no English content
 - **Q08 Seed timeline**: every seeded audit row carries the seeding time, so Atividade shows everything at the same minute; write seed audit rows with timestamps that follow the seeded dates
 - **I01 Ingest converters (Python)**: package `ingest/` (Python 3.13, `pyproject.toml`, ruff, pytest, no comments) that turns xlsx, csv, json, xml, txt, ofx and pdf with a text layer into segments: tables (cell ranges; a messy sheet yields several blocks, detected by empty rows and columns), trees (paths with samples), text (passages). Each segment has an id, kind, source address (`sheet!A1:F30`, `$.path[3]`, page and line) and a bounded preview. `python -m ingest inspect <file>` prints segments as JSON. Fictional fixtures only. See `docs/adr-009-ai-assisted-import.md`
@@ -21,6 +20,7 @@ Ordered. The agent takes the first unblocked item under **Next**. Items marked *
 
 ## Later
 
+- **L98 Mais menu focus**: the Q03 menu closes on Escape, outside tap and link choice, but not when focus tabs out of it; close on `focusout` leaving the menu, and consider Recebimentos/Importar entries as screens are added (I07)
 - **I09 Images and scanned pdf** (phase 2 of ADR-009): needs image tool results in `service-agent`; then receipts and scanned statements as image segments, always reviewed
 - **I10 Monthly statements** (phase 3): the same pipeline with duplicate detection against the ledger and reconciliation by statement balance
 
@@ -127,6 +127,8 @@ Ordered. The agent takes the first unblocked item under **Next**. Items marked *
 - **F10b layout choices**: built as the default: the installment column is optional (8th header cell, fixed lines only); a `total` row (kind `total`, amount = income minus expenses of the sheet) is checked against the lines when present; a month can be imported once (refused when it already holds import entries). Confirm these before F10c or any replace flow
 
 ## Done
+
+- **Q03 Mobile navigation** (2026-10-22): "Mais" button in the mobile top bar (`web/src/shell/more-menu.tsx`) opens a menu with every screen that has no tab (Lançamentos, Atividade) plus the theme switch; tab bar stays at five; Vitest checks tabs plus menu cover all routes, e2e `more.spec.ts` (axe with menu open, two taps to Atividade, `more-390-*.png`)
 
 - **Q02 Income wording**: income states read "Recebida", "A receber" and "Recebimento atrasado" (one `stateLabels` table by direction in `entries/model.ts`); the open filter chip reads "A receber e atrasadas" when Receitas is chosen; activity says "Marcou X como recebida" for income (audit `after.direction`). Overview and Contas list expenses only, so no income row shows Pendente or Atrasada. 1 new web test plus assertions (141 node, 107 web, 58 e2e); entries screenshots refreshed
 - **Q01 Quick add of something already paid**: quick add gains a Data field (defaults to today in the current month, else the 1st; limited to the shown month) and a "Já pago" / "Já recebido" checkbox, on when the date is today or earlier and reset when the date changes; a future date marked paid is refused in the form; the body sends `paid_on` = date. The form row now wraps (Data, checkbox and Lançar on a second line at 1440). E2E adds "Farmácia R$ 84,90" today and finds it paid in Contas. 4 web tests (141 node, 106 web, 58 e2e); entries screenshots refreshed

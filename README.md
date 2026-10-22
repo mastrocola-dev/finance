@@ -27,6 +27,7 @@ Household finance ledger with a Claude connector. Two members, every change audi
 | Decisões | <img src="web/screenshots/decisions-1440-light.png" alt="Decisões, desktop, light" width="360"> | <img src="web/screenshots/decisions-1440-dark.png" alt="Decisões, desktop, dark" width="360"> | <img src="web/screenshots/decisions-390-light.png" alt="Decisões, phone, light" width="120"> | <img src="web/screenshots/decisions-390-dark.png" alt="Decisões, phone, dark" width="120"> |
 | Atividade | <img src="web/screenshots/activity-1440-light.png" alt="Atividade, desktop, light" width="360"> | <img src="web/screenshots/activity-1440-dark.png" alt="Atividade, desktop, dark" width="360"> | <img src="web/screenshots/activity-390-light.png" alt="Atividade, phone, light" width="120"> | <img src="web/screenshots/activity-390-dark.png" alt="Atividade, phone, dark" width="120"> |
 | Undo after a payment mark | <img src="web/screenshots/bills-toast-1440-light.png" alt="Payment undo toast, desktop, light" width="360"> | <img src="web/screenshots/bills-toast-1440-dark.png" alt="Payment undo toast, desktop, dark" width="360"> | <img src="web/screenshots/bills-toast-390-light.png" alt="Payment undo toast, phone, light" width="120"> | <img src="web/screenshots/bills-toast-390-dark.png" alt="Payment undo toast, phone, dark" width="120"> |
+| Mais menu (phone only) | | | <img src="web/screenshots/more-390-light.png" alt="Mais menu, phone, light" width="120"> | <img src="web/screenshots/more-390-dark.png" alt="Mais menu, phone, dark" width="120"> |
 
 </details>
 

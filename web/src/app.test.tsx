@@ -90,3 +90,39 @@ test('answers unknown paths with a not found page', async () => {
   start('/nada')
   expect(await screen.findByText('Página não encontrada')).toBeTruthy()
 })
+
+test('every screen is a tab or an entry of the Mais menu', async () => {
+  const history = start('/decisoes?month=2026-10')
+  await screen.findByRole('heading', { level: 1, name: 'Decisões' })
+  const tabBar = screen.getAllByRole('navigation', { name: 'Principal' })[1] as HTMLElement
+  expect(within(tabBar).getAllByRole('link')).toHaveLength(5)
+  const more = screen.getByRole('button', { name: 'Mais' })
+  expect(more.getAttribute('aria-expanded')).toBe('false')
+  await userEvent.click(more)
+  const menu = screen.getByRole('navigation', { name: 'Mais telas' })
+  expect(
+    within(menu)
+      .getAllByRole('link')
+      .map((link) => link.textContent),
+  ).toEqual(['Lançamentos', 'Atividade'])
+  expect(screen.getAllByRole('group', { name: 'Tema' })).toHaveLength(2)
+  const reachable = [...within(tabBar).getAllByRole('link'), ...within(menu).getAllByRole('link')].map((link) => new URL(link.getAttribute('href') ?? '', 'http://x').pathname)
+  expect([...new Set(reachable)].sort()).toEqual(['/', '/atividade', '/contas', '/decisoes', '/lancamentos', '/patrimonio'])
+  await userEvent.click(within(menu).getByRole('link', { name: 'Atividade' }))
+  await screen.findByRole('heading', { level: 1, name: 'Atividade' })
+  expect(history.location.search).toContain('month=2026-10')
+  expect(screen.queryByRole('navigation', { name: 'Mais telas' })).toBeNull()
+})
+
+test('the Mais menu closes on Escape and on a tap outside', async () => {
+  start('/decisoes')
+  await screen.findByRole('heading', { level: 1, name: 'Decisões' })
+  const more = screen.getByRole('button', { name: 'Mais' })
+  await userEvent.click(more)
+  await userEvent.keyboard('{Escape}')
+  expect(screen.queryByRole('navigation', { name: 'Mais telas' })).toBeNull()
+  expect(document.activeElement).toBe(more)
+  await userEvent.click(more)
+  await userEvent.click(screen.getByRole('heading', { level: 1, name: 'Decisões' }))
+  expect(screen.queryByRole('navigation', { name: 'Mais telas' })).toBeNull()
+})
