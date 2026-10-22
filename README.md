@@ -120,6 +120,8 @@ cd ingest && uv run python -m ingest serve tests/fixtures
 | `tree` | json, xml, ofx (one segment per repeated list) | `$.accounts[*].transactions` |
 | `text` | txt, pdf with a text layer (passages split on blank lines, at most 40 lines) | `L3-L4`, `p2:L1-L12` |
 
+`npm run import -- <file>` (at most 20 MB) opens a draft `import_batch`, lists the file's segments through the `ingest` server, runs the import agent once per chunk through the service-agent CLI (`SERVICE_AGENT_CLI`, default `../service-agent/src/cli.ts`, with the task as JSON on stdin and `{ output, usage }` on stdout) and stages the candidates and questions for review; nothing reaches the ledger. The agent process gets `IMPORT_FOLDER` and the model key but not `DATABASE_URL`, and the token budget is `IMPORT_TOKEN_CAP`.
+
 ## Claude connector
 
 `npm run mcp:stdio` serves the read tools `month_summary`, `list_entries`, `list_debts`, `list_reserves` and `list_decisions` (status `proposed` by default, or `all`) over stdio against `DATABASE_URL`. Amounts are cents as strings with a BRL display, for example `{ "cents": "123456", "brl": "R$ 1.234,56" }`.

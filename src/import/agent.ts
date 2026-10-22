@@ -15,6 +15,15 @@ export type Extractor = { extract: (task: Task) => Promise<Extraction> }
 export type Failure = { source: string; offset: number; reason: string }
 export type Run = { file: string; segments: Segment[]; extractor: Extractor; tokenCap?: number; onProgress?: (done: number, total: number) => void }
 
+export class ExtractionError extends Error {
+  usage: Usage
+
+  constructor(message: string, spent: Usage) {
+    super(message)
+    this.usage = spent
+  }
+}
+
 export const mappingFrom = 20
 export const chunkSize = 40
 export const outputLimits = { candidates: 500, questions: 50 }
@@ -58,12 +67,14 @@ export const extract = async ({ file, segments, extractor, tokenCap = defaultTok
     const used = spent.inputTokens + spent.outputTokens
     if (used >= tokenCap) return result(index, 'token cap')
     const fail = (why: string) => failures.push({ source: chunk.segment.source, offset: chunk.offset, reason: why })
-    try {
-      const extraction = await extractor.extract({ ...chunk, maxTokens: tokenCap - used })
-      const cost = usage.parse(extraction.usage)
+    const charge = (cost: Usage) => {
       spent.inputTokens += cost.inputTokens
       spent.outputTokens += cost.outputTokens
       spent.costUsdMicros += cost.costUsdMicros
+    }
+    try {
+      const extraction = await extractor.extract({ ...chunk, maxTokens: tokenCap - used })
+      charge(usage.parse(extraction.usage))
       const parsed = importOutput.safeParse(extraction.output)
       if (!parsed.success) fail(`invalid output: ${describeIssues(parsed.error)}`)
       else if (output.candidates.length + parsed.data.candidates.length > outputLimits.candidates || output.questions.length + parsed.data.questions.length > outputLimits.questions) return result(index, 'output limit')
@@ -73,6 +84,7 @@ export const extract = async ({ file, segments, extractor, tokenCap = defaultTok
         output.questions.push(...parsed.data.questions.map((item) => (item.candidate === undefined ? item : { ...item, candidate: item.candidate + shift })))
       }
     } catch (error) {
+      if (error instanceof ExtractionError) charge(usage.parse(error.usage))
       fail(reason(error))
     }
     onProgress?.(index + 1, chunks.length)

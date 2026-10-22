@@ -27,16 +27,17 @@
     "web:build": "npm run build -w web --",
     "openapi": "node src/http/document.ts && node web/scripts/openapi-types.ts",
     "agent:schema": "node src/import/schema.ts",
-    "web:screenshots": "npm run screenshots -w web --"
+    "web:screenshots": "npm run screenshots -w web --",
+    "import": "node --env-file-if-exists=.env src/import/cli.ts"
   },
   "devDependencies": {
     "@biomejs/biome": "2.5.14",
-    "@modelcontextprotocol/client": "^2.3.1",
     "@types/node": "^24.19.0",
     "@types/pg": "^8.23.1",
     "typescript": "^7.0.2"
   },
   "dependencies": {
+    "@modelcontextprotocol/client": "^2.3.1",
     "@modelcontextprotocol/server": "^2.3.1",
     "pg": "^8.23.1",
     "read-excel-file": "9.3.12",
