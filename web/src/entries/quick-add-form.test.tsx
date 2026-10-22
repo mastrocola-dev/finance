@@ -31,7 +31,7 @@ const fetch = vi.fn(async (input: Request) => {
     if (!input.headers.get('x-member')) return Response.json({ error: 'writes need the x-member header' }, { status: 401 })
     const body = await input.json()
     bodies.push(body)
-    const created = { ...entry('9', body.description, body.due_on, body.amount_cents, body.category), account: 'Marcio card' }
+    const created = { ...entry('9', body.description, body.due_on, body.amount_cents, body.category), account: 'Marcio card', ...(body.paid_on && { status: 'paid', state: 'paid', paidOn: body.paid_on }) }
     entries = [...entries, created]
     return Response.json(created, { status: 201 })
   }
@@ -49,6 +49,7 @@ const fetch = vi.fn(async (input: Request) => {
 }) as unknown as typeof globalThis.fetch
 
 afterEach(() => {
+  vi.useRealTimers()
   cleanup()
   localStorage.clear()
   entries = [entry('1', 'Rent', '2026-10-10', 320000)]
@@ -71,7 +72,7 @@ test('records an entry with Enter, highlights it and keeps the form ready for th
   await user.type(quick.getByRole('textbox', { name: 'Descrição' }), 'Farmácia')
   await user.type(quick.getByRole('textbox', { name: 'Valor' }), '84,90{Enter}')
   await screen.findByText('Lançado: Farmácia')
-  expect(bodies).toEqual([{ month: '2026-10', due_on: expect.stringMatching(/^2026-10-/), description: 'Farmácia', direction: 'expense', amount_cents: 8490, category: 'Health', account: 'Marcio card', member: 'joint' }])
+  expect(bodies).toEqual([{ month: '2026-10', due_on: expect.stringMatching(/^2026-10-/), description: 'Farmácia', direction: 'expense', amount_cents: 8490, category: 'Health', account: 'Marcio card', member: 'joint', paid_on: expect.stringMatching(/^2026-10-/) }])
   const row = await within(screen.getByRole('table')).findByText('Farmácia')
   expect(row.closest('tr')?.className).toContain('bg-accent-soft')
   expect(quick.getByRole('textbox', { name: 'Descrição' })).toHaveProperty('value', '')
@@ -102,4 +103,33 @@ test('asks to choose the member when the API refuses an anonymous write', async 
   await user.type(quick.getByRole('textbox', { name: 'Valor' }), '1.000{Enter}')
   expect(await screen.findByText('Escolha quem você é para lançar.')).toBeTruthy()
   expect(quick.getByRole('textbox', { name: 'Descrição' })).toHaveProperty('value', 'Bonus')
+})
+
+test('takes today as paid and a later date as still to pay or receive', async () => {
+  vi.useFakeTimers({ toFake: ['Date'] })
+  vi.setSystemTime(new Date('2026-10-18T12:00:00-03:00'))
+  localStorage.setItem('finance.member', 'Marcio')
+  const user = userEvent.setup()
+  start()
+  const quick = within(await form())
+  await waitFor(() => expect(quick.getAllByRole('option', { name: 'Health' })).toHaveLength(1))
+  const date = quick.getByLabelText('Data')
+  const paid = quick.getByRole('checkbox', { name: 'Já pago' })
+  expect(date).toHaveProperty('value', '2026-10-18')
+  expect(paid).toHaveProperty('checked', true)
+  await user.clear(date)
+  await user.type(date, '2026-10-25')
+  expect(paid).toHaveProperty('checked', false)
+  await user.click(paid)
+  await user.selectOptions(quick.getByRole('combobox', { name: 'Categoria' }), 'Health')
+  await user.type(quick.getByRole('textbox', { name: 'Descrição' }), 'Dentista')
+  await user.type(quick.getByRole('textbox', { name: 'Valor' }), '250{Enter}')
+  expect((await quick.findByRole('alert')).textContent).toBe('Uma data futura ainda não pode estar paga.')
+  await user.click(paid)
+  await user.click(quick.getByRole('button', { name: 'Lançar' }))
+  await screen.findByText('Lançado: Dentista')
+  await user.selectOptions(quick.getByRole('combobox', { name: 'Tipo' }), 'income')
+  expect(quick.getByRole('checkbox', { name: 'Já recebido' })).toBeTruthy()
+  expect(bodies).toEqual([expect.objectContaining({ description: 'Dentista', due_on: '2026-10-25' })])
+  expect(bodies[0]).not.toHaveProperty('paid_on')
 })

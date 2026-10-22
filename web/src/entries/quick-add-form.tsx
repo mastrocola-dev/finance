@@ -7,7 +7,7 @@ import { today } from '../lib/format.ts'
 import { cn } from '../lib/utils.ts'
 import { useMembers } from '../query/shell.ts'
 import { type NewEntry, useAccounts, useCategories } from './queries.ts'
-import { type QuickEntry, quickEntry, toNewEntry } from './quick-add.ts'
+import { dueOnFor, lastDayOf, paidByDefault, type QuickEntry, quickEntry, toNewEntry } from './quick-add.ts'
 
 const field = 'min-h-11 w-full rounded-control border bg-bg px-3 text-body text-text focus-visible:border-accent focus-visible:outline-2 focus-visible:outline-accent-soft aria-invalid:border-late md:min-h-10'
 const errorsId = 'quick-add-errors'
@@ -33,15 +33,17 @@ export const QuickAddForm = ({ month, member, pending, onSubmit }: Props) => {
   const categories = useCategories().data ?? []
   const accounts = useAccounts().data ?? []
   const members = useMembers().data ?? []
+  const now = today()
+  const date = dueOnFor(month, now)
   const { register, handleSubmit, watch, setValue, resetField, setFocus, formState } = useForm<QuickEntry>({
-    resolver: zodResolver(quickEntry),
-    defaultValues: { direction: 'expense', description: '', amount: '', category: '', account: '', member: member ?? 'joint' },
+    resolver: zodResolver(quickEntry(month, now)),
+    defaultValues: { direction: 'expense', description: '', amount: '', category: '', account: '', member: member ?? 'joint', date, paid: paidByDefault(date, now) },
   })
   const direction = watch('direction')
   const errors = Object.values(formState.errors).map((error) => error?.message)
   const invalid = (name: keyof QuickEntry) => ({ 'aria-invalid': formState.errors[name] ? true : undefined, 'aria-describedby': formState.errors[name] ? errorsId : undefined })
   const submit = handleSubmit((values) =>
-    onSubmit(toNewEntry(values, month, today()), () => {
+    onSubmit(toNewEntry(values, month), () => {
       resetField('description')
       resetField('amount')
       setFocus('description')
@@ -49,8 +51,8 @@ export const QuickAddForm = ({ month, member, pending, onSubmit }: Props) => {
   )
   return (
     <form aria-label="Lançamento rápido" noValidate onSubmit={submit} onKeyDown={submitOnEnter} className="flex flex-col gap-2 rounded-card border bg-surface p-4">
-      <div className="flex flex-wrap items-end gap-2 lg:flex-nowrap">
-        <Field id="quick-direction" label="Tipo" grow="flex-[0_1_140px]">
+      <div className="flex flex-wrap items-end gap-2">
+        <Field id="quick-direction" label="Tipo" grow="flex-[0_1_140px] min-w-[7.5rem]">
           <select className={field} id="quick-direction" {...register('direction', { onChange: () => setValue('category', '') })}>
             <option value="expense">Despesa</option>
             <option value="income">Receita</option>
@@ -84,7 +86,7 @@ export const QuickAddForm = ({ month, member, pending, onSubmit }: Props) => {
             ))}
           </select>
         </Field>
-        <Field id="quick-member" label="Quem" grow="flex-[1_1_140px]">
+        <Field id="quick-member" label="Quem" grow="flex-[1_1_140px] min-w-[7.5rem]">
           <select className={field} id="quick-member" {...register('member')}>
             <option value="joint">Conjunto</option>
             {members.map(({ id, name }) => (
@@ -94,7 +96,14 @@ export const QuickAddForm = ({ month, member, pending, onSubmit }: Props) => {
             ))}
           </select>
         </Field>
-        <Button type="submit" disabled={pending} className="flex-[1_0_auto] md:flex-none">
+        <Field id="quick-date" label="Data" grow="flex-[0_0_152px]">
+          <input className={field} type="date" min={`${month}-01`} max={lastDayOf(month)} id="quick-date" {...register('date', { onChange: (event) => setValue('paid', paidByDefault(event.target.value, now)) })} {...invalid('date')} />
+        </Field>
+        <label htmlFor="quick-paid" className="flex min-h-11 flex-[0_0_auto] cursor-pointer items-center gap-2 text-body text-text md:min-h-10">
+          <input className="size-4 accent-accent" type="checkbox" id="quick-paid" {...register('paid')} {...invalid('paid')} />
+          {direction === 'income' ? 'Já recebido' : 'Já pago'}
+        </label>
+        <Button type="submit" disabled={pending} className="flex-[1_0_auto] md:ml-auto md:flex-none">
           Lançar
           <CornerDownLeft size={14} aria-hidden="true" className="opacity-75" />
         </Button>
