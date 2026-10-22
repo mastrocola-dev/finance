@@ -14,7 +14,7 @@ const scope = `
 
 const record = 'coalesce(l.after, l.before)'
 
-const subject = `coalesce(${record}->>'title', ${record}->>'description', ${record}->>'nickname', ${record}->>'creditor', ${record}->>'name', (select d.title from decision d where l.entity = 'decision_confirmation' and d.id = (${record}->>'decision_id')::bigint))`
+const subject = `coalesce(${record}->>'title', ${record}->>'description', ${record}->>'nickname', ${record}->>'creditor', ${record}->>'name', ${record}->>'file_name', ${record}->>'question', ${record}#>>'{payload,description}', ${record}#>>'{payload,name}', ${record}#>>'{payload,nickname}', (select d.title from decision d where l.entity = 'decision_confirmation' and d.id = (${record}->>'decision_id')::bigint))`
 
 const page = `
   select l.id, l.at, l.author, m.name as member, l.entity, l.entity_id::text as "entityId", l.action, ${subject} as subject, l.before, l.after

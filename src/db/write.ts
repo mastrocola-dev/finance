@@ -3,7 +3,7 @@ import { RuleError } from '../ledger/rule.ts'
 
 export type Actor = { author: 'member' | 'claude'; memberId: bigint } | { author: 'import' | 'system'; memberId?: bigint }
 
-const closable = ['member', 'account', 'category', 'income', 'recurring_expense', 'debt', 'entry', 'reserve', 'goal', 'decision'] as const
+const closable = ['member', 'account', 'category', 'income', 'recurring_expense', 'debt', 'entry', 'reserve', 'goal', 'decision', 'import_batch', 'import_candidate', 'import_question'] as const
 const entities: readonly string[] = [...closable, 'decision_confirmation']
 
 export type Closable = (typeof closable)[number]

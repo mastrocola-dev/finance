@@ -29,6 +29,9 @@ export const entities: Record<string, string> = {
   category: 'categoria',
   income: 'receita',
   recurring_expense: 'despesa recorrente',
+  import_batch: 'importação',
+  import_candidate: 'item importado',
+  import_question: 'pergunta da importação',
 }
 
 const verbs = { create: 'Criou', update: 'Alterou', close: 'Encerrou' }
