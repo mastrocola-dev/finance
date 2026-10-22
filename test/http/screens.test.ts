@@ -55,7 +55,7 @@ describe('http api for the screens', () => {
       income.body.map(({ name, direction }: { name: string; direction: string }) => [name, direction]),
       [
         ['Freelance', 'income'],
-        ['Salary', 'income'],
+        ['Salário', 'income'],
       ],
     )
     assert.equal((await get('/categories?direction=transfer')).status, 400)
@@ -68,11 +68,11 @@ describe('http api for the screens', () => {
     assert.deepEqual(
       body.map(({ nickname, lastFour, member }: { nickname: string; lastFour: string; member: string | null }) => [nickname, lastFour, member]),
       [
-        ['Joint checking', '0427', null],
-        ['Joint savings', '0428', null],
-        ['Marcio card', '8812', 'Marcio'],
-        ['Marcio checking', '6093', 'Marcio'],
-        ['Gabriela checking', '3150', 'Gabriela'],
+        ['Conta conjunta', '0427', null],
+        ['Poupança conjunta', '0428', null],
+        ['Cartão Marcio', '8812', 'Marcio'],
+        ['Conta Marcio', '6093', 'Marcio'],
+        ['Conta Gabriela', '3150', 'Gabriela'],
       ],
     )
   })
@@ -82,7 +82,7 @@ describe('http api for the screens', () => {
     assert.deepEqual(body, [
       {
         id: body[0].id,
-        name: 'Trip to Lisbon',
+        name: 'Viagem a Lisboa',
         reserve: null,
         target: { cents: '1200000', brl: 'R$ 12.000,00' },
         saved: { cents: '450000', brl: 'R$ 4.500,00' },
@@ -109,8 +109,8 @@ describe('http api for the screens', () => {
     assert.deepEqual(
       body.map(({ description, installmentsPaid, installmentsRemaining, nextDueOn }: Record<string, unknown>) => [description, installmentsPaid, installmentsRemaining, nextDueOn]),
       [
-        ['Car financing', 24, 24, '2026-11-12'],
-        ['Personal loan', 7, 5, '2026-10-25'],
+        ['Financiamento do carro', 24, 24, '2026-11-12'],
+        ['Empréstimo pessoal', 7, 5, '2026-10-25'],
       ],
     )
   })
@@ -120,9 +120,9 @@ describe('http api for the screens', () => {
     assert.equal(before.status, 200)
     assert.equal(before.body.total.brl, 'R$ 133,00')
     assert.deepEqual(before.body.transfers, [{ from: 'Gabriela', to: 'Marcio', amount: { cents: '6650', brl: 'R$ 66,50' } }])
-    const created = await post('/entries', { month: '2026-10', due_on: '2026-10-19', description: 'Dinner with friends', direction: 'expense', amount_cents: 42861, category: 'leisure', account: 'Gabriela checking', member: 'joint', paid_on: '2026-10-19' })
+    const created = await post('/entries', { month: '2026-10', due_on: '2026-10-19', description: 'Dinner with friends', direction: 'expense', amount_cents: 42861, category: 'lazer', account: 'Conta Gabriela', member: 'joint', paid_on: '2026-10-19' })
     assert.equal(created.status, 201)
-    await post('/entries', { month: '2026-10', due_on: '2026-10-28', description: 'Pharmacy', direction: 'expense', amount_cents: 9000, category: 'health', account: 'Marcio card', member: 'joint' })
+    await post('/entries', { month: '2026-10', due_on: '2026-10-28', description: 'Farmácia', direction: 'expense', amount_cents: 9000, category: 'saúde', account: 'Cartão Marcio', member: 'joint' })
     const { body } = await get('/months/2026-10/split')
     assert.equal(body.month, '2026-10-01')
     assert.equal(body.total.brl, 'R$ 561,61')
@@ -175,14 +175,14 @@ describe('http api for the screens', () => {
   })
 
   test('tells entry origin and installment count apart', async () => {
-    const created = await post('/entries?today=2026-10-18', { month: '2026-11', due_on: '2026-11-03', description: 'Bakery', direction: 'expense', amount_cents: 2500, category: 'Groceries', member: 'joint' })
+    const created = await post('/entries?today=2026-10-18', { month: '2026-11', due_on: '2026-11-03', description: 'Bakery', direction: 'expense', amount_cents: 2500, category: 'Alimentação', member: 'joint' })
     assert.equal(created.status, 201)
     assert.equal(created.body.origin, 'manual')
     const { body } = await get('/months/2026-10/entries?today=2026-10-18')
     const of = (description: string) => body.find((entry: { description: string }) => entry.description === description)
-    assert.deepEqual([of('Sofa').origin, of('Sofa').installmentNumber, of('Sofa').installmentsTotal], ['forecast', 9, 10])
-    assert.deepEqual([of('Car financing').installmentNumber, of('Car financing').installmentsTotal], [24, 48])
-    assert.deepEqual([of('Pharmacy').origin, of('Pharmacy').installmentsTotal], ['manual', null])
+    assert.deepEqual([of('Sofá').origin, of('Sofá').installmentNumber, of('Sofá').installmentsTotal], ['forecast', 9, 10])
+    assert.deepEqual([of('Financiamento do carro').installmentNumber, of('Financiamento do carro').installmentsTotal], [24, 48])
+    assert.deepEqual([of('Farmácia').origin, of('Farmácia').installmentsTotal], ['manual', null])
   })
 
   test('names the record of every audit row', async () => {

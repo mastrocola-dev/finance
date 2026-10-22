@@ -4,7 +4,6 @@ Ordered. The agent takes the first unblocked item under **Next**. Items marked *
 
 ## Next
 
-- **Q07 Portuguese seed**: categories, accounts, descriptions, creditors, goals and decisions in the seed are English inside a pt-BR interface; rewrite the seed in Portuguese (Moradia, Alimentação, Conta conjunta, Energia, Aluguel…), regenerate screenshots and README. Done when the showcase screenshots have no English content
 - **Q08 Seed timeline**: every seeded audit row carries the seeding time, so Atividade shows everything at the same minute; write seed audit rows with timestamps that follow the seeded dates
 - **I01 Ingest converters (Python)**: package `ingest/` (Python 3.13, `pyproject.toml`, ruff, pytest, no comments) that turns xlsx, csv, json, xml, txt, ofx and pdf with a text layer into segments: tables (cell ranges; a messy sheet yields several blocks, detected by empty rows and columns), trees (paths with samples), text (passages). Each segment has an id, kind, source address (`sheet!A1:F30`, `$.path[3]`, page and line) and a bounded preview. `python -m ingest inspect <file>` prints segments as JSON. Fictional fixtures only. See `docs/adr-009-ai-assisted-import.md`
 - **I02 Ingest MCP server**: stdio MCP server in `ingest/` (Python `mcp` SDK) with read-only tools `list_segments`, `read_segment` (range, page or path window, size-bounded) and `apply_mapping` (runs a column or path mapping over a whole segment and returns rows with source addresses). Digit runs of five or more are masked in every tool result. Tests through an MCP client
@@ -17,6 +16,8 @@ Ordered. The agent takes the first unblocked item under **Next**. Items marked *
 
 ## Later
 
+- **Q10 Portuguese web stubs**: Vitest stubs and `test/import/sheet.test.ts` cases still carry some English sample names (Farmers market, Bakery, stub categories); rewrite them in pt-BR so every fixture matches the seed language
+- **Q11 Date input locale off Playwright**: the native `<input type=date>` follows the OS `LANG`, not the page `lang` or the context locale; Playwright now launches Chromium with `LANG=pt_BR.UTF-8`, but a user's browser in another locale shows mm/dd. Consider a pt-BR text field with a mask or a custom picker if the author wants the format fixed
 - **Q09 Overflow guard in more states**: `edge.spec.ts` covers the seeded pages with a chosen member and the open Mais menu; add the unchosen-member state, toasts, the quick-add form and long descriptions (a fictional 80-character entry) at 320
 - **L99 Audit subject is the current row name**: `subject` comes from the audited row itself, so after a rename the older rows keep the old name (correct history) but a confirmation shows the decision title as it is now; fine while titles never change, revisit if decisions become editable
 - **L100 Audit subject for MCP**: Claude reads no audit tool today; if an `list_activity` read tool is added, reuse `listAudit` so it carries `subject` too
@@ -132,6 +133,7 @@ Ordered. The agent takes the first unblocked item under **Next**. Items marked *
 
 ## Done
 
+- **Q07 Portuguese seed** (2026-10-22): seed categories, accounts, descriptions, debts, reserve, goal and the 4 decisions in pt-BR (Moradia, Contas da casa, Alimentação, Conta conjunta, Cartão Marcio, Energia, Aluguel, Reserva de emergência, Viagem a Lisboa…); import fixture xlsx rewritten to match; node and e2e tests follow; Playwright launches Chromium with `LANG=pt_BR.UTF-8` so the date input reads dd/mm/aaaa; all 32 screenshots regenerated. 142 node, 115 web, 69 e2e
 - **Q06 Mobile top bar edge** (2026-10-22): already fixed by Q03 (Mais button ends at 374 px at 390, 304 at 320, menu inside the gutter); added `web/e2e/edge.spec.ts` guarding every route at 320, 390 and 1440 for `scrollWidth <= innerWidth`, a 16 px gutter after the 44 px Mais button and the open menu inside the gutters (mutation check: `px-2` on the top bar fails it). 3 e2e (142 node, 115 web, 69 e2e)
 
 - **Q05 "Ver registro" opens the record** (2026-10-22): links carry a hash (`entry-<id>`, `decision-<id>` also for confirmations via `decision_id`, `reserve-`, `goal-`, `debt-`); entries, decision cards and history, debt and saving cards mark the record with `aria-current` and an accent background, and `RecordScroll` (`web/src/lib/record.tsx`) scrolls the visible copy into view; entry links drop the member filter so joint records show. 4 web tests, 6 e2e (`record.spec.ts`, `record-1440-*.png`)

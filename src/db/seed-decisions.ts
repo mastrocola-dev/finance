@@ -20,16 +20,16 @@ export const seedDecisions = async (client: Client) => {
   const asMarcio: Actor = { author: 'member', memberId: marcio }
   const asGabriela: Actor = { author: 'member', memberId: gabriela }
 
-  const streaming = await proposeDecision(client, asMarcio, { title: 'Add another streaming subscription', description: 'Family plan shared with the series we already watch.', amount: 3990n })
+  const streaming = await proposeDecision(client, asMarcio, { title: 'Assinar mais um streaming', description: 'Plano família com as séries que já assistimos.', amount: 3990n })
   await rejectDecision(client, asGabriela, streaming)
 
-  const reserve = await proposeDecision(client, asGabriela, { title: 'Raise the monthly reserve contribution', description: 'Move R$ 1.500,00 to the emergency fund right after salaries arrive.', amount: 150000n })
+  const reserve = await proposeDecision(client, asGabriela, { title: 'Aumentar o aporte mensal na reserva', description: 'Transferir R$ 1.500,00 para a reserva de emergência logo após os salários.', amount: 150000n })
   await confirmDecision(client, asGabriela, reserve)
   await confirmDecision(client, asMarcio, reserve)
 
-  const internet = await proposeDecision(client, asGabriela, { title: 'Upgrade home internet to 1 Gb', description: 'Same provider, no lock-in. Starts on the November bill.', amount: 4000n })
+  const internet = await proposeDecision(client, asGabriela, { title: 'Trocar a internet de casa para 1 Gb', description: 'Mesma operadora, sem fidelidade. Começa na fatura de novembro.', amount: 4000n })
   await confirmDecision(client, asGabriela, internet)
 
-  await proposeDecision(client, { author: 'claude', memberId: marcio }, { title: 'Prepay six car loan installments', description: 'Use part of the emergency fund above target to pay installments 43 to 48 and save about R$ 1.150,00 in interest.', amount: 840000n })
+  await proposeDecision(client, { author: 'claude', memberId: marcio }, { title: 'Antecipar seis parcelas do financiamento do carro', description: 'Usar a parte da reserva de emergência acima da meta para quitar as parcelas 43 a 48 e economizar cerca de R$ 1.150,00 em juros.', amount: 840000n })
   return 4
 }

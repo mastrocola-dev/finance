@@ -23,7 +23,7 @@ describe('migrations', () => {
   }
 
   const categoryId = async () => {
-    const { rows } = await client.query<{ id: string }>("insert into category (name, kind) values ('Housing', 'expense') on conflict (name, kind) do update set name = excluded.name returning id")
+    const { rows } = await client.query<{ id: string }>("insert into category (name, kind) values ('Moradia', 'expense') on conflict (name, kind) do update set name = excluded.name returning id")
     return rows[0]?.id
   }
 
@@ -49,7 +49,7 @@ describe('migrations', () => {
   })
 
   test('accounts keep only the last four digits', async () => {
-    await client.query("insert into account (institution, nickname, last_four, kind) values ('Banco Ficticio', 'Joint checking', '1234', 'checking')")
+    await client.query("insert into account (institution, nickname, last_four, kind) values ('Banco Ficticio', 'Conta conjunta', '1234', 'checking')")
     const invalid = [
       ['Banco Ficticio', 'Card', '12345'],
       ['Banco Ficticio', 'Card', '12a4'],
@@ -63,7 +63,7 @@ describe('migrations', () => {
 
   test('entries require a competence on the first day and a payment date only when paid', async () => {
     const category = await categoryId()
-    const insert = (competence: string, status: string, paidOn: string | null) => client.query("insert into entry (competence, due_on, description, direction, amount_cents, category_id, status, paid_on, origin) values ($1, $1, 'Rent', 'expense', 150000, $2, $3, $4, 'manual')", [competence, category, status, paidOn])
+    const insert = (competence: string, status: string, paidOn: string | null) => client.query("insert into entry (competence, due_on, description, direction, amount_cents, category_id, status, paid_on, origin) values ($1, $1, 'Aluguel', 'expense', 150000, $2, $3, $4, 'manual')", [competence, category, status, paidOn])
     await insert('2026-10-01', 'planned', null)
     await insert('2026-10-01', 'paid', '2026-10-05')
     await assert.rejects(insert('2026-10-15', 'planned', null), /check constraint/)

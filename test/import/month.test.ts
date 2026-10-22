@@ -51,6 +51,6 @@ describe('importMonth', () => {
   test('rejects entries outside the month', async () => {
     const [valid] = await readMonthSheet('test/fixtures/2026-10-import.xlsx', '2026-10')
     assert.ok(valid)
-    await assert.rejects(importMonth(client, actor, '2026-11', [valid]), (error) => error instanceof RuleError && error.message === 'entry Marcio salary is outside 2026-11')
+    await assert.rejects(importMonth(client, actor, '2026-11', [valid]), (error) => error instanceof RuleError && error.message === 'entry Salário Marcio is outside 2026-11')
   })
 })

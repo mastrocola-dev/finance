@@ -73,15 +73,15 @@ describe('mcp read tools', () => {
     const late = (await call('list_entries', { month: '2026-10', state: 'late', today: seedToday })).json()
     assert.deepEqual(
       late.map(({ description, status, amount }: { description: string; status: string; amount: Money }) => [description, status, amount.cents]),
-      [['Electricity', 'late', '22200']],
+      [['Energia', 'late', '22200']],
     )
-    const utilities = (await call('list_entries', { month: '2026-10', category: 'utilities', today: seedToday })).json()
-    assert.deepEqual(utilities.map(({ description }: { description: string }) => description).sort(), ['Electricity', 'Internet'])
-    const card = (await call('list_entries', { month: '2026-10', account: 'Marcio card', today: seedToday })).json()
+    const utilities = (await call('list_entries', { month: '2026-10', category: 'contas da casa', today: seedToday })).json()
+    assert.deepEqual(utilities.map(({ description }: { description: string }) => description).sort(), ['Energia', 'Internet'])
+    const card = (await call('list_entries', { month: '2026-10', account: 'Cartão Marcio', today: seedToday })).json()
     assert.deepEqual(card.map(({ description, account, member }: { description: string; account: string; member: string | null }) => [description, account, member]).sort(), [
-      ['Fuel', 'Marcio card', 'Marcio'],
-      ['Pharmacy', 'Marcio card', null],
-      ['Sofa', 'Marcio card', 'Marcio'],
+      ['Combustível', 'Cartão Marcio', 'Marcio'],
+      ['Farmácia', 'Cartão Marcio', null],
+      ['Sofá', 'Cartão Marcio', 'Marcio'],
     ])
     const joint = (await call('list_entries', { month: '2026-10', member: 'joint', direction: 'expense', today: seedToday })).json()
     assert.ok(joint.length > 0 && joint.every(({ member }: { member: string | null }) => member === null))
@@ -98,7 +98,7 @@ describe('mcp read tools', () => {
   test('list_reserves shows balance, target, missing amount and progress', async () => {
     const [reserve, ...rest] = (await call('list_reserves')).json()
     assert.equal(rest.length, 0)
-    assert.equal(reserve.name, 'Emergency fund')
+    assert.equal(reserve.name, 'Reserva de emergência')
     assert.equal(typeof reserve.id, 'string')
     assert.deepEqual(reserve.balance, { cents: '1800000', brl: 'R$ 18.000,00' })
     assert.deepEqual(reserve.target, { cents: '3000000', brl: 'R$ 30.000,00' })
@@ -130,8 +130,8 @@ describe('mcp read tools', () => {
     assert.deepEqual(
       debts.map(({ description, member }: { description: string; member: string | null }) => [description, member]),
       [
-        ['Car financing', null],
-        ['Personal loan', 'Gabriela'],
+        ['Financiamento do carro', null],
+        ['Empréstimo pessoal', 'Gabriela'],
       ],
     )
     const [car] = debts

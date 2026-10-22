@@ -67,7 +67,7 @@ describe('streamable http adapter', () => {
   })
 
   test('writes on behalf of the x-member header and refuses without it', async () => {
-    const entry = { month: '2026-10', due_on: '2026-10-28', description: 'Pharmacy', direction: 'expense', amount_cents: 4590, category: 'health', member: 'Gabriela', today: seedToday }
+    const entry = { month: '2026-10', due_on: '2026-10-28', description: 'Farmácia', direction: 'expense', amount_cents: 4590, category: 'saúde', member: 'Gabriela', today: seedToday }
     const [gabriela, anonymous] = await Promise.all([connectClient(' gabriela '), connectClient()])
     const refused = await anonymous.callTool({ name: 'create_entry', arguments: entry })
     assert.equal(refused.isError, true)

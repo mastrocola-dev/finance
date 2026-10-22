@@ -6,7 +6,7 @@ import { serveApi } from '../../src/http/api.ts'
 import { bodyLimit } from '../../src/http/body.ts'
 import { testDatabase } from '../db/database.ts'
 
-const groceries = { month: '2026-10', due_on: '2026-10-25', description: 'Farmers market', direction: 'expense', amount_cents: 12345, category: 'groceries', member: 'joint' }
+const groceries = { month: '2026-10', due_on: '2026-10-25', description: 'Farmers market', direction: 'expense', amount_cents: 12345, category: 'alimentação', member: 'joint' }
 
 describe('http api', () => {
   let db: Awaited<ReturnType<typeof testDatabase>>
@@ -55,7 +55,7 @@ describe('http api', () => {
     const late = await get(`/months/2026-10/entries?state=late&direction=expense&today=${seedToday}`)
     assert.deepEqual(
       late.body.map(({ description }: { description: string }) => description),
-      ['Electricity'],
+      ['Energia'],
     )
     assert.equal(typeof late.body[0].id, 'string')
   })
@@ -63,7 +63,7 @@ describe('http api', () => {
   test('lists debts, reserves and decisions', async () => {
     assert.equal((await get('/debts')).body.length, 2)
     const [reserve] = (await get('/reserves')).body
-    assert.equal(reserve.name, 'Emergency fund')
+    assert.equal(reserve.name, 'Reserva de emergência')
     assert.equal(reserve.missing.cents, '1200000')
     assert.deepEqual((await get('/decisions?status=all&limit=5')).body, [])
   })
@@ -98,7 +98,7 @@ describe('http api', () => {
   })
 
   test('marks an entry paid and refuses to pay it twice', async () => {
-    const created = await post(`/entries?today=${seedToday}`, { ...groceries, description: 'Pharmacy', category: 'health' })
+    const created = await post(`/entries?today=${seedToday}`, { ...groceries, description: 'Farmácia', category: 'saúde' })
     const paid = await post(`/entries/${created.body.id}/paid?today=${seedToday}`, {}, { 'x-member': 'gabriela' })
     assert.equal(paid.status, 200)
     assert.equal(paid.body.status, 'paid')
@@ -142,15 +142,15 @@ describe('http api', () => {
   })
 
   test('updates a reserve as the calling member, audited', async () => {
-    const patched = await send('PATCH', '/reserves/Emergency%20fund', { balance_cents: 250000 })
+    const patched = await send('PATCH', '/reserves/Reserva%20de%20emerg%C3%AAncia', { balance_cents: 250000 })
     assert.equal(patched.status, 200)
     assert.deepEqual(patched.body.balance, { cents: '250000', brl: 'R$ 2.500,00' })
     assert.equal(patched.body.missing.cents, '2750000')
     const { rows } = await pool.query<{ author: string; name: string }>("select a.author, m.name from audit_log a join member m on m.id = a.member_id where a.entity = 'reserve' order by a.id desc limit 1")
     assert.deepEqual(rows[0], { author: 'member', name: 'Marcio' })
-    assert.equal((await send('PATCH', '/reserves/Emergency%20fund', { balance_cents: -1 })).status, 422)
+    assert.equal((await send('PATCH', '/reserves/Reserva%20de%20emerg%C3%AAncia', { balance_cents: -1 })).status, 422)
     assert.equal((await send('PATCH', '/reserves/Nowhere', { balance_cents: 1 })).status, 422)
-    assert.equal((await send('PATCH', '/reserves/Emergency%20fund', {}, {})).status, 401)
+    assert.equal((await send('PATCH', '/reserves/Reserva%20de%20emerg%C3%AAncia', {}, {})).status, 401)
   })
 
   test('proposes a decision and closes it once every member confirms', async () => {

@@ -2,8 +2,7 @@
 
 ## Session setup (cloud container, each run)
 
-- No `add_repo`/`register_repo_root` tools in these runs (ToolSearch finds neither). The repo already exists at /home/claude/finance: `git fetch origin && git checkout -B poc origin/poc`
-- Node 22 is preinstalled: `npm i -g node@24` then `hash -r` (about a minute; 24.22.0 on 2026-10-20)
+- No `add_repo`/`register_repo_root` tools in these runs (ToolSearch finds neither). The repo already exists at /home/claude/finance: `git fetch origin && git checkout -B poc origin/poc`. Node 22 is preinstalled: `npm i -g node@24` then `hash -r` (about a minute; 24.22.0 on 2026-10-20)
 - Run setup commands one per Bash call. PostgreSQL 16: `pg_ctlcluster 16 main start`, then `su postgres -c "psql -c \"alter user postgres password 'local'\""`, then `cp .env.example .env` (gitignored)
 - `npm ci` then `npm run db:reset` and `npm run db:seed`; baseline is 142 node tests plus 115 web (Vitest) tests plus 66 Playwright; seed has 189 entries and `db:seed` also plants 4 decisions (`seedDecisions`, not in `seed()`, L73)
 - `curl` to local servers needs `--noproxy '*'` (the agent proxy answers 404 otherwise); stop servers by pid, `pkill -f` matched the calling shell and killed the call
@@ -57,4 +56,5 @@
 ## Status
 
 - Tests: 142 node, 115 web, 69 Playwright after Q06; `npm run check` green; failing-test run streak 0. `test/docs/readme.test.ts` fails when a committed screenshot is missing from the README or a README link breaks: a new screenshot needs a README row
-- Author promoted Q01–Q08 (QA findings) and I01–I08 (ADR-009 import) to Next; Q01–Q06 done 2026-10-22; next is Q07 (Portuguese seed: rewrite seed names in pt-BR, regenerate every screenshot and README; node tests assert seed totals and names, update them). A full Playwright run rewrites every screenshot (dates drift with the real day): keep only the screens the item touched, `git checkout` the rest
+- Author promoted Q01–Q08 (QA findings) and I01–I08 (ADR-009 import) to Next; Q01–Q07 done 2026-10-22; next is Q08 (seed audit timestamps follow seeded dates; Atividade and overview activity screenshots will change, record.spec may too). A full Playwright run rewrites every screenshot (dates drift with the real day): keep only the screens the item touched, `git checkout` the rest
+- Q07: seed names are pt-BR (categories Salário, Freelance, Moradia, Contas da casa, Alimentação, Transporte, Saúde, Lazer, Casa, Dívidas; accounts Conta conjunta, Poupança conjunta, Conta Marcio, Cartão Marcio, Conta Gabriela). Lookups are `lower()` so tests pass lowercase pt-BR (`'saúde'`); URL for the reserve is `Reserva%20de%20emerg%C3%AAncia`. `test/fixtures/2026-10-import.xlsx` has no generator: edit `xl/worksheets/sheet1.xml` inline strings with python `zipfile`. Sorting by description changed orders (forecast test). Playwright `launchOptions.env` sets `LANG=pt_BR.UTF-8` (date input follows OS LANG, not context locale)

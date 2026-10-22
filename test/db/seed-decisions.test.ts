@@ -24,10 +24,10 @@ describe('fictional decisions', () => {
     assert.deepEqual(
       decisions.map(({ title, status, origin, confirmedBy, awaiting }) => ({ title, status, origin, confirmedBy, awaiting })),
       [
-        { title: 'Prepay six car loan installments', status: 'proposed', origin: 'claude', confirmedBy: [], awaiting: ['Marcio', 'Gabriela'] },
-        { title: 'Upgrade home internet to 1 Gb', status: 'proposed', origin: 'manual', confirmedBy: ['Gabriela'], awaiting: ['Marcio'] },
-        { title: 'Raise the monthly reserve contribution', status: 'confirmed', origin: 'manual', confirmedBy: ['Gabriela', 'Marcio'], awaiting: [] },
-        { title: 'Add another streaming subscription', status: 'rejected', origin: 'manual', confirmedBy: [], awaiting: [] },
+        { title: 'Antecipar seis parcelas do financiamento do carro', status: 'proposed', origin: 'claude', confirmedBy: [], awaiting: ['Marcio', 'Gabriela'] },
+        { title: 'Trocar a internet de casa para 1 Gb', status: 'proposed', origin: 'manual', confirmedBy: ['Gabriela'], awaiting: ['Marcio'] },
+        { title: 'Aumentar o aporte mensal na reserva', status: 'confirmed', origin: 'manual', confirmedBy: ['Gabriela', 'Marcio'], awaiting: [] },
+        { title: 'Assinar mais um streaming', status: 'rejected', origin: 'manual', confirmedBy: [], awaiting: [] },
       ],
     )
     const { rows } = await client.query("select count(*)::int as total from audit_log where entity like 'decision%' and author = 'system'")

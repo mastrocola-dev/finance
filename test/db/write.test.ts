@@ -27,12 +27,12 @@ describe('audited writes', () => {
     db = await testDatabase()
     client = db.client
     ;[marcio, gabriela] = await write(client, system, async (ledger) => [(await ledger.create('member', { name: 'Marcio' })).id as bigint, (await ledger.create('member', { name: 'Gabriela' })).id as bigint])
-    category = (await write(client, system, (ledger) => ledger.create('category', { name: 'Housing', kind: 'expense' }))).id as bigint
+    category = (await write(client, system, (ledger) => ledger.create('category', { name: 'Moradia', kind: 'expense' }))).id as bigint
   })
 
   after(() => db.drop())
 
-  const rent = { competence: '2026-10-01', due_on: '2026-10-10', description: 'Rent', direction: 'expense', amount_cents: 150000n, origin: 'claude' }
+  const rent = { competence: '2026-10-01', due_on: '2026-10-10', description: 'Aluguel', direction: 'expense', amount_cents: 150000n, origin: 'claude' }
 
   test('parses bigint as BigInt and dates as plain strings', async () => {
     const entry = await write(client, { author: 'claude', memberId: marcio }, (ledger) => ledger.create('entry', { ...rent, category_id: category }))

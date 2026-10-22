@@ -8,7 +8,7 @@ export default defineConfig({
   reporter: 'list',
   use: {
     baseURL: 'http://127.0.0.1:4173',
-    launchOptions: { executablePath: process.env.PLAYWRIGHT_CHROMIUM ?? '/opt/pw-browsers/chromium' },
+    launchOptions: { executablePath: process.env.PLAYWRIGHT_CHROMIUM ?? '/opt/pw-browsers/chromium', env: { ...process.env, LANG: 'pt_BR.UTF-8' } },
   },
   webServer: [
     { command: 'npm run api:http', cwd: '..', url: `http://127.0.0.1:${api}/api/members`, reuseExistingServer: true },
