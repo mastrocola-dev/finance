@@ -65,6 +65,17 @@ describe('import staging', () => {
     )
   })
 
+  test('appends printed totals to the batch across stage calls', async () => {
+    const batch = await openBatch(client, actor, { name: 'totais.xlsx', format: 'xlsx', hash })
+    const income = { source: '2026-10!G2', month: '2026-10-01', direction: 'income', amountCents: 900000 }
+    const expense = { source: '2026-10!G40', month: '2026-10-01', direction: 'expense', amountCents: 158990 }
+    await stageOutput(client, actor, batch, { candidates: [], questions: [], totals: [income] })
+    await stageOutput(client, actor, batch, { candidates: [], questions: [] })
+    await stageOutput(client, actor, batch, { candidates: [], questions: [], totals: [expense] })
+    const { rows } = await client.query('select totals from import_batch where id = $1', [batch])
+    assert.deepEqual(rows[0]?.totals, [income, expense])
+  })
+
   test('masks digit runs in questions', async () => {
     const batch = await openBatch(client, actor, { name: 'notas.txt', format: 'txt', hash })
     await stageOutput(client, actor, batch, { candidates: [], questions: [{ question: 'A conta 0012345678 é a conjunta?', options: ['Sim, 0012345678'] }] })

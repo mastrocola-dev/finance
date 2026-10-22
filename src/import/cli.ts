@@ -47,7 +47,8 @@ export const importFile = async (client: Client, path: string, { segments = inge
 export const importSummary = ({ batchId, candidates, questions, usage, failures, done, total, stopped, verification }: Awaited<ReturnType<typeof importFile>>) =>
   [
     `batch ${batchId}: ${candidates.length} candidates, ${questions.length} questions from ${done} of ${total} chunks`,
-    `verified: ${verification.failed.length} with failed checks, ${verification.lowConfidence.length} low confidence, ${verification.questions.length} new questions`,
+    `verified: ${verification.failed.length} with failed checks, ${verification.lowConfidence.length} low confidence, ${verification.questions.length} new questions, ${verification.totals.mismatches.length} of ${verification.totals.checked} totals mismatched`,
+    ...verification.totals.mismatches.map(({ detail }) => `mismatch ${detail}`),
     `tokens ${usage.inputTokens} in, ${usage.outputTokens} out, US$ ${(usage.costUsdMicros / 1_000_000).toFixed(4)}`,
     ...(stopped ? [`stopped: ${stopped}`] : []),
     ...failures.map(({ source, offset, reason }) => `failed ${source}@${offset}: ${reason}`),

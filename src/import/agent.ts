@@ -26,7 +26,7 @@ export class ExtractionError extends Error {
 
 export const mappingFrom = 20
 export const chunkSize = 40
-export const outputLimits = { candidates: 500, questions: 50 }
+export const outputLimits = { candidates: 500, questions: 50, totals: 50 }
 
 const tokens = z.int().min(0)
 export const usage = z.strictObject({ inputTokens: tokens, outputTokens: tokens, costUsdMicros: tokens })
@@ -59,7 +59,7 @@ const describeIssues = (error: z.ZodError) =>
 
 export const extract = async ({ file, segments, extractor, tokenCap = defaultTokenCap(), onProgress }: Run) => {
   const chunks = plan(file, segments)
-  const output: ImportOutput = { candidates: [], questions: [] }
+  const output: ImportOutput = { candidates: [], questions: [], totals: [] }
   const spent: Usage = { inputTokens: 0, outputTokens: 0, costUsdMicros: 0 }
   const failures: Failure[] = []
   const result = (done: number, stopped?: 'token cap' | 'output limit') => ({ output, usage: spent, failures, done, total: chunks.length, stopped })
@@ -77,11 +77,12 @@ export const extract = async ({ file, segments, extractor, tokenCap = defaultTok
       charge(usage.parse(extraction.usage))
       const parsed = importOutput.safeParse(extraction.output)
       if (!parsed.success) fail(`invalid output: ${describeIssues(parsed.error)}`)
-      else if (output.candidates.length + parsed.data.candidates.length > outputLimits.candidates || output.questions.length + parsed.data.questions.length > outputLimits.questions) return result(index, 'output limit')
+      else if (output.candidates.length + parsed.data.candidates.length > outputLimits.candidates || output.questions.length + parsed.data.questions.length > outputLimits.questions || output.totals.length + parsed.data.totals.length > outputLimits.totals) return result(index, 'output limit')
       else {
         const shift = output.candidates.length
         output.candidates.push(...parsed.data.candidates)
         output.questions.push(...parsed.data.questions.map((item) => (item.candidate === undefined ? item : { ...item, candidate: item.candidate + shift })))
+        output.totals.push(...parsed.data.totals)
       }
     } catch (error) {
       if (error instanceof ExtractionError) charge(usage.parse(error.usage))

@@ -45,6 +45,23 @@ describe('import candidate schema', () => {
     rejects({ ...sample, questions: [{ ...sample.questions[0], candidate: 9 }] }, /missing candidate/)
   })
 
+  test('accepts printed totals and defaults them to none', () => {
+    assert.deepEqual(importOutput.parse(sample).totals, [])
+    const totals = [
+      { source: '2026-10!G40', month: '2026-10-01', direction: 'expense', category: 'Moradia', amountCents: 150000 },
+      { source: '2026-10!G41', month: '2026-10-01', direction: 'net', amountCents: -158990 },
+    ]
+    assert.deepEqual(importOutput.parse({ ...sample, totals }).totals, totals)
+  })
+
+  test('refuses totals off the first day, negative subtotals and a net total by category', () => {
+    const total = { source: '2026-10!G40', month: '2026-10-01', direction: 'expense', amountCents: 150000 }
+    rejects({ ...sample, totals: [{ ...total, month: '2026-10-15' }] }, /first day of the month/)
+    rejects({ ...sample, totals: [{ ...total, amountCents: -1 }] }, /only a net total/)
+    rejects({ ...sample, totals: [{ ...total, direction: 'net', category: 'Moradia' }] }, /net total has no category/)
+    rejects({ ...sample, totals: [{ ...total, amountCents: 1.5 }] }, /amountCents/)
+  })
+
   test('exports a closed JSON Schema for the agent output', () => {
     const schema = JSON.parse(JSON.stringify(importOutputJsonSchema())) as { $schema: string; additionalProperties: boolean; required: string[]; properties: { candidates: { items: { oneOf?: unknown[]; anyOf?: unknown[] } } } }
     assert.equal(schema.$schema, 'https://json-schema.org/draft/2020-12/schema')

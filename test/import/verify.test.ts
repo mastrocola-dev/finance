@@ -4,7 +4,7 @@ import type { Client } from 'pg'
 import { seed } from '../../src/db/seed.ts'
 import type { Actor } from '../../src/db/write.ts'
 import { openBatch, stageOutput } from '../../src/import/staging.ts'
-import { findChecks, normalize, questionFor, type References, type Staged, verifyBatch } from '../../src/import/verify.ts'
+import { findChecks, normalize, questionFor, type References, reconcile, type Staged, verifyBatch } from '../../src/import/verify.ts'
 import { testDatabase } from '../db/database.ts'
 
 const actor: Actor = { author: 'import' }
@@ -61,6 +61,22 @@ describe('import verification rules', () => {
     assert.deepEqual(questionFor(asks[0] ?? assert.fail(), references), { question: 'Quem é "GMA"?', options: ['Marcio', 'Gabriela', 'Conjunto'] })
     assert.deepEqual(questionFor(asks[2] ?? assert.fail(), references), { question: 'Qual categoria é "Salário"?', options: ['Alimentação', 'Nova categoria'] })
   })
+
+  test('reconciles printed totals with valid entries by month, direction and category', () => {
+    const candidates = [
+      entry(1, { amountCents: 4500 }),
+      entry(2, { description: 'Padaria', amountCents: 1250, category: 'alimentação' }),
+      entry(3, { direction: 'income', description: 'Salário', category: 'Salário', amountCents: 900000 }),
+      entry(4, { date: '2026-11-02', amountCents: 7000 }),
+      entry(5, { amountCents: 0 }),
+    ]
+    const total = (direction: 'income' | 'expense' | 'net', amountCents: number, category?: string) => ({ source: `2026-10!G${amountCents}`, month: '2026-10-01', direction, amountCents, ...(category && { category }) })
+    assert.deepEqual(reconcile(candidates, [total('expense', 5750), total('expense', 5750, 'Alimentação'), total('income', 900000), total('net', 894250)]), [])
+    assert.deepEqual(reconcile(candidates, [total('expense', 5700), { ...total('expense', 7000), month: '2026-12-01' }]), [
+      { code: 'total_mismatch', detail: '2026-10!G5700: expense 2026-10 expected 5700, found 5750' },
+      { code: 'total_mismatch', detail: '2026-10!G7000: expense 2026-12 expected 7000, found 0' },
+    ])
+  })
 })
 
 describe('verifyBatch', () => {
@@ -85,6 +101,11 @@ describe('verifyBatch', () => {
       { kind: 'reserve', source: 'out!L2', confidence: 0.9, payload: { name: 'Reserva de Emergência', balanceCents: 1800000 } },
     ],
     questions: [{ question: 'GMA é a Gabriela?', options: ['Sim', 'Não'], source: 'out!E3', candidate: 1 }],
+    totals: [
+      { source: 'out!G7', month: '2026-10-01', direction: 'expense', amountCents: 363580 },
+      { source: 'out!G8', month: '2026-10-01', direction: 'expense', category: 'pets', amountCents: 18990 },
+      { source: 'out!G9', month: '2026-10-01', direction: 'net', amountCents: -363580 },
+    ],
   }
 
   const stage = async (name: string) => {
@@ -108,8 +129,12 @@ describe('verifyBatch', () => {
     assert.deepEqual(questions.rows.slice(1), [{ candidate_id: ids[3], question: 'Qual categoria é "Mercado"?', options: ['Alimentação', 'Casa', 'Contas da casa', 'Dívidas', 'Lazer', 'Nova categoria'], source: 'out!A5:G5' }])
     const status = await client.query('select status from import_batch where id = $1', [batch])
     assert.equal(status.rows[0]?.status, 'verified')
+    const mismatch = { code: 'total_mismatch', detail: 'out!G8: expense 2026-10 pets expected 18990, found 37980' }
+    assert.deepEqual(result.totals, { checked: 3, mismatches: [mismatch] })
+    const checks = await client.query('select checks from import_batch where id = $1', [batch])
+    assert.deepEqual(checks.rows[0]?.checks, [mismatch])
     const audit = await client.query<{ author: string; total: number }>("select author, count(*)::int as total from audit_log where entity in ('import_candidate', 'import_question', 'import_batch') and action = 'update' group by author")
-    assert.deepEqual(audit.rows, [{ author: 'import', total: 6 }])
+    assert.deepEqual(audit.rows, [{ author: 'import', total: 7 }])
   })
 
   test('is idempotent: a second run writes nothing new', async () => {

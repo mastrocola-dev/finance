@@ -30,15 +30,19 @@ export const stageOutput = (client: Client, actor: Actor, batchId: bigint, outpu
   write(client, actor, async (ledger) => {
     const parsed = importOutput.safeParse(output)
     if (!parsed.success) throw new RuleError(`invalid import output: ${issues(parsed.error)}`)
-    const { rows } = await client.query<{ status: string; input_tokens: bigint; output_tokens: bigint; cost_usd_micros: bigint }>('select status, input_tokens, output_tokens, cost_usd_micros from import_batch where id = $1 and closed_at is null for update', [batchId])
+    const { rows } = await client.query<{ status: string; input_tokens: bigint; output_tokens: bigint; cost_usd_micros: bigint; totals: unknown[] }>('select status, input_tokens, output_tokens, cost_usd_micros, totals from import_batch where id = $1 and closed_at is null for update', [batchId])
     const batch = rows[0]
     if (batch?.status !== 'draft') throw new RuleError(`import batch ${batchId} is not an open draft`)
-    if (usage && usage.inputTokens + usage.outputTokens + usage.costUsdMicros > 0)
-      await ledger.update('import_batch', batchId, {
+    const spent = usage && usage.inputTokens + usage.outputTokens + usage.costUsdMicros > 0
+    const changes = {
+      ...(spent && {
         input_tokens: batch.input_tokens + BigInt(usage.inputTokens),
         output_tokens: batch.output_tokens + BigInt(usage.outputTokens),
         cost_usd_micros: batch.cost_usd_micros + BigInt(usage.costUsdMicros),
-      })
+      }),
+      ...(parsed.data.totals.length > 0 && { totals: JSON.stringify([...batch.totals, ...parsed.data.totals]) }),
+    }
+    if (Object.keys(changes).length > 0) await ledger.update('import_batch', batchId, changes)
     const candidates: bigint[] = []
     for (const { kind, source, confidence, payload } of parsed.data.candidates) {
       const row = await ledger.create('import_candidate', { batch_id: batchId, kind, source, confidence, payload })

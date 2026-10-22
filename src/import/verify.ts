@@ -1,7 +1,8 @@
 import type { Client } from 'pg'
+import * as z from 'zod'
 import { type Actor, write } from '../db/write.ts'
 import { RuleError } from '../ledger/rule.ts'
-import { type CandidateKind, payloads } from './candidate.ts'
+import { type CandidateKind, payloads, type Total, total } from './candidate.ts'
 import { maskDigits } from './staging.ts'
 
 export const confidenceThreshold = 0.8
@@ -97,6 +98,22 @@ const uniqueAsks = (asks: Ask[]) => {
   return [...first.values()]
 }
 
+const scopeOf = (item: Total) => [item.direction, item.month.slice(0, 7), item.category].filter(Boolean).join(' ')
+
+export const reconcile = (candidates: Staged[], totals: Total[]): Check[] => {
+  const entries = candidates.flatMap((item) => {
+    const parsed = item.kind === 'entry' ? payloads.entry.safeParse(item.payload) : undefined
+    return parsed?.success ? [parsed.data] : []
+  })
+  return totals.flatMap((item) => {
+    const inScope = entries.filter((entry) => entry.date.slice(0, 7) === item.month.slice(0, 7) && (item.direction === 'net' || entry.direction === item.direction) && (item.category === undefined || same(entry.category, item.category)))
+    const found = inScope.reduce((sum, entry) => sum + (item.direction === 'net' && entry.direction === 'expense' ? -entry.amountCents : entry.amountCents), 0)
+    return found === item.amountCents ? [] : [{ code: 'total_mismatch', detail: `${item.source}: ${scopeOf(item)} expected ${item.amountCents}, found ${found}` }]
+  })
+}
+
+const totals = z.array(total)
+
 const labels = { member: ['Quem é', 'Conjunto'], account: ['Qual conta é', 'Nova conta'], category: ['Qual categoria é', 'Nova categoria'], reserve: ['Qual reserva é', 'Nova reserva'] } as const
 
 export const questionFor = (ask: Ask, references: References) => {
@@ -137,7 +154,7 @@ const sameChecks = (a: Check[], b: Check[]) => JSON.stringify(a) === JSON.string
 
 export const verifyBatch = (client: Client, actor: Actor, batchId: bigint, threshold = confidenceThreshold) =>
   write(client, actor, async (ledger) => {
-    const batch = (await client.query<{ status: string }>('select status from import_batch where id = $1 and closed_at is null for update', [batchId])).rows[0]
+    const batch = (await client.query<{ status: string; totals: unknown; checks: Check[] }>('select status, totals, checks from import_batch where id = $1 and closed_at is null for update', [batchId])).rows[0]
     if (batch?.status !== 'draft' && batch?.status !== 'verified') throw new RuleError(`import batch ${batchId} is not open for verification`)
     const { rows } = await client.query<Omit<Staged, 'confidence'> & { confidence: string }>("select id, kind, source, confidence, payload, checks from import_candidate where batch_id = $1 and closed_at is null and status <> 'rejected' order by id", [batchId])
     const candidates = rows.map((row) => ({ ...row, confidence: Number(row.confidence) }))
@@ -156,11 +173,14 @@ export const verifyBatch = (client: Client, actor: Actor, batchId: bigint, thres
       const row = await ledger.create('import_question', { batch_id: batchId, candidate_id: ask.candidate, question, options: JSON.stringify(options), source: candidates.find((item) => item.id === ask.candidate)?.source ?? null })
       questions.push(row.id as bigint)
     }
-    if (batch.status === 'draft') await ledger.update('import_batch', batchId, { status: 'verified' })
+    const stated = totals.parse(batch.totals)
+    const mismatches = reconcile(candidates, stated)
+    const changes = { ...(batch.status === 'draft' && { status: 'verified' }), ...(!sameChecks(mismatches, batch.checks) && { checks: JSON.stringify(mismatches) }) }
+    if (Object.keys(changes).length > 0) await ledger.update('import_batch', batchId, changes)
     const failed = candidates.filter((item) => checks.get(item.id)?.some((check) => check.code !== 'low_confidence')).map((item) => item.id)
     const lowConfidence = candidates
       .filter((item) => item.confidence < threshold)
       .sort((a, b) => a.confidence - b.confidence)
       .map((item) => item.id)
-    return { checked: candidates.length, failed, lowConfidence, questions }
+    return { checked: candidates.length, failed, lowConfidence, questions, totals: { checked: stated.length, mismatches } }
   })

@@ -14,9 +14,10 @@ const tree: Segment = { id: 'tree-1', kind: 'tree', source: '$.accounts', shape:
 const notes: Segment = { id: 'text-1', kind: 'text', source: 'L1-L95', shape: { lines: 95 } }
 const usage = (inputTokens: number, outputTokens = 100) => ({ inputTokens, outputTokens, costUsdMicros: inputTokens + outputTokens })
 const actor: Actor = { author: 'import' }
+const october = { source: '2026-10!G40', month: '2026-10-01', direction: 'expense', amountCents: 158990 }
 
 const recordings = [
-  { source: '2026-10!A1:G3', output: { candidates: [rent, pharmacy], questions: [] }, usage: usage(1000) },
+  { source: '2026-10!A1:G3', output: { candidates: [rent, pharmacy], questions: [], totals: [october] }, usage: usage(1000) },
   { source: '$.accounts', output: { candidates: [card], questions: [{ question: 'Cartão é do Marcio?', options: ['Sim', 'Não'], candidate: 0 }] }, usage: usage(500) },
 ]
 
@@ -44,6 +45,7 @@ describe('import agent orchestration', () => {
     const result = await extract({ file: 'a.json', segments: [table(3), tree], extractor: recordedExtractor(recordings), tokenCap: 10_000, onProgress: (done, total) => progress.push([done, total]) })
     assert.deepEqual(result.output.candidates, [rent, pharmacy, card])
     assert.equal(result.output.questions[0]?.candidate, 2)
+    assert.deepEqual(result.output.totals, [october])
     assert.deepEqual(result.usage, { inputTokens: 1500, outputTokens: 200, costUsdMicros: 1700 })
     assert.deepEqual(progress, [
       [1, 2],
@@ -63,7 +65,7 @@ describe('import agent orchestration', () => {
       },
     }
     const result = await extract({ file: 'a', segments: [table(3), { ...notes, shape: { lines: 5 } }], extractor, tokenCap: 1000 })
-    assert.deepEqual(result.output, { candidates: [], questions: [] })
+    assert.deepEqual(result.output, { candidates: [], questions: [], totals: [] })
     assert.equal(result.usage.inputTokens, 10)
     assert.equal(result.failures.length, 2)
     assert.match(result.failures[0]?.reason ?? '', /^invalid output: candidates\.0\.payload\.amountCents/)
@@ -115,7 +117,7 @@ describe('import run against staging', () => {
 
   after(() => db.drop())
 
-  test('stages the merged output and adds usage to the batch in one audited write', async () => {
+  test('stages the merged output and adds usage and totals to the batch in one audited write', async () => {
     const batch = await openBatch(client, actor, { name: 'carteira.json', format: 'json', hash })
     const run = { file: 'carteira.json', segments: [table(3), tree], extractor: recordedExtractor(recordings), tokenCap: 10_000 }
     const first = await runImport(client, actor, batch, run)
@@ -124,8 +126,8 @@ describe('import run against staging', () => {
     const linked = await client.query('select q.candidate_id = $1 as linked from import_question q where q.id = $2', [first.candidates[2], first.questions[0]])
     assert.deepEqual(linked.rows, [{ linked: true }])
     await runImport(client, actor, batch, run)
-    const { rows } = await client.query('select input_tokens, output_tokens, cost_usd_micros from import_batch where id = $1', [batch])
-    assert.deepEqual(rows, [{ input_tokens: 3000n, output_tokens: 400n, cost_usd_micros: 3400n }])
+    const { rows } = await client.query('select input_tokens, output_tokens, cost_usd_micros, totals from import_batch where id = $1', [batch])
+    assert.deepEqual(rows, [{ input_tokens: 3000n, output_tokens: 400n, cost_usd_micros: 3400n, totals: [october, october] }])
     const audit = await client.query<{ total: number }>("select count(*)::int as total from audit_log where entity = 'import_batch' and entity_id = $1 and action = 'update'", [batch])
     assert.equal(audit.rows[0]?.total, 2)
   })

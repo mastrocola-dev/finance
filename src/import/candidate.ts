@@ -141,14 +141,30 @@ export const question = z.strictObject({
   candidate: z.int().min(0).optional().describe('Index in candidates of the item the question is about'),
 })
 
+export const total = z
+  .strictObject({
+    source,
+    month: z.iso
+      .date()
+      .refine((value) => value.endsWith('-01'), 'month must be the first day of the month')
+      .describe('Competence month as its first day, YYYY-MM-01'),
+    direction: z.enum(['income', 'expense', 'net']).describe('What the total sums: income, expenses, or net as income minus expenses'),
+    category: category.optional().describe('Category the total covers, only for income or expense subtotals'),
+    amountCents: z.int().min(-100_000_000_000).max(100_000_000_000).describe('Total as written in the source, integer cents of BRL; only net may be negative'),
+  })
+  .refine(({ direction, category }) => direction !== 'net' || category === undefined, 'a net total has no category')
+  .refine(({ direction, amountCents }) => direction === 'net' || amountCents >= 0, 'only a net total may be negative')
+
 export const importOutput = z
   .strictObject({
     candidates: z.array(candidate).max(500),
     questions: z.array(question).max(50),
+    totals: z.array(total).max(50).default([]).describe('Totals and subtotals printed in the source, used only to check the candidates'),
   })
   .refine(({ candidates, questions }) => questions.every((item) => item.candidate === undefined || item.candidate < candidates.length), 'question points at a missing candidate')
 
 export type Candidate = z.infer<typeof candidate>
 export type ImportOutput = z.infer<typeof importOutput>
+export type Total = z.infer<typeof total>
 
 export const importOutputJsonSchema = () => z.toJSONSchema(importOutput, { io: 'input', target: 'draft-2020-12' })

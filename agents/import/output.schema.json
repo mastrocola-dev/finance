@@ -573,6 +573,49 @@
         ],
         "additionalProperties": false
       }
+    },
+    "totals": {
+      "default": [],
+      "description": "Totals and subtotals printed in the source, used only to check the candidates",
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "source": {
+            "type": "string",
+            "description": "Source address of the segment or record, such as 2026-10!A3:G3, $.transactions[12] or p2:L4-L5"
+          },
+          "month": {
+            "type": "string",
+            "format": "date",
+            "description": "Competence month as its first day, YYYY-MM-01"
+          },
+          "direction": {
+            "type": "string",
+            "enum": [
+              "income",
+              "expense",
+              "net"
+            ],
+            "description": "What the total sums: income, expenses, or net as income minus expenses"
+          },
+          "category": {
+            "description": "Category the total covers, only for income or expense subtotals",
+            "type": "string"
+          },
+          "amountCents": {
+            "type": "integer",
+            "description": "Total as written in the source, integer cents of BRL; only net may be negative"
+          }
+        },
+        "required": [
+          "source",
+          "month",
+          "direction",
+          "amountCents"
+        ],
+        "additionalProperties": false
+      }
     }
   },
   "required": [
