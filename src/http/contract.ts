@@ -231,6 +231,7 @@ const importBatch = z.strictObject({
   candidates: z.int().describe('Open candidates'),
   flagged: z.int().describe('Open candidates with at least one check'),
   openQuestions: z.int(),
+  committed: z.int().describe('Candidates written to the ledger, kept after the batch is closed'),
   progress: progress.nullable().describe('Extraction progress while this API process runs it; null otherwise'),
 })
 

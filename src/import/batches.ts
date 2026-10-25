@@ -9,7 +9,8 @@ const batchColumns = `b.id::text as id, b.file_name as "fileName", b.format, b.s
   b.checks, b.failures, b.totals,
   (select count(*)::int from import_candidate c where c.batch_id = b.id and c.closed_at is null) as candidates,
   (select count(*)::int from import_candidate c where c.batch_id = b.id and c.closed_at is null and jsonb_array_length(c.checks) > 0) as flagged,
-  (select count(*)::int from import_question q where q.batch_id = b.id and q.closed_at is null and q.answer is null) as "openQuestions"`
+  (select count(*)::int from import_question q where q.batch_id = b.id and q.closed_at is null and q.answer is null) as "openQuestions",
+  (select count(*)::int from import_candidate c where c.batch_id = b.id and c.record_id is not null) as committed`
 
 export const listBatches = async (client: Queryable, status?: BatchStatus) => (await client.query(`select ${batchColumns} from import_batch b where $1::text is null or b.status = $1 order by b.id desc`, [status ?? null])).rows
 

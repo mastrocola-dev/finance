@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import { createHash } from 'node:crypto'
-import { mkdtemp, readFile, rm } from 'node:fs/promises'
+import { access, mkdir, mkdtemp, readdir, readFile, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { after, before, describe, test } from 'node:test'
@@ -145,5 +145,41 @@ describe('import api', () => {
     assert.equal((await get('/imports/999999')).status, 404)
     assert.equal((await get('/imports/999999/candidates')).status, 404)
     assert.equal((await get('/imports?status=lost')).status, 400)
+  })
+  test('removes the upload after commit or close and sweeps folders of finished batches', async () => {
+    const send = async (batch: string, path: string, body?: unknown) => {
+      const response = await fetch(`${server.url}/api/imports/${batch}${path}`, { method: 'POST', headers: { 'content-type': 'application/json', 'x-member': 'Marcio' }, body: body === undefined ? undefined : JSON.stringify(body) })
+      return { status: response.status, body: await response.json() }
+    }
+    const hashOf = (content: string) => createHash('sha256').update(content).digest('hex')
+    const exists = (hash: string) =>
+      access(join(folder, hash)).then(
+        () => true,
+        () => false,
+      )
+    const kept = await upload('mantido.txt', 'mantido\n')
+    const committed = await upload('fechado.txt', 'fechado\n')
+    const abandoned = await upload('abandonado.txt', 'abandonado\n')
+    await uploads.settled()
+    const [first] = (await get(`/imports/${committed.body.id}/candidates`)).body
+    await send(committed.body.id, '/candidates/accept', { ids: [first.id] })
+    const written = await send(committed.body.id, '/commit')
+    assert.deepEqual([written.status, written.body.status, written.body.committed], [200, 'committed', 1])
+    assert.equal(await exists(hashOf('fechado\n')), false)
+    const closed = await send(committed.body.id, '/close')
+    assert.deepEqual([closed.status, closed.body.status, closed.body.candidates, closed.body.committed], [200, 'closed', 0, 1])
+    assert.equal((await upload('de novo.txt', 'fechado\n')).status, 422)
+    const dropped = await send(abandoned.body.id, '/close')
+    assert.deepEqual([dropped.status, dropped.body.status, dropped.body.committed], [200, 'closed', 0])
+    assert.equal(await exists(hashOf('abandonado\n')), false)
+    assert.match((await send(abandoned.body.id, '/close')).body.error, /already closed/)
+    assert.equal((await send('999999', '/close')).status, 404)
+    const orphan = hashOf('órfão')
+    await mkdir(join(folder, orphan))
+    await mkdir(join(folder, 'notas'))
+    assert.deepEqual(await uploads.sweep(), [orphan])
+    assert.equal(await exists(hashOf('mantido\n')), true)
+    assert.ok((await readdir(folder)).includes('notas'))
+    assert.equal((await get(`/imports/${kept.body.id}`)).body.status, 'verified')
   })
 })

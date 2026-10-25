@@ -511,6 +511,23 @@ export type paths = {
         patch?: never;
         trace?: never;
     };
+    "/api/imports/{id}/close": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Close a committed import batch or abandon a draft or verified one; ledger rows stay and the uploaded file is removed */
+        post: operations["closeImport"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 };
 export type webhooks = Record<string, never>;
 export type components = {
@@ -762,6 +779,8 @@ export type components = {
             /** @description Open candidates with at least one check */
             flagged: number;
             openQuestions: number;
+            /** @description Candidates written to the ledger, kept after the batch is closed */
+            committed: number;
             /** @description Extraction progress while this API process runs it; null otherwise */
             progress: {
                 /** @enum {string} */
@@ -1951,6 +1970,37 @@ export interface operations {
         };
     };
     commitImport: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ImportBatch"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+        };
+    };
+    closeImport: {
         parameters: {
             query?: never;
             header?: never;

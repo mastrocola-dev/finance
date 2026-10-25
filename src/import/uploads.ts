@@ -1,5 +1,5 @@
 import { createHash } from 'node:crypto'
-import { mkdir, rm, writeFile } from 'node:fs/promises'
+import { mkdir, readdir, rm, writeFile } from 'node:fs/promises'
 import { join, resolve } from 'node:path'
 import type { PoolClient } from 'pg'
 import type { Database } from '../db/connection.ts'
@@ -18,6 +18,19 @@ export const fileNameIssue = (name: string) => {
   if (!name.trim() || name.length > 200) return 'file name must have 1 to 200 characters'
   if (/[/\\\0]/.test(name) || name === '.' || name === '..') return 'file name must not contain a path'
   return undefined
+}
+
+const hashName = /^[0-9a-f]{64}$/
+
+const kept = async (pool: Database, hashes: string[]) => new Set((await pool.query<{ hash: string }>("select distinct file_hash as hash from import_batch where file_hash = any($1) and status in ('draft', 'verified')", [hashes])).rows.map((row) => row.hash))
+
+const folders = async (folder: string) => {
+  try {
+    return (await readdir(folder, { withFileTypes: true })).filter((item) => item.isDirectory() && hashName.test(item.name)).map((item) => item.name)
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === 'ENOENT') return []
+    throw error
+  }
 }
 
 export const importUploads = (pool: Database, { folder = uploadsFolder(), ...options }: Uploads = {}) => {
@@ -60,7 +73,21 @@ export const importUploads = (pool: Database, { folder = uploadsFolder(), ...opt
     }
   }
 
-  return { start, progressOf: (batchId: bigint) => progress.get(batchId) ?? null, settled: () => Promise.all(running) }
+  const prune = async (hashes: string[]) => {
+    const keep = await kept(pool, hashes)
+    const removed = hashes.filter((hash) => !keep.has(hash))
+    for (const hash of removed) await rm(join(folder, hash), { recursive: true, force: true })
+    return removed
+  }
+
+  const discard = async (batchId: bigint) => {
+    const hash = (await pool.query<{ hash: string }>('select file_hash as hash from import_batch where id = $1', [batchId])).rows[0]?.hash
+    return hash ? prune([hash]) : []
+  }
+
+  const sweep = async () => prune(await folders(folder))
+
+  return { start, discard, sweep, progressOf: (batchId: bigint) => progress.get(batchId) ?? null, settled: () => Promise.all(running) }
 }
 
 export type ImportUploads = ReturnType<typeof importUploads>

@@ -13,7 +13,15 @@ const date = /^(19|20)\d\d(0[1-9]|1[0-2])(0[1-9]|[12]\d|3[01])(([01]\d|2[0-3])[0
 
 export const maskDigits = (value: string) => value.replace(/\d{5,}/g, (digits, offset: number) => (date.test(digits) || /^[.,]\d\d(?!\d)/.test(value.slice(offset + digits.length)) ? digits : `•${digits.slice(-4)}`))
 
-export const batchOfFile = async (client: Queryable, hash: string) => (await client.query<{ id: bigint }>("select id from import_batch where file_hash = $1 and status in ('draft', 'verified', 'committed') order by id limit 1", [hash])).rows[0]?.id
+export const batchOfFile = async (client: Queryable, hash: string) =>
+  (
+    await client.query<{ id: bigint }>(
+      `select id from import_batch b where file_hash = $1
+      and (status in ('draft', 'verified', 'committed') or exists (select 1 from import_candidate c where c.batch_id = b.id and c.record_id is not null))
+      order by id limit 1`,
+      [hash],
+    )
+  ).rows[0]?.id
 
 export const openBatch = (client: Client, actor: Actor, file: ImportFile) =>
   write(client, actor, async (ledger) => {

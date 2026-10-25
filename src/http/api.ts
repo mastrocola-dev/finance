@@ -5,6 +5,7 @@ import { connectPool, type Database } from '../db/connection.ts'
 import type { Actor } from '../db/write.ts'
 import { findBatch, listBatches, listCandidates, listQuestions } from '../import/batches.ts'
 import { maxBytes } from '../import/cli.ts'
+import { closeBatch } from '../import/close.ts'
 import { commitBatch } from '../import/commit.ts'
 import { answerQuestion, editCandidate, reviewCandidates } from '../import/review.ts'
 import { type ImportUploads, importUploads } from '../import/uploads.ts'
@@ -91,6 +92,8 @@ const reviewableBatch = async ({ client, imports }: { client: Database; imports:
   if (imports.progressOf(batchId)?.state === 'extracting') throw new HttpError(409, `import batch ${id} is still extracting`)
   return batchId
 }
+
+const removeUpload = (imports: ImportUploads, batchId: bigint) => imports.discard(batchId).catch(() => [])
 
 const reviewSummaries = { accept: 'Accept open candidates of a verified import batch', reject: 'Reject open candidates of a verified import batch' } as const
 
@@ -196,6 +199,13 @@ export const routes: Route[] = [
   route({ method: 'POST', path: '/imports/:id/commit', operationId: 'commitImport', summary: 'Write the accepted and edited candidates of a verified import batch to the ledger', params: idPath, response: schemas.ImportBatch }, async (input) => {
     const batchId = await reviewableBatch(input, input.params.id)
     await writing(input, (connection, actor) => commitBatch(connection, { author: 'import', memberId: actor.memberId }, batchId))
+    await removeUpload(input.imports, batchId)
+    return batchView(input, batchId)
+  }),
+  route({ method: 'POST', path: '/imports/:id/close', operationId: 'closeImport', summary: 'Close a committed import batch or abandon a draft or verified one; ledger rows stay and the uploaded file is removed', params: idPath, response: schemas.ImportBatch }, async (input) => {
+    const batchId = await reviewableBatch(input, input.params.id)
+    await writing(input, (connection, actor) => closeBatch(connection, actor, batchId))
+    await removeUpload(input.imports, batchId)
     return batchView(input, batchId)
   }),
 ]
@@ -247,7 +257,9 @@ export const serveApi = (client: Database, port = Number(process.env.API_PORT ??
 
 if (import.meta.main) {
   const pool = connectPool()
-  const server = await serveApi(pool)
+  const imports = importUploads(pool)
+  await imports.sweep()
+  const server = await serveApi(pool, undefined, undefined, imports)
   console.error(`finance api on ${server.url}${apiPrefix}`)
   const stop = async () => {
     await server.close()

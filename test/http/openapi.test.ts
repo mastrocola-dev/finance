@@ -123,6 +123,7 @@ describe('openapi', () => {
       acceptImportCandidates: { path: '/imports/IMPORT/candidates/accept', body: { ids: ['FIRST'] } },
       rejectImportCandidates: { path: '/imports/IMPORT/candidates/reject', body: { ids: ['SECOND'] } },
       commitImport: { path: '/imports/IMPORT/commit' },
+      closeImport: { path: '/imports/IMPORT/close' },
     }
     let entry = ''
     let batch = ''
