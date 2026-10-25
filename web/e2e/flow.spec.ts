@@ -1,13 +1,13 @@
 import { execSync } from 'node:child_process'
 import { type Browser, expect, test } from '@playwright/test'
+import { openContext } from './context.ts'
 
 const reseed = () => execSync('npm run db:reset && npm run db:seed', { cwd: '..', stdio: 'ignore' })
 
 const open = async (browser: Browser, viewport = { width: 1440, height: 1000 }, colorScheme: 'light' | 'dark' = 'light') => {
-  const context = await browser.newContext({ viewport, colorScheme, locale: 'pt-BR', timezoneId: 'America/Sao_Paulo' })
+  const context = await openContext(browser, { viewport, colorScheme })
   await context.addInitScript(() => localStorage.setItem('finance.member', 'Marcio'))
   const page = await context.newPage()
-  await page.clock.setFixedTime(new Date('2026-10-18T12:00:00-03:00'))
   return { context, page }
 }
 

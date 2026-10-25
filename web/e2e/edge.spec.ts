@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test'
+import { openContext } from './context.ts'
 import { pinTabBar } from './shot.ts'
 
 const routes = [
@@ -15,7 +16,7 @@ const gutter = 16
 
 for (const width of [320, 390, 1440])
   test(`no horizontal overflow and a ${gutter} px gutter at ${width}`, async ({ browser }) => {
-    const context = await browser.newContext({ viewport: { width, height: 844 }, locale: 'pt-BR', timezoneId: 'America/Sao_Paulo' })
+    const context = await openContext(browser, { viewport: { width, height: 844 } })
     await context.addInitScript(() => localStorage.setItem('finance.member', 'Marcio'))
     const page = await context.newPage()
     for (const route of routes) {
@@ -48,7 +49,7 @@ for (const width of [320, 390, 1440])
   })
 
 test('full-page phone shots pin the tab bar to the end of the page', async ({ browser }) => {
-  const context = await browser.newContext({ viewport: { width: 390, height: 844 }, locale: 'pt-BR', timezoneId: 'America/Sao_Paulo' })
+  const context = await openContext(browser, { viewport: { width: 390, height: 844 } })
   await context.addInitScript(() => localStorage.setItem('finance.member', 'Marcio'))
   const page = await context.newPage()
   await page.goto('/lancamentos?month=2026-10')

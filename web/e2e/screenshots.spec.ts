@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test'
+import { openContext } from './context.ts'
 import { fullShot } from './shot.ts'
 
 const routes = [
@@ -19,7 +20,7 @@ for (const theme of ['light', 'dark'] as const)
   for (const viewport of viewports)
     for (const route of routes)
       test(`${route.name} ${viewport.width} ${theme}`, async ({ browser }) => {
-        const context = await browser.newContext({ viewport, colorScheme: theme, locale: 'pt-BR', timezoneId: 'America/Sao_Paulo' })
+        const context = await openContext(browser, { viewport, colorScheme: theme })
         await context.addInitScript(() => localStorage.setItem('finance.member', 'Marcio'))
         const page = await context.newPage()
         await page.goto(route.path)

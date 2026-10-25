@@ -1,7 +1,8 @@
 import { expect, test } from '@playwright/test'
+import { openContext } from './context.ts'
 
 test('pwa serves the month overview offline from the cache', async ({ browser }) => {
-  const context = await browser.newContext({ locale: 'pt-BR', timezoneId: 'America/Sao_Paulo' })
+  const context = await openContext(browser)
   await context.addInitScript(() => localStorage.setItem('finance.member', 'Marcio'))
   const page = await context.newPage()
   await page.goto('/?month=2026-10')

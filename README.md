@@ -104,7 +104,7 @@ npm run check
 npm run fix
 ```
 
-Copy `.env.example` to `.env` and adjust it; every script loads `.env` when present. `DATABASE_URL` defaults to `postgres://postgres@localhost:5432/finance`. `npm run db:migrate` applies pending migrations from `db/migrations`; `npm run db:reset` drops and recreates the database; `npm run db:seed` fills an empty database with an invented household (twelve months up to 2026-10, as if today were 2026-10-18). Tests create and drop their own `finance_test_*` databases on the same server.
+Copy `.env.example` to `.env` and adjust it; every script loads `.env` when present. `DATABASE_URL` defaults to `postgres://postgres@localhost:5432/finance`. `npm run db:migrate` applies pending migrations from `db/migrations`; `npm run db:reset` drops and recreates the database; `npm run db:seed` fills an empty database with an invented household (twelve months up to 2026-10, as if today were 2026-10-18). Tests create and drop their own `finance_test_*` databases on the same server. `FINANCE_CLOCK` (a time with offset, such as `2026-10-18T12:00:00-03:00`) freezes the API's today and the ledger timestamps; the Playwright API server runs with it set to the seed's today and the browser clock frozen at the same instant, so screenshots change only when a screen does (stop any API already on port 3200 first, Playwright reuses it).
 
 ### Import converters (Python)
 

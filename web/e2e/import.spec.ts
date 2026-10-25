@@ -1,6 +1,7 @@
 import { execSync } from 'node:child_process'
 import AxeBuilder from '@axe-core/playwright'
 import { expect, type Page, test } from '@playwright/test'
+import { openContext } from './context.ts'
 import { fullShot } from './shot.ts'
 
 const reseed = () => execSync('npm run db:reset && npm run db:seed', { cwd: '..', stdio: 'ignore' })
@@ -21,7 +22,7 @@ test.beforeAll(reseed)
 test.afterAll(reseed)
 
 test('import uploads a file with consent, waits until it can be reviewed', async ({ browser }) => {
-  const context = await browser.newContext({ viewport: viewports[1], locale: 'pt-BR', timezoneId: 'America/Sao_Paulo' })
+  const context = await openContext(browser, { viewport: viewports[1] })
   await context.addInitScript(() => localStorage.setItem('finance.member', 'Marcio'))
   const page = await context.newPage()
   await page.goto('/importar')
@@ -40,7 +41,7 @@ test('import uploads a file with consent, waits until it can be reviewed', async
 for (const theme of ['light', 'dark'] as const)
   for (const viewport of viewports)
     test(`import screenshot ${viewport.width} ${theme}`, async ({ browser }) => {
-      const context = await browser.newContext({ viewport, colorScheme: theme, locale: 'pt-BR', timezoneId: 'America/Sao_Paulo' })
+      const context = await openContext(browser, { viewport, colorScheme: theme })
       await context.addInitScript(() => localStorage.setItem('finance.member', 'Marcio'))
       const page = await context.newPage()
       await page.goto('/importar')
@@ -54,7 +55,7 @@ for (const theme of ['light', 'dark'] as const)
 for (const theme of ['light', 'dark'] as const)
   for (const viewport of viewports)
     test(`import review screenshot ${viewport.width} ${theme}`, async ({ browser }) => {
-      const context = await browser.newContext({ viewport, colorScheme: theme, locale: 'pt-BR', timezoneId: 'America/Sao_Paulo' })
+      const context = await openContext(browser, { viewport, colorScheme: theme })
       await context.addInitScript(() => localStorage.setItem('finance.member', 'Marcio'))
       const page = await context.newPage()
       await page.goto('/importar')
@@ -76,7 +77,7 @@ for (const theme of ['light', 'dark'] as const)
     })
 
 test('import review reads the low-confidence chunk again before anything is reviewed', async ({ browser }) => {
-  const context = await browser.newContext({ viewport: viewports[1], locale: 'pt-BR', timezoneId: 'America/Sao_Paulo' })
+  const context = await openContext(browser, { viewport: viewports[1] })
   await context.addInitScript(() => localStorage.setItem('finance.member', 'Marcio'))
   const page = await context.newPage()
   await page.goto('/importar')
@@ -97,7 +98,7 @@ test('import review reads the low-confidence chunk again before anything is revi
 })
 
 test('import review answers, accepts and rejects candidates', async ({ browser }) => {
-  const context = await browser.newContext({ viewport: viewports[1], locale: 'pt-BR', timezoneId: 'America/Sao_Paulo' })
+  const context = await openContext(browser, { viewport: viewports[1] })
   await context.addInitScript(() => localStorage.setItem('finance.member', 'Marcio'))
   const page = await context.newPage()
   await page.goto('/importar')
@@ -133,7 +134,7 @@ const shoot = (name: string, prepare: (page: Page) => Promise<void>) => {
   for (const theme of ['light', 'dark'] as const)
     for (const viewport of viewports)
       test(`${name} screenshot ${viewport.width} ${theme}`, async ({ browser }) => {
-        const context = await browser.newContext({ viewport, colorScheme: theme, locale: 'pt-BR', timezoneId: 'America/Sao_Paulo' })
+        const context = await openContext(browser, { viewport, colorScheme: theme })
         await context.addInitScript(() => localStorage.setItem('finance.member', 'Marcio'))
         const page = await context.newPage()
         await prepare(page)
@@ -165,7 +166,7 @@ shoot('imports-commit', async (page) => {
 })
 
 test('import commit writes the accepted items, which reach the entries and the activity', async ({ browser }) => {
-  const context = await browser.newContext({ viewport: viewports[1], locale: 'pt-BR', timezoneId: 'America/Sao_Paulo' })
+  const context = await openContext(browser, { viewport: viewports[1] })
   await context.addInitScript(() => localStorage.setItem('finance.member', 'Marcio'))
   const page = await context.newPage()
   await review(page)
@@ -190,7 +191,7 @@ shoot('imports-committed', async (page) => {
 })
 
 test('import closes the committed batch from the review', async ({ browser }) => {
-  const context = await browser.newContext({ viewport: viewports[0], locale: 'pt-BR', timezoneId: 'America/Sao_Paulo' })
+  const context = await openContext(browser, { viewport: viewports[0] })
   await context.addInitScript(() => localStorage.setItem('finance.member', 'Marcio'))
   const page = await context.newPage()
   await page.goto('/importar')
@@ -210,7 +211,7 @@ test('import closes the committed batch from the review', async ({ browser }) =>
 const second = { name: 'extrato-novembro.csv', mimeType: 'text/csv', buffer: Buffer.from('data,descricao,valor\n2026-11-03,Padaria do bairro,-21.00\n') }
 
 test('import discards a batch that was never reviewed', async ({ browser }) => {
-  const context = await browser.newContext({ viewport: viewports[0], locale: 'pt-BR', timezoneId: 'America/Sao_Paulo' })
+  const context = await openContext(browser, { viewport: viewports[0] })
   await context.addInitScript(() => localStorage.setItem('finance.member', 'Marcio'))
   const page = await context.newPage()
   await page.goto('/importar')

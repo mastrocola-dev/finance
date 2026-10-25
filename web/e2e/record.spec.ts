@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test'
+import { openContext } from './context.ts'
 
 const screens = [
   { path: '/lancamentos', heading: /de 20\d\d$/ },
@@ -9,7 +10,7 @@ const screens = [
 for (const theme of ['light', 'dark'] as const)
   for (const screen of screens)
     test(`record link lands on the record in ${screen.path} 1440 ${theme}`, async ({ browser }) => {
-      const context = await browser.newContext({ viewport: { width: 1440, height: 700 }, colorScheme: theme, locale: 'pt-BR', timezoneId: 'America/Sao_Paulo' })
+      const context = await openContext(browser, { viewport: { width: 1440, height: 700 }, colorScheme: theme })
       await context.addInitScript(() => localStorage.setItem('finance.member', 'Marcio'))
       const page = await context.newPage()
       await page.goto('/atividade')

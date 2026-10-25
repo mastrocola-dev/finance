@@ -1,9 +1,10 @@
 import AxeBuilder from '@axe-core/playwright'
 import { expect, test } from '@playwright/test'
+import { openContext } from './context.ts'
 
 for (const theme of ['light', 'dark'] as const)
   test(`more menu reaches every extra screen in two taps 390 ${theme}`, async ({ browser }) => {
-    const context = await browser.newContext({ viewport: { width: 390, height: 844 }, colorScheme: theme, locale: 'pt-BR', timezoneId: 'America/Sao_Paulo' })
+    const context = await openContext(browser, { viewport: { width: 390, height: 844 }, colorScheme: theme })
     await context.addInitScript(() => localStorage.setItem('finance.member', 'Marcio'))
     const page = await context.newPage()
     await page.goto('/decisoes')

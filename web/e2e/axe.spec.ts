@@ -1,5 +1,6 @@
 import AxeBuilder from '@axe-core/playwright'
 import { expect, test } from '@playwright/test'
+import { openContext } from './context.ts'
 
 const routes = [
   { name: 'overview', path: '/?month=2026-10', heading: 'Outubro de 2026' },
@@ -20,7 +21,7 @@ for (const theme of ['light', 'dark'] as const)
   for (const viewport of viewports)
     for (const route of routes)
       test(`axe ${route.name} ${viewport.width} ${theme}`, async ({ browser }) => {
-        const context = await browser.newContext({ viewport, colorScheme: theme, locale: 'pt-BR', timezoneId: 'America/Sao_Paulo' })
+        const context = await openContext(browser, { viewport, colorScheme: theme })
         await context.addInitScript(() => localStorage.setItem('finance.member', 'Marcio'))
         const page = await context.newPage()
         await page.goto(route.path)
