@@ -1,8 +1,10 @@
+import json
+
 import pytest
 
 from ingest.address import BadAddress
 from ingest.mapping import apply_mapping
-from ingest.reader import load
+from ingest.reader import load, segments
 from ingest.window import read_segment
 from tests.conftest import write_pdf
 
@@ -40,7 +42,7 @@ def test_ranges_are_clamped_to_the_used_area(household):
 
 def test_read_a_tree_path_by_item(fixtures):
     document = load(fixtures / 'carteira.json')
-    result = read_segment(document, 'tree-2')
+    result = read_segment(document, 'tree-3')
     assert sources(result) == [
         '$.accounts[0].transactions[0]',
         '$.accounts[0].transactions[1]',
@@ -49,6 +51,21 @@ def test_read_a_tree_path_by_item(fixtures):
     assert result['items'][0]['value']['tags'] == '[1 items]'
     [item] = read_segment(document, '$.accounts[1].transactions[0]')['items']
     assert item['value']['description'] == 'Cinema'
+
+
+def test_header_segment_reads_every_field_outside_lists(tmp_path):
+    path = tmp_path / 'contrato.json'
+    path.write_text(
+        json.dumps({'contrato': {f'campo{index}': index for index in range(30)}, 'parcelas': [1]})
+    )
+    document = load(path)
+    [head, _] = segments(document)
+    assert head['shape'] == {'items': 1, 'fields': 30}
+    assert len(head['preview'][0]) == 20
+    [item] = read_segment(document, head['id'])['items']
+    assert item['source'] == '$'
+    assert len(item['value']) == 30
+    assert item['value']['$.contrato.campo29'] == 29
 
 
 def test_read_text_lines_by_page(tmp_path):
@@ -100,7 +117,7 @@ def test_table_mapping_skips_headers_and_empty_rows(fixtures):
 def test_tree_mapping_reads_relative_paths(fixtures):
     result = apply_mapping(
         load(fixtures / 'orcamento.xml'),
-        'tree-1',
+        'tree-2',
         {'category': '["@categoria"]', 'amount': 'valor', 'note': 'x'},
     )
     assert result['items'][1] == {

@@ -1,6 +1,6 @@
 [
   {
-    "source": "$.contrato.parcelas.parcela",
+    "source": "$",
     "offset": 0,
     "output": {
       "candidates": [
@@ -20,7 +20,22 @@
             "startsOn": "2026-07-20",
             "member": "Marcio"
           }
-        },
+        }
+      ],
+      "questions": [],
+      "totals": []
+    },
+    "usage": {
+      "inputTokens": 1500,
+      "outputTokens": 300,
+      "costUsdMicros": 9000
+    }
+  },
+  {
+    "source": "$.contrato.parcelas.parcela",
+    "offset": 0,
+    "output": {
+      "candidates": [
         {
           "kind": "entry",
           "source": "$.contrato.parcelas.parcela[0]",
@@ -81,8 +96,8 @@
     },
     "usage": {
       "inputTokens": 2900,
-      "outputTokens": 900,
-      "costUsdMicros": 22200
+      "outputTokens": 650,
+      "costUsdMicros": 18450
     }
   }
 ]

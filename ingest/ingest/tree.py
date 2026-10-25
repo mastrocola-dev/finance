@@ -1,12 +1,14 @@
 import json
 import re
 from collections.abc import Iterator
+from itertools import islice
 from pathlib import Path
 from xml.etree import ElementTree
 
 from ingest.segment import CELL_LIMIT, PREVIEW_KEYS, PREVIEW_SAMPLES, Segment, clip
 
 Branch = tuple[str, list[object]]
+HEADER_FIELDS = 100
 
 
 def step(path: str, key: str) -> str:
@@ -23,6 +25,18 @@ def walk(nodes: list[object], path: str) -> Iterator[Branch]:
     objects = [node for node in nodes if isinstance(node, dict)]
     for key in dict.fromkeys(key for node in objects for key in node):
         yield from walk([node[key] for node in objects if key in node], step(path, key))
+
+
+def fields(node: object, path: str = '$') -> Iterator[tuple[str, object]]:
+    if isinstance(node, dict):
+        for key, value in node.items():
+            yield from fields(value, step(path, key))
+    elif not isinstance(node, list) and node is not None:
+        yield path, node
+
+
+def header(root: object, limit: int = CELL_LIMIT, count: int = HEADER_FIELDS) -> dict[str, object]:
+    return {path: clip(value, limit) for path, value in islice(fields(root), count)}
 
 
 def bounded(value: object, depth: int = 2, limit: int = CELL_LIMIT) -> object:
@@ -49,8 +63,9 @@ def resolve(root: object, tokens: list[str | int | None], path: str = '$') -> li
 
 
 def tree_segments(root: object) -> list[Segment]:
-    branches = list(walk([root], '$')) or [('$', [root])]
-    return [
+    head = header(root, count=PREVIEW_KEYS)
+    top = [Segment('tree', '$', {'items': 1, 'fields': sum(1 for _ in fields(root))}, [head])] if head else []
+    lists = [
         Segment(
             'tree',
             path,
@@ -60,8 +75,9 @@ def tree_segments(root: object) -> list[Segment]:
             },
             [bounded(item) for item in items[:PREVIEW_SAMPLES]],
         )
-        for path, items in branches
+        for path, items in walk([root], '$')
     ]
+    return top + lists or [Segment('tree', '$', {'items': 1, 'keys': []}, [bounded(root)])]
 
 
 def attach(parent: dict, key: str, child: object) -> None:

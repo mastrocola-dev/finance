@@ -1,12 +1,12 @@
 [
   {
-    "source": "$.OFX.CREDITCARDMSGSRSV1.CCSTMTTRNRS.CCSTMTRS.BANKTRANLIST.STMTTRN",
+    "source": "$",
     "offset": 0,
     "output": {
       "candidates": [
         {
           "kind": "account",
-          "source": "$.OFX.CREDITCARDMSGSRSV1.CCSTMTTRNRS.CCSTMTRS.BANKTRANLIST.STMTTRN[8]",
+          "source": "$.OFX.CREDITCARDMSGSRSV1.CCSTMTTRNRS.CCSTMTRS.CCACCTFROM.ACCTID",
           "confidence": 0.7,
           "payload": {
             "institution": "Cartão de crédito",
@@ -14,7 +14,29 @@
             "lastFour": "8765",
             "kind": "credit_card"
           }
-        },
+        }
+      ],
+      "questions": [
+        {
+          "question": "Qual é o banco deste cartão final 8765?",
+          "options": [],
+          "source": "$.OFX.CREDITCARDMSGSRSV1.CCSTMTTRNRS.CCSTMTRS.CCACCTFROM.ACCTID",
+          "candidate": 0
+        }
+      ],
+      "totals": []
+    },
+    "usage": {
+      "inputTokens": 1400,
+      "outputTokens": 150,
+      "costUsdMicros": 6450
+    }
+  },
+  {
+    "source": "$.OFX.CREDITCARDMSGSRSV1.CCSTMTTRNRS.CCSTMTRS.BANKTRANLIST.STMTTRN",
+    "offset": 0,
+    "output": {
+      "candidates": [
         {
           "kind": "entry",
           "source": "$.OFX.CREDITCARDMSGSRSV1.CCSTMTTRNRS.CCSTMTRS.BANKTRANLIST.STMTTRN[0]",
@@ -128,20 +150,13 @@
           }
         }
       ],
-      "questions": [
-        {
-          "question": "Qual é o banco deste cartão final 8765?",
-          "options": [],
-          "source": "$.OFX.CREDITCARDMSGSRSV1.CCSTMTTRNRS.CCSTMTRS.BANKTRANLIST.STMTTRN",
-          "candidate": 0
-        }
-      ],
+      "questions": [],
       "totals": []
     },
     "usage": {
       "inputTokens": 3300,
-      "outputTokens": 1600,
-      "costUsdMicros": 33900
+      "outputTokens": 1500,
+      "costUsdMicros": 32400
     }
   }
 ]

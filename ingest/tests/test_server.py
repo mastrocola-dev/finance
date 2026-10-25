@@ -35,7 +35,7 @@ def test_list_segments_through_the_client(fixtures):
     result = call(fixtures, 'list_segments', {'file': 'extrato.ofx'})
     assert not result.is_error
     assert result.structured_content['format'] == 'ofx'
-    assert [segment['id'] for segment in result.structured_content['segments']] == ['tree-1']
+    assert [segment['id'] for segment in result.structured_content['segments']] == ['tree-1', 'tree-2']
 
 
 def test_digit_runs_are_masked_in_every_tool(tmp_path):

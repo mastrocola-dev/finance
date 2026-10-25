@@ -6,7 +6,7 @@ from ingest.address import BadAddress, parse_lines, parse_path, parse_range
 from ingest.reader import Document, segments
 from ingest.segment import clip
 from ingest.table import Box, address
-from ingest.tree import bounded, resolve
+from ingest.tree import bounded, header, resolve
 
 READ_ROWS = 50
 MAX_ROWS = 200
@@ -93,6 +93,9 @@ def read_table(document: Document, source: str) -> tuple[int, Build]:
 
 
 def read_tree(document: Document, source: str) -> tuple[int, Build]:
+    head = header(document.content, VALUE_CHARACTERS) if source == '$' else None
+    if head:
+        return 1, lambda index: {'source': '$', 'value': head}
     items = tree_items(document.content, source)
     return len(items), lambda index: {
         'source': items[index][0],

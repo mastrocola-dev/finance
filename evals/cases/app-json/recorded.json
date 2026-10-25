@@ -1,5 +1,19 @@
 [
   {
+    "source": "$",
+    "offset": 0,
+    "output": {
+      "candidates": [],
+      "questions": [],
+      "totals": []
+    },
+    "usage": {
+      "inputTokens": 1300,
+      "outputTokens": 60,
+      "costUsdMicros": 4800
+    }
+  },
+  {
     "source": "$.accounts",
     "offset": 0,
     "output": {

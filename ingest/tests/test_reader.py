@@ -57,11 +57,16 @@ def test_csv_delimiter_survives_a_preamble_and_decimal_commas(tmp_path):
 def test_json_arrays_become_tree_segments_with_samples(fixtures):
     result = inspect(fixtures / 'carteira.json')
     assert sources(result) == [
-        ('tree-1', '$.accounts'),
-        ('tree-2', '$.accounts[*].transactions'),
-        ('tree-3', '$.accounts[*].transactions[*].tags'),
+        ('tree-1', '$'),
+        ('tree-2', '$.accounts'),
+        ('tree-3', '$.accounts[*].transactions'),
+        ('tree-4', '$.accounts[*].transactions[*].tags'),
     ]
-    accounts, transactions, _ = result['segments']
+    head, accounts, transactions, _ = result['segments']
+    assert head['shape'] == {'items': 1, 'fields': 3}
+    assert head['preview'] == [
+        {'$.exportedAt': '2026-10-20', '$.budget.month': '2026-10', '$.budget.limit': 6000}
+    ]
     assert accounts['preview'][0] == {'name': 'Conta conjunta', 'transactions': '[2 items]'}
     assert transactions['shape'] == {'items': 3, 'keys': ['date', 'description', 'amount', 'tags']}
     assert transactions['preview'][2]['description'] == 'Cinema'
@@ -75,8 +80,11 @@ def test_json_without_arrays_is_one_root_segment(tmp_path):
 
 def test_xml_repeated_elements_become_a_tree_segment(fixtures):
     result = inspect(fixtures / 'orcamento.xml')
-    assert sources(result) == [('tree-1', '$.orcamento.despesas.despesa')]
-    [segment] = result['segments']
+    assert sources(result) == [('tree-1', '$'), ('tree-2', '$.orcamento.despesas.despesa')]
+    head, segment = result['segments']
+    assert head['preview'] == [
+        {'$.orcamento["@mes"]': '2026-10', '$.orcamento.observacao': 'Valores fictícios'}
+    ]
     assert segment['shape']['items'] == 3
     assert segment['preview'][0] == {'@categoria': 'Alimentação', 'descricao': 'Feira', 'valor': '210.50'}
 
@@ -84,8 +92,9 @@ def test_xml_repeated_elements_become_a_tree_segment(fixtures):
 def test_ofx_statement_lists_transactions(fixtures):
     result = inspect(fixtures / 'extrato.ofx')
     path = '$.OFX.BANKMSGSRSV1.STMTTRNRS.STMTRS.BANKTRANLIST.STMTTRN'
-    assert sources(result) == [('tree-1', path)]
-    [segment] = result['segments']
+    assert sources(result) == [('tree-1', '$'), ('tree-2', path)]
+    head, segment = result['segments']
+    assert head['preview'][0]['$.OFX.BANKMSGSRSV1.STMTTRNRS.STMTRS.LEDGERBAL.BALAMT'] == '8752.70'
     assert segment['shape']['items'] == 3
     assert segment['preview'][1] == {
         'TRNTYPE': 'CREDIT',
