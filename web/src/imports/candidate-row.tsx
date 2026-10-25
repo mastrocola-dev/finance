@@ -1,11 +1,22 @@
+import { useState } from 'react'
 import { Button } from '../components/ui/button.tsx'
 import { chip } from '../decisions/decision-card.tsx'
 import { cn } from '../lib/utils.ts'
+import { CandidateForm } from './candidate-form.tsx'
+import type { Errors, Names } from './edit-model.ts'
 import { amountOf, type Candidate, checkText, confidenceText, type Decision, detailsOf, hasBlocking, isBlocking, statusLabels, statusTones, titleOf } from './review-model.ts'
 
-type Props = { candidate: Candidate; busy: boolean; onDecide: (decision: Decision) => void }
+export type EditForm = { close: () => void; refuse: (errors: Errors) => void }
 
-export const CandidateRow = ({ candidate, busy, onDecide }: Props) => {
+type Props = { candidate: Candidate; names: Record<Names, string[]>; busy: boolean; onDecide: (decision: Decision) => void; onEdit: (payload: Record<string, unknown>, form: EditForm) => void }
+
+export const CandidateRow = ({ candidate, names, busy, onDecide, onEdit }: Props) => {
+  const [editing, setEditing] = useState(false)
+  const [refused, setRefused] = useState<Errors>()
+  const close = () => {
+    setEditing(false)
+    setRefused(undefined)
+  }
   const title = titleOf(candidate)
   const amount = amountOf(candidate)
   const stuck = hasBlocking(candidate)
@@ -38,6 +49,11 @@ export const CandidateRow = ({ candidate, busy, onDecide }: Props) => {
         </span>
         <span className="text-xs text-muted">Confiança {confidenceText(candidate.confidence)}</span>
         <span className="ml-auto flex gap-2">
+          {candidate.status !== 'rejected' && !editing && (
+            <Button variant="ghost" disabled={busy} aria-label={`Editar ${title}`} onClick={() => setEditing(true)}>
+              Editar
+            </Button>
+          )}
           {candidate.status !== 'rejected' && (
             <Button variant="ghost" disabled={busy} aria-label={`Rejeitar ${title}`} onClick={() => onDecide('reject')}>
               Rejeitar
@@ -50,6 +66,20 @@ export const CandidateRow = ({ candidate, busy, onDecide }: Props) => {
           )}
         </span>
       </div>
+      {editing && (
+        <CandidateForm
+          candidate={candidate}
+          title={title}
+          names={names}
+          busy={busy}
+          serverErrors={refused}
+          onCancel={close}
+          onSave={(payload) => {
+            setRefused(undefined)
+            onEdit(payload, { close, refuse: setRefused })
+          }}
+        />
+      )}
     </li>
   )
 }

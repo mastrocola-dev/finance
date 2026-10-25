@@ -9,11 +9,14 @@ import { type Notice, Toast } from '../components/toast.tsx'
 import { Button } from '../components/ui/button.tsx'
 import { chip } from '../decisions/decision-card.tsx'
 import { cn } from '../lib/utils.ts'
-import { CandidateRow } from './candidate-row.tsx'
+import { ApiFailure } from '../query/client.ts'
+import { useNames } from './candidate-form.tsx'
+import { CandidateRow, type EditForm } from './candidate-row.tsx'
+import { type Names, serverErrors } from './edit-model.ts'
 import { type Batch, formatStamp, phaseLabels, phaseOf, phaseTones, plural, progressText } from './model.ts'
 import { QuestionCard } from './question-card.tsx'
 import { acceptable, type Candidate, checkText, type Decision, type Group, groupCandidates, type Question, reviewCounts, reviewFailure, titleOf } from './review-model.ts'
-import { useAnswer, useBatch, useCandidates, useDecide, useQuestions } from './review-queries.ts'
+import { useAnswer, useBatch, useCandidates, useDecide, useEdit, useQuestions } from './review-queries.ts'
 
 const card = 'flex min-w-0 flex-col gap-2 rounded-card border bg-surface px-4 py-3 md:px-6 md:py-4'
 
@@ -64,9 +67,9 @@ const Summary = ({ candidates, questions }: { candidates: Candidate[]; questions
   )
 }
 
-type GroupProps = { group: Group; busy: boolean; onDecide: (ids: string[], decision: Decision, label: string) => void }
+type GroupProps = { group: Group; names: Record<Names, string[]>; busy: boolean; onDecide: (ids: string[], decision: Decision, label: string) => void; onEdit: (candidate: Candidate, payload: Record<string, unknown>, form: EditForm) => void }
 
-const GroupCard = ({ group, busy, onDecide }: GroupProps) => {
+const GroupCard = ({ group, names, busy, onDecide, onEdit }: GroupProps) => {
   const ready = acceptable(group)
   const headingId = `group-${group.key}`
   return (
@@ -84,7 +87,7 @@ const GroupCard = ({ group, busy, onDecide }: GroupProps) => {
       </div>
       <ul className="m-0 flex list-none flex-col p-0">
         {group.candidates.map((candidate) => (
-          <CandidateRow key={candidate.id} candidate={candidate} busy={busy} onDecide={(decision) => onDecide([candidate.id], decision, titleOf(candidate))} />
+          <CandidateRow key={candidate.id} candidate={candidate} names={names} busy={busy} onDecide={(decision) => onDecide([candidate.id], decision, titleOf(candidate))} onEdit={(payload, form) => onEdit(candidate, payload, form)} />
         ))}
       </ul>
     </section>
@@ -98,10 +101,23 @@ const Review = ({ batch }: { batch: Batch }) => {
   const questions = useQuestions(batch.id, true)
   const answer = useAnswer(batch.id)
   const decide = useDecide(batch.id)
+  const edit = useEdit(batch.id)
+  const names = useNames(candidates.data ?? [])
   const [notice, setNotice] = useState<Notice>()
   const dismiss = useCallback(() => setNotice(undefined), [])
   const busy = useMutationState({ filters: { mutationKey: ['import-review', batch.id], status: 'pending' } }).length > 0
   const onError = (error: Error) => setNotice({ tone: 'error', message: reviewFailure(error) })
+  const onEdit = (candidate: Candidate, payload: Record<string, unknown>, form: EditForm) =>
+    edit.mutate(
+      { candidate: candidate.id, payload },
+      {
+        onSuccess: () => {
+          form.close()
+          setNotice({ message: `Editado: ${titleOf({ ...candidate, payload })}` })
+        },
+        onError: (error) => (error instanceof ApiFailure && /^invalid \w+ payload/.test(error.message) ? form.refuse(serverErrors(candidate.kind, error.message)) : onError(error)),
+      },
+    )
 
   return (
     <>
@@ -140,7 +156,7 @@ const Review = ({ batch }: { batch: Batch }) => {
                   {items.length === 0 ? (
                     <EmptyState title="Nenhum item lido">O Claude não encontrou lançamentos neste arquivo. Volte ao histórico para descartar a importação.</EmptyState>
                   ) : (
-                    groupCandidates(items).map((group) => <GroupCard key={group.key} group={group} busy={busy} onDecide={(ids, decision, label) => decide.mutate({ ids, decision }, { onSuccess: () => setNotice({ message: decided(decision, label) }), onError })} />)
+                    groupCandidates(items).map((group) => <GroupCard key={group.key} group={group} names={names} busy={busy} onEdit={onEdit} onDecide={(ids, decision, label) => decide.mutate({ ids, decision }, { onSuccess: () => setNotice({ message: decided(decision, label) }), onError })} />)
                   )}
                 </div>
               )

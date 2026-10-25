@@ -50,3 +50,14 @@ export const useDecide = (id: string) => {
     onSettled: () => refresh(queryClient),
   })
 }
+
+export const useEdit = (id: string) => {
+  const { api } = useIdentity()
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationKey: ['import-review', id],
+    scope: { id: `import-review-${id}` },
+    mutationFn: async ({ candidate, payload }: { candidate: string; payload: Record<string, unknown> }) => unwrap(await api.PATCH('/api/imports/{id}/candidates/{candidate}', { params: { path: { id, candidate } }, body: { payload } })),
+    onSettled: () => refresh(queryClient),
+  })
+}
