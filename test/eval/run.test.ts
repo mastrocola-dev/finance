@@ -111,6 +111,18 @@ describe('evaluations', () => {
     assert.deepEqual(await sources('statement-pdf', 'extrato-gabriela.pdf'), ['p1:L1-L9', 'p2:L1-L9'])
   })
 
+  test('regenerates the workbook and PDF fixtures byte for byte', { skip: !hasUv && 'uv is not installed' }, async () => {
+    const folder = await mkdtemp(join(tmpdir(), 'finance-fixtures-'))
+    try {
+      execFileSync('npm', ['run', '-s', 'eval:fixtures', '--', folder], { stdio: 'ignore' })
+      for (const file of ['household-xlsx/orcamento-casa.xlsx', 'planning-xlsx/planejamento-lado-a-lado.xlsx', 'statement-pdf/extrato-gabriela.pdf']) {
+        assert.ok((await readFile(join(folder, file))).equals(await readFile(join(casesFolder, file))), file)
+      }
+    } finally {
+      await rm(folder, { recursive: true, force: true })
+    }
+  })
+
   test('parses the live and record flags', () => {
     assert.deepEqual(parseArguments(['notes']), { names: ['notes'], live: false, record: false })
     assert.deepEqual(parseArguments(['--live', '--record', 'notes', 'bank-csv']), { names: ['notes', 'bank-csv'], live: true, record: true })

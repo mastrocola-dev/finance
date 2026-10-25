@@ -22,14 +22,15 @@
     "test": "node --env-file-if-exists=.env --test 'test/**/*.test.ts' && npm test -w web",
     "test:coverage": "node --env-file-if-exists=.env --test --experimental-test-coverage --test-coverage-exclude='test/**' 'test/**/*.test.ts' && npm test -w web",
     "ingest:test": "uv --directory ingest run pytest",
-    "ingest:check": "uv --directory ingest run ruff check && uv --directory ingest run ruff format --check",
+    "ingest:check": "uv --directory ingest run ruff check . ../evals/tools && uv --directory ingest run ruff format --check . ../evals/tools",
     "web:dev": "npm run dev -w web --",
     "web:build": "npm run build -w web --",
     "openapi": "node src/http/document.ts && node web/scripts/openapi-types.ts",
     "agent:schema": "node src/import/schema.ts",
     "web:screenshots": "npm run screenshots -w web --",
     "import": "node --env-file-if-exists=.env src/import/cli.ts",
-    "eval": "node --env-file-if-exists=.env src/eval/run.ts"
+    "eval": "node --env-file-if-exists=.env src/eval/run.ts",
+    "eval:fixtures": "uv run --no-project --with openpyxl==3.1.5 --with fpdf2==2.8.9 python evals/tools/fixtures.py"
   },
   "devDependencies": {
     "@biomejs/biome": "2.5.14",
