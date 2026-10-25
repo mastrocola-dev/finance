@@ -29,7 +29,7 @@
     "agent:schema": "node src/import/schema.ts",
     "web:screenshots": "npm run screenshots -w web --",
     "import": "node --env-file-if-exists=.env src/import/cli.ts",
-    "eval": "node src/eval/run.ts"
+    "eval": "node --env-file-if-exists=.env src/eval/run.ts"
   },
   "devDependencies": {
     "@biomejs/biome": "2.5.14",

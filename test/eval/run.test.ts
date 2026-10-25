@@ -1,11 +1,13 @@
 import assert from 'node:assert/strict'
 import { execFileSync } from 'node:child_process'
-import { cp, mkdtemp, rm, writeFile } from 'node:fs/promises'
+import { cp, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { describe, test } from 'node:test'
-import { casesFolder, report, runCases } from '../../src/eval/run.ts'
-import type { Segment } from '../../src/import/agent.ts'
+import { casesFolder, liveExtractors, liveReport, parseArguments, preview, previewReport, report, runCases } from '../../src/eval/run.ts'
+import type { Extractor, Segment } from '../../src/import/agent.ts'
+import { serviceAgentExtractor } from '../../src/import/service-agent.ts'
+import { sample } from '../import/sample.ts'
 
 const hasUv = (() => {
   try {
@@ -18,6 +20,20 @@ const hasUv = (() => {
 
 const text = (source: string, lines: number): Segment => ({ id: source, kind: 'text', source, shape: { lines } })
 const notes = async () => [text('L1', 1), text('L3-L9', 7), text('L11', 1)]
+const fakeCli = 'test/import/fake-agent.ts'
+
+const copyOfNotes = async () => {
+  const folder = await mkdtemp(join(tmpdir(), 'finance-eval-'))
+  await cp(join(casesFolder, 'notes'), join(folder, 'notes'), { recursive: true })
+  return folder
+}
+
+const failingOn = (source: string, extractor: Extractor): Extractor => ({
+  extract: async (task) => {
+    if (task.segment.source === source) throw new Error('model unavailable')
+    return extractor.extract(task)
+  },
+})
 
 describe('evaluations', () => {
   test('scores a case from its recordings and reports cost', async () => {
@@ -77,5 +93,71 @@ describe('evaluations', () => {
     })
     const loan = results.find(({ name }) => name === 'loan-xml')
     assert.deepEqual(loan?.score.fields['debt.principalCents'], { expected: 1, predicted: 1, correct: 0, precision: 0, recall: 0 })
+  })
+
+  test('parses the live and record flags', () => {
+    assert.deepEqual(parseArguments(['notes']), { names: ['notes'], live: false, record: false })
+    assert.deepEqual(parseArguments(['--live', '--record', 'notes', 'bank-csv']), { names: ['notes', 'bank-csv'], live: true, record: true })
+    assert.throws(() => parseArguments(['--record']), /--record needs --live/)
+    assert.throws(() => parseArguments(['--fast']), /Unknown option '--fast'/)
+  })
+
+  test('refuses a live run without the key or the service-agent CLI', () => {
+    assert.throws(() => liveExtractors({ SERVICE_AGENT_CLI: fakeCli }), /--live needs ANTHROPIC_API_KEY/)
+    assert.throws(() => liveExtractors({ ANTHROPIC_API_KEY: 'test', SERVICE_AGENT_CLI: 'missing/cli.ts' }), /service-agent CLI not found at missing\/cli\.ts/)
+    assert.equal(typeof liveExtractors({ ANTHROPIC_API_KEY: 'test', SERVICE_AGENT_CLI: fakeCli }), 'function')
+  })
+
+  test('previews chunks and recorded cost before a live run', async () => {
+    const cases = await preview(casesFolder, ['notes'], notes)
+    assert.deepEqual(cases, [{ name: 'notes', chunks: 3, recordedUsdMicros: 44_700 }])
+    assert.equal(previewReport(cases, 400_000), 'notes: 3 chunks, recorded US$ 0.0447\nlive run: 3 model calls, recorded US$ 0.0447, cap 400000 tokens per case')
+  })
+
+  test('runs live through service-agent without touching the recordings', async () => {
+    const folder = await copyOfNotes()
+    try {
+      const before = await readFile(join(folder, 'notes', 'recorded.json'), 'utf8')
+      const results = await runCases(folder, [], notes, { extractorFor: (path) => serviceAgentExtractor({ folder: path, cli: fakeCli }) })
+      assert.deepEqual(results[0]?.failures, [])
+      assert.equal(results[0]?.score.usage.costUsdMicros, 3 * 8100)
+      assert.equal(liveReport(results), 'live cost US$ 0.0243, recorded US$ 0.0447')
+      assert.equal(await readFile(join(folder, 'notes', 'recorded.json'), 'utf8'), before)
+    } finally {
+      await rm(folder, { recursive: true, force: true })
+    }
+  })
+
+  test('records live answers over the recordings and keeps old ones for failed chunks', async () => {
+    const folder = await copyOfNotes()
+    try {
+      const path = join(folder, 'notes', 'recorded.json')
+      const old = JSON.parse(await readFile(path, 'utf8'))
+      const extractorFor = (case_: string) => failingOn('L11', serviceAgentExtractor({ folder: case_, cli: fakeCli }))
+      const [live] = await runCases(folder, [], notes, { extractorFor, record: true, tokenCap: 100_000 })
+      assert.deepEqual(live?.failures, ['L11@0: model unavailable'])
+      const recorded = JSON.parse(await readFile(path, 'utf8'))
+      assert.deepEqual(
+        recorded.map(({ source, offset }: { source: string; offset: number }) => `${source}@${offset}`),
+        ['L1@0', 'L3-L9@0', 'L11@0'],
+      )
+      assert.deepEqual(recorded[0], { source: 'L1', offset: 0, output: sample, usage: { inputTokens: 1200, outputTokens: 300, costUsdMicros: 8100 } })
+      assert.deepEqual(recorded[2], old[2])
+      const [replayed] = await runCases(folder, [], notes)
+      assert.deepEqual(replayed?.failures, [])
+      assert.equal(replayed?.score.usage.costUsdMicros, 2 * 8100 + old[2].usage.costUsdMicros)
+    } finally {
+      await rm(folder, { recursive: true, force: true })
+    }
+  })
+
+  test('reports a run stopped by the token cap', async () => {
+    const folder = await copyOfNotes()
+    try {
+      const [result] = await runCases(folder, [], notes, { extractorFor: (path) => serviceAgentExtractor({ folder: path, cli: fakeCli }), tokenCap: 1000 })
+      assert.deepEqual(result?.failures, ['stopped at 1/3 chunks: token cap'])
+    } finally {
+      await rm(folder, { recursive: true, force: true })
+    }
   })
 })
