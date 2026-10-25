@@ -122,6 +122,7 @@ describe('openapi', () => {
       editImportCandidate: { path: '/imports/IMPORT/candidates/FIRST', body: { payload: extracted.candidates[0]?.payload } },
       acceptImportCandidates: { path: '/imports/IMPORT/candidates/accept', body: { ids: ['FIRST'] } },
       rejectImportCandidates: { path: '/imports/IMPORT/candidates/reject', body: { ids: ['SECOND'] } },
+      commitImport: { path: '/imports/IMPORT/commit' },
     }
     let entry = ''
     let batch = ''

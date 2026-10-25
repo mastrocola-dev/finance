@@ -494,6 +494,23 @@ export type paths = {
         patch?: never;
         trace?: never;
     };
+    "/api/imports/{id}/commit": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Write the accepted and edited candidates of a verified import batch to the ledger */
+        post: operations["commitImport"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 };
 export type webhooks = Record<string, never>;
 export type components = {
@@ -774,6 +791,8 @@ export type components = {
                 code: string;
                 detail?: string;
             }[];
+            /** @description Ledger row created from this candidate when the batch was committed; its table is the kind */
+            recordId: string | null;
         };
         ImportQuestion: {
             id: string;
@@ -1918,6 +1937,37 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["RejectImportCandidatesResponse"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+        };
+    };
+    commitImport: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ImportBatch"];
                 };
             };
             /** @description Error */

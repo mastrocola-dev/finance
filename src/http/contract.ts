@@ -243,6 +243,7 @@ const importCandidate = z.strictObject({
   status: z.enum(['pending', 'accepted', 'rejected', 'edited']),
   payload: z.record(z.string(), z.unknown()).describe('Candidate fields in camelCase, amounts in integer cents'),
   checks: z.array(check),
+  recordId: id.nullable().describe('Ledger row created from this candidate when the batch was committed; its table is the kind'),
 })
 
 const importQuestion = z.strictObject({

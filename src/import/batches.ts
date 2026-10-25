@@ -18,7 +18,7 @@ export const findBatch = async (client: Queryable, id: bigint) => (await client.
 export const listCandidates = async (client: Queryable, batchId: bigint) =>
   (
     await client.query(
-      `select id::text as id, kind, source, chunk, confidence::text as confidence, status, payload, checks
+      `select id::text as id, kind, source, chunk, confidence::text as confidence, status, payload, checks, record_id::text as "recordId"
       from import_candidate where batch_id = $1 and closed_at is null order by id`,
       [batchId],
     )

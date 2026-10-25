@@ -5,6 +5,7 @@ import { connectPool, type Database } from '../db/connection.ts'
 import type { Actor } from '../db/write.ts'
 import { findBatch, listBatches, listCandidates, listQuestions } from '../import/batches.ts'
 import { maxBytes } from '../import/cli.ts'
+import { commitBatch } from '../import/commit.ts'
 import { answerQuestion, editCandidate, reviewCandidates } from '../import/review.ts'
 import { type ImportUploads, importUploads } from '../import/uploads.ts'
 import { listAudit } from '../ledger/audit.ts'
@@ -192,6 +193,11 @@ export const routes: Route[] = [
       return (await listCandidates(input.client, batchId)).filter((item) => chosen.has(item.id))
     }),
   ),
+  route({ method: 'POST', path: '/imports/:id/commit', operationId: 'commitImport', summary: 'Write the accepted and edited candidates of a verified import batch to the ledger', params: idPath, response: schemas.ImportBatch }, async (input) => {
+    const batchId = await reviewableBatch(input, input.params.id)
+    await writing(input, (connection, actor) => commitBatch(connection, { author: 'import', memberId: actor.memberId }, batchId))
+    return batchView(input, batchId)
+  }),
 ]
 
 const error = (message: string, status: number, extra = {}) => Response.json({ error: message, ...extra }, { status })
