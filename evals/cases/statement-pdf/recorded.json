@@ -1,0 +1,154 @@
+[
+  {
+    "source": "p1:L1-L9",
+    "offset": 0,
+    "output": {
+      "candidates": [
+        {
+          "kind": "entry",
+          "source": "p1:L6",
+          "confidence": 0.94,
+          "payload": {
+            "date": "2026-10-05",
+            "description": "Salário Empresa Fictícia",
+            "direction": "income",
+            "amountCents": 590000,
+            "category": "Salário",
+            "account": "Conta Gabriela",
+            "member": "Gabriela",
+            "paid": true
+          }
+        },
+        {
+          "kind": "entry",
+          "source": "p1:L7",
+          "confidence": 0.9,
+          "payload": {
+            "date": "2026-10-07",
+            "description": "Academia Bem-Estar",
+            "direction": "expense",
+            "amountCents": 12990,
+            "category": "Saúde",
+            "account": "Conta Gabriela",
+            "member": "Gabriela",
+            "paid": true
+          }
+        },
+        {
+          "kind": "entry",
+          "source": "p1:L8",
+          "confidence": 0.9,
+          "payload": {
+            "date": "2026-10-10",
+            "description": "Farmácia Vida Fictícia",
+            "direction": "expense",
+            "amountCents": 8640,
+            "category": "Saúde",
+            "account": "Conta Gabriela",
+            "member": "Gabriela",
+            "paid": true
+          }
+        },
+        {
+          "kind": "entry",
+          "source": "p1:L9",
+          "confidence": 0.88,
+          "payload": {
+            "date": "2026-10-15",
+            "description": "Curso de inglês online",
+            "direction": "expense",
+            "amountCents": 35000,
+            "category": "Educação",
+            "account": "Conta Gabriela",
+            "member": "Gabriela",
+            "paid": true
+          }
+        }
+      ],
+      "questions": [],
+      "totals": []
+    },
+    "usage": {
+      "inputTokens": 1900,
+      "outputTokens": 900,
+      "costUsdMicros": 19200
+    }
+  },
+  {
+    "source": "p2:L1-L9",
+    "offset": 0,
+    "output": {
+      "candidates": [
+        {
+          "kind": "entry",
+          "source": "p2:L4",
+          "confidence": 0.86,
+          "payload": {
+            "date": "2026-10-18",
+            "description": "Restaurante Sabor Fictício",
+            "direction": "expense",
+            "amountCents": 14720,
+            "category": "Lazer",
+            "account": "Conta Gabriela",
+            "member": "Gabriela",
+            "paid": true
+          }
+        },
+        {
+          "kind": "entry",
+          "source": "p2:L5",
+          "confidence": 0.9,
+          "payload": {
+            "date": "2026-10-22",
+            "description": "Notebook parcela",
+            "direction": "expense",
+            "amountCents": 28900,
+            "category": "Casa",
+            "installment": {
+              "number": 4,
+              "total": 10
+            },
+            "account": "Conta Gabriela",
+            "member": "Gabriela",
+            "paid": true
+          }
+        },
+        {
+          "kind": "entry",
+          "source": "p2:L6",
+          "confidence": 0.9,
+          "payload": {
+            "date": "2026-10-25",
+            "description": "Transporte por aplicativo",
+            "direction": "expense",
+            "amountCents": 4780,
+            "category": "Transporte",
+            "account": "Conta Gabriela",
+            "member": "Gabriela",
+            "paid": true
+          }
+        }
+      ],
+      "questions": [],
+      "totals": [
+        {
+          "source": "p2:L7",
+          "month": "2026-10-01",
+          "direction": "income",
+          "amountCents": 590000
+        },
+        {
+          "source": "p2:L8",
+          "month": "2026-10-01",
+          "direction": "expense",
+          "amountCents": 104580
+        }
+      ]
+    },
+    "usage": {
+      "inputTokens": 1900,
+      "outputTokens": 800,
+      "costUsdMicros": 17700
+    }
+  }
+]

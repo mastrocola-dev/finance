@@ -1,0 +1,111 @@
+{
+  "file": "planejamento-lado-a-lado.xlsx",
+  "candidates": [
+    {
+      "kind": "entry",
+      "payload": {
+        "date": "2026-11-05",
+        "description": "Salário Marcio",
+        "direction": "income",
+        "amountCents": 680000,
+        "member": "Marcio",
+        "paid": false
+      }
+    },
+    {
+      "kind": "entry",
+      "payload": {
+        "date": "2026-11-05",
+        "description": "Salário Gabriela",
+        "direction": "income",
+        "amountCents": 590000,
+        "member": "Gabriela",
+        "paid": false
+      }
+    },
+    {
+      "kind": "entry",
+      "payload": {
+        "date": "2026-11-10",
+        "description": "Aluguel",
+        "direction": "expense",
+        "amountCents": 220000,
+        "member": "joint",
+        "paid": false
+      }
+    },
+    {
+      "kind": "entry",
+      "payload": {
+        "date": "2026-11-10",
+        "description": "Condomínio",
+        "direction": "expense",
+        "amountCents": 65000,
+        "member": "joint",
+        "paid": false
+      }
+    },
+    {
+      "kind": "entry",
+      "payload": {
+        "date": "2026-11-15",
+        "description": "Internet",
+        "direction": "expense",
+        "amountCents": 12000,
+        "member": "joint",
+        "paid": false
+      }
+    },
+    {
+      "kind": "entry",
+      "payload": {
+        "date": "2026-11-18",
+        "description": "Luz",
+        "direction": "expense",
+        "amountCents": 21000,
+        "member": "joint",
+        "paid": false
+      }
+    },
+    {
+      "kind": "entry",
+      "payload": {
+        "description": "Mercado",
+        "direction": "expense",
+        "amountCents": 140000,
+        "member": "joint",
+        "paid": false
+      }
+    },
+    {
+      "kind": "entry",
+      "payload": {
+        "description": "Farmácia",
+        "direction": "expense",
+        "amountCents": 15000,
+        "member": "joint",
+        "paid": false
+      }
+    },
+    {
+      "kind": "entry",
+      "payload": {
+        "description": "Lazer",
+        "direction": "expense",
+        "amountCents": 30000,
+        "member": "joint",
+        "paid": false
+      }
+    },
+    {
+      "kind": "entry",
+      "payload": {
+        "description": "Presentes",
+        "direction": "expense",
+        "amountCents": 20000,
+        "member": "Gabriela",
+        "paid": false
+      }
+    }
+  ]
+}

@@ -6,6 +6,7 @@ import { join } from 'node:path'
 import { describe, test } from 'node:test'
 import { casesFolder, liveExtractors, liveReport, parseArguments, preview, previewReport, report, runCases } from '../../src/eval/run.ts'
 import type { Extractor, Segment } from '../../src/import/agent.ts'
+import { ingestSegments } from '../../src/import/ingest.ts'
 import { serviceAgentExtractor } from '../../src/import/service-agent.ts'
 import { sample } from '../import/sample.ts'
 
@@ -73,6 +74,8 @@ describe('evaluations', () => {
         ['household-xlsx', []],
         ['loan-xml', []],
         ['notes', []],
+        ['planning-xlsx', []],
+        ['statement-pdf', []],
       ],
     )
     assert.deepEqual(
@@ -84,6 +87,8 @@ describe('evaluations', () => {
         [18, 19, 19],
         [4, 4, 4],
         [6, 8, 7],
+        [9, 10, 10],
+        [7, 7, 7],
       ],
     )
     const household = results.find(({ name }) => name === 'household-xlsx')
@@ -91,8 +96,19 @@ describe('evaluations', () => {
       stated: 4,
       mismatched: ['Set-26!A23:C23: net 2026-09 expected 747520, found 620040', 'Out-26!A26:C26: net 2026-10 expected 798960, found 810960'],
     })
+    const planning = results.find(({ name }) => name === 'planning-xlsx')
+    assert.deepEqual(planning?.score.totals, { stated: 2, mismatched: ['Nov-26!A12:C12: net 2026-11 expected 747000, found 768000'] })
+    const statement = results.find(({ name }) => name === 'statement-pdf')
+    assert.deepEqual(statement?.score.totals, { stated: 2, mismatched: ['p2:L8: expense 2026-10 expected 104580, found 105030'] })
+    assert.deepEqual(statement?.score.fields['entry.amountCents'], { expected: 7, predicted: 7, correct: 6, precision: 6 / 7, recall: 6 / 7 })
     const loan = results.find(({ name }) => name === 'loan-xml')
     assert.deepEqual(loan?.score.fields['debt.principalCents'], { expected: 1, predicted: 1, correct: 0, precision: 0, recall: 0 })
+  })
+
+  test('cuts side-by-side blocks by columns and addresses PDF text by page', { skip: !hasUv && 'uv is not installed' }, async () => {
+    const sources = async (name: string, file: string) => (await ingestSegments(join(casesFolder, name), file)).map(({ source }) => source)
+    assert.deepEqual(await sources('planning-xlsx', 'planejamento-lado-a-lado.xlsx'), ['Nov-26!A1:A1', 'Nov-26!A3:C7', 'Nov-26!E3:G9', 'Nov-26!I3:K9', 'Nov-26!A12:C12'])
+    assert.deepEqual(await sources('statement-pdf', 'extrato-gabriela.pdf'), ['p1:L1-L9', 'p2:L1-L9'])
   })
 
   test('parses the live and record flags', () => {

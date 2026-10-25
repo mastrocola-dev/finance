@@ -4,11 +4,12 @@ Ordered. The agent takes the first unblocked item under **Next**. Items marked *
 
 ## Next
 
-- **L147 Eval cases for a PDF and a second workbook layout**: a PDF statement (text segments by page) and a workbook with blocks side by side (columns, not rows), so column cuts and page addresses are exercised
 - **L142 Commit preview of staged names**: an accepted item naming an account, category or reserve that the batch stages but nobody accepted passes every check and only fails at commit (`unknown account X`, now explained in Portuguese); list those in the Gravar no livro card before the click, from the candidates already loaded
 
 ## Later
 
+- **L152 PDF statement with credit and debit columns**: `extract_text` joins columns with single spaces, so a statement with separate Crédito/Débito columns (no sign on the amount) loses which side a value sits on; add a case like that and, if the recordings show the agent guessing, pass word positions or `extract_table` rows for PDF pages
+- **L153 Generators for eval fixtures**: `orcamento-casa.xlsx`, `planejamento-lado-a-lado.xlsx` and `extrato-gabriela.pdf` are built by scratch scripts that are not kept; keep small generators under `evals/tools/` (openpyxl, fpdf2 through `uv run --with`) so a fixture change is a reviewable diff
 - **L151 Header-only chunks cost**: every JSON, XML and OFX file now spends one more model call on the `$` header even when it holds only export metadata (app-json); skip the chunk, or fold the header into the first list chunk, when the header has no field an import could use (decide with real recordings, L148)
 - **L150 Wide tree headers**: the `$` header segment previews 20 fields and `read_segment('$')` returns at most 100 (`HEADER_FIELDS` in `ingest/ingest/tree.py`) in one item; a file with more scalars outside lists loses the rest silently (the shape still counts them); window the header by field if a real file needs it
 - **L148 First live recordings**: on the author's machine run `npm run eval -- --live --record`, review the recordings diff, update the counts in `test/eval/run.test.ts` and drop the "hand-written stand-ins" line from `evals/README.md`; then L145 and L146 can use real numbers
@@ -191,6 +192,7 @@ Ordered. The agent takes the first unblocked item under **Next**. Items marked *
 
 ## Done
 
+- **L147 Eval cases for a PDF and a side-by-side workbook** (2026-10-25): `statement-pdf` (two-page checking statement of Gabriela, header repeated per page, chunks `p1:L1-L9` and `p2:L1-L9`, totals on page 2 reconciled against both pages; recordings misread one amount) and `planning-xlsx` (November plan with income, fixed and variable blocks side by side, cut into `A3:C7`, `E3:G9`, `I3:K9`; recordings take Luz for a recurring expense so the net fails); new test asserts the column cuts and page addresses. 1 node test (235 node, 155 web, 95 Playwright, 63 pytest)
 - **I09 Header segment for tree files** (2026-10-25): `tree_segments` puts a `$` segment first whenever a tree has scalar fields outside lists (shape `{ items: 1, fields }`, preview of the first 20 as full path to value); `read_segment('$')` returns them flat (up to 100, so deep OFX fields are no longer cut by the depth bound); with no lists the `$` segment is the same flat view. The system prompt says to cite the field path. `card-ofx` now records the card account and its question on `$`, `loan-xml` the debt, `app-json` an empty header answer; ids of the other tree segments moved by one. 1 pytest (234 node, 155 web, 95 Playwright, 63 pytest)
 
 - **I08c Live evaluations** (2026-10-25): `npm run eval -- --live [case ...]` answers every chunk through `serviceAgentExtractor` with the case folder as `IMPORT_FOLDER`, capped by `IMPORT_TOKEN_CAP` per case (a stop is reported as a failure); refuses to start without `ANTHROPIC_API_KEY` or the `SERVICE_AGENT_CLI` file; prints chunks and recorded cost before and live versus recorded cost after; `--record` (only with `--live`) writes the answers over `recorded.json` in chunk order, keeps old recordings for failed chunks, drops unplanned ones and formats with Biome. The npm script now loads `.env`. Built and tested with the fake agent only (no key here). 6 node tests (234 node, 155 web, 95 Playwright, 62 pytest)

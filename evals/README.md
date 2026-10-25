@@ -19,5 +19,7 @@ Cases:
 - `household-xlsx`: household workbook, one tab per month with blocks for income, fixed and variable expenses, printed totals and the month balance; the recordings miss one bill and take a total row for an entry, so two of four totals fail to reconcile
 - `app-json`: export of another finance app with accounts, categories, transactions, budgets and goals; a transfer between own accounts is not an entry
 - `loan-xml`: car loan contract in XML with a namespace and attributes; the contract fields live outside any list and reach the agent through the `$` header segment, where the debt is recorded
+- `planning-xlsx`: month plan with income, fixed and variable blocks side by side (blank columns between them), so ingest cuts them by columns (`Nov-26!A3:C7`, `E3:G9`, `I3:K9`); the recordings take a fixed bill for a recurring expense, so the net does not reconcile
+- `statement-pdf`: two-page checking account statement with the header repeated on each page; text is addressed by page (`p1:L1-L9`, `p2:L4`) and the totals on page 2 reconcile against entries of both pages; the recordings misread one amount, so the debit total does not reconcile
 
 The current recordings are hand-written stand-ins with deliberate mistakes, not real model answers.
