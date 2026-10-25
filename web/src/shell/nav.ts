@@ -1,6 +1,6 @@
 import { ClipboardCheck, House, type LucideIcon, Scale, Wallet } from 'lucide-react'
 
-export type Path = '/' | '/contas' | '/lancamentos' | '/patrimonio' | '/decisoes' | '/atividade'
+export type Path = '/' | '/contas' | '/lancamentos' | '/patrimonio' | '/decisoes' | '/atividade' | '/importar'
 
 export type Screen = { path: Path; title: string; month?: boolean; members?: boolean; tab?: { label: string; Icon: LucideIcon } }
 
@@ -11,6 +11,7 @@ export const screens: Screen[] = [
   { path: '/patrimonio', title: 'Dívidas e reservas', tab: { label: 'Reservas', Icon: Wallet } },
   { path: '/decisoes', title: 'Decisões', tab: { label: 'Decisões', Icon: Scale } },
   { path: '/atividade', title: 'Atividade' },
+  { path: '/importar', title: 'Importar' },
 ]
 
 export const tabs: Path[] = ['/', '/contas', '/lancamentos', '/decisoes', '/patrimonio']

@@ -7,6 +7,7 @@ const routes = [
   { path: '/patrimonio', heading: 'Dívidas e reservas' },
   { path: '/decisoes', heading: 'Decisões' },
   { path: '/atividade', heading: 'Atividade' },
+  { path: '/importar', heading: 'Importar' },
 ]
 
 const gutter = 16

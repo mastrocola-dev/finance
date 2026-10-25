@@ -18,6 +18,7 @@ const pages: Record<Path, ReturnType<typeof lazyRouteComponent>> = {
   '/patrimonio': lazyRouteComponent(() => import('./worth/worth-page.tsx'), 'WorthPage'),
   '/decisoes': lazyRouteComponent(() => import('./decisions/decisions-page.tsx'), 'DecisionsPage'),
   '/atividade': lazyRouteComponent(() => import('./activity/activity-page.tsx'), 'ActivityPage'),
+  '/importar': lazyRouteComponent(() => import('./imports/imports-page.tsx'), 'ImportsPage'),
 }
 
 const routeTree = rootRoute.addChildren(screens.map((screen) => createRoute({ getParentRoute: () => rootRoute, path: screen.path, component: pages[screen.path] })))

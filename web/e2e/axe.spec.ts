@@ -8,6 +8,7 @@ const routes = [
   { name: 'net-worth', path: '/patrimonio', heading: 'Dívidas e reservas' },
   { name: 'decisions', path: '/decisoes', heading: 'Decisões' },
   { name: 'activity', path: '/atividade', heading: 'Atividade' },
+  { name: 'imports', path: '/importar', heading: 'Importar' },
 ]
 
 const viewports = [

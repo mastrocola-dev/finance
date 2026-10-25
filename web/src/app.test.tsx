@@ -38,7 +38,7 @@ test('renders the six screens in the sidebar with the proposed decisions count',
   start('/?month=2026-10')
   expect(await screen.findByRole('heading', { level: 1, name: 'Outubro de 2026' })).toBeTruthy()
   const links = within(main()).getAllByRole('link')
-  await waitFor(() => expect(links.map((link) => link.textContent)).toEqual(['Visão do mês', 'Contas do mês', 'Lançamentos', 'Dívidas e reservas', 'Decisões2 pendentes', 'Atividade']))
+  await waitFor(() => expect(links.map((link) => link.textContent)).toEqual(['Visão do mês', 'Contas do mês', 'Lançamentos', 'Dívidas e reservas', 'Decisões2 pendentes', 'Atividade', 'Importar']))
   expect(links[0]?.getAttribute('aria-current')).toBe('page')
 })
 
@@ -104,10 +104,10 @@ test('every screen is a tab or an entry of the Mais menu', async () => {
     within(menu)
       .getAllByRole('link')
       .map((link) => link.textContent),
-  ).toEqual(['Lançamentos', 'Atividade'])
+  ).toEqual(['Lançamentos', 'Atividade', 'Importar'])
   expect(screen.getAllByRole('group', { name: 'Tema' })).toHaveLength(2)
   const reachable = [...within(tabBar).getAllByRole('link'), ...within(menu).getAllByRole('link')].map((link) => new URL(link.getAttribute('href') ?? '', 'http://x').pathname)
-  expect([...new Set(reachable)].sort()).toEqual(['/', '/atividade', '/contas', '/decisoes', '/lancamentos', '/patrimonio'])
+  expect([...new Set(reachable)].sort()).toEqual(['/', '/atividade', '/contas', '/decisoes', '/importar', '/lancamentos', '/patrimonio'])
   await userEvent.click(within(menu).getByRole('link', { name: 'Atividade' }))
   await screen.findByRole('heading', { level: 1, name: 'Atividade' })
   expect(history.location.search).toContain('month=2026-10')

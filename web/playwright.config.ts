@@ -11,7 +11,7 @@ export default defineConfig({
     launchOptions: { executablePath: process.env.PLAYWRIGHT_CHROMIUM ?? '/opt/pw-browsers/chromium', env: { ...process.env, LANG: 'pt_BR.UTF-8' } },
   },
   webServer: [
-    { command: 'npm run api:http', cwd: '..', url: `http://127.0.0.1:${api}/api/members`, reuseExistingServer: true },
+    { command: 'npm run api:http', cwd: '..', env: { SERVICE_AGENT_CLI: 'test/import/fake-agent.ts' }, url: `http://127.0.0.1:${api}/api/members`, reuseExistingServer: true },
     { command: 'npm run build && npm run preview -- --host 127.0.0.1 --port 4173 --strictPort', url: 'http://127.0.0.1:4173', reuseExistingServer: true, timeout: 120_000 },
   ],
 })
