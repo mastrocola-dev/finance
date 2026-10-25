@@ -92,6 +92,43 @@ describe('import api', () => {
     assert.equal(await readFile(join(folder, hash, 'Orçamento.txt'), 'utf8'), content)
   })
 
+  test('reviews a verified batch: answers, edits, accepts and rejects as the member', async () => {
+    const accepted = await upload('revisao.txt', 'revisão\n', { member: 'Gabriela' })
+    await uploads.settled()
+    const batch = accepted.body.id
+    const send = async (method: string, path: string, body: unknown, at = server.url) => {
+      const response = await fetch(`${at}/api/imports/${batch}${path}`, { method, headers: { 'content-type': 'application/json', 'x-member': 'Gabriela' }, body: JSON.stringify(body) })
+      return { status: response.status, body: await response.json() }
+    }
+    const [question] = (await get(`/imports/${batch}/questions`)).body
+    const answered = await send('POST', `/questions/${question.id}/answer`, { answer: 'Gabriela' })
+    assert.equal(answered.status, 200)
+    assert.equal(answered.body.answer, 'Gabriela')
+    const [first, second] = (await get(`/imports/${batch}/candidates`)).body
+    assert.equal(second.payload.member, 'Gabriela')
+    assert.equal((await send('PATCH', `/candidates/${first.id}`, { payload: { ...first.payload, amountCents: -1 } })).status, 422)
+    const edited = await send('PATCH', `/candidates/${first.id}`, { payload: { ...first.payload, description: 'Aluguel de outubro' } })
+    assert.deepEqual([edited.status, edited.body.status, edited.body.payload.description], [200, 'edited', 'Aluguel de outubro'])
+    const chosen = await send('POST', '/candidates/accept', { ids: [first.id, second.id] })
+    assert.deepEqual(
+      chosen.body.map(({ status }: { status: string }) => status),
+      ['edited', 'accepted'],
+    )
+    assert.equal((await send('POST', '/candidates/reject', { ids: [] })).status, 400)
+    assert.equal((await send('POST', '/candidates/reject', { ids: ['999999'] })).status, 422)
+    const audit = await pool.query<{ author: string; name: string }>("select distinct a.author, m.name from audit_log a join member m on m.id = a.member_id where a.entity in ('import_candidate', 'import_question') and a.action = 'update' and a.author = 'member'")
+    assert.deepEqual(audit.rows, [{ author: 'member', name: 'Gabriela' }])
+    const busy = await serveApi(pool, 0, '127.0.0.1', { ...uploads, progressOf: () => ({ state: 'extracting', done: 0, total: 1, error: null }) })
+    try {
+      const refused = await send('POST', '/candidates/reject', { ids: [second.id] }, busy.url)
+      assert.deepEqual([refused.status, refused.body.error], [409, `import batch ${batch} is still extracting`])
+    } finally {
+      await busy.close()
+    }
+    const missing = await fetch(`${server.url}/api/imports/999999/candidates/reject`, { method: 'POST', headers: { 'content-type': 'application/json', 'x-member': 'Gabriela' }, body: JSON.stringify({ ids: [second.id] }) })
+    assert.equal(missing.status, 404)
+  })
+
   test('keeps failed chunks on the batch and filters batches by status', async () => {
     const accepted = await upload('falha.txt', 'ilegível\n', { member: 'Gabriela' })
     await uploads.settled()
@@ -102,7 +139,7 @@ describe('import api', () => {
     const all = await get('/imports')
     assert.deepEqual(
       all.body.map(({ fileName }: { fileName: string }) => fileName),
-      ['falha.txt', 'Orçamento.txt'],
+      ['falha.txt', 'revisao.txt', 'Orçamento.txt'],
     )
     assert.equal((await get('/imports?status=committed')).body.length, 0)
     assert.equal((await get('/imports/999999')).status, 404)

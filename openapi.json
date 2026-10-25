@@ -1364,6 +1364,240 @@
           }
         }
       }
+    },
+    "/api/imports/{id}/questions/{question}/answer": {
+      "post": {
+        "operationId": "answerImportQuestion",
+        "summary": "Answer an open question of a verified import batch",
+        "security": [
+          {
+            "member": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^\\d+$"
+            }
+          },
+          {
+            "name": "question",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^\\d+$"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AnswerImportQuestionBody"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ImportQuestion"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/imports/{id}/candidates/{candidate}": {
+      "patch": {
+        "operationId": "editImportCandidate",
+        "summary": "Replace the payload of an open candidate; it becomes edited and is verified again",
+        "security": [
+          {
+            "member": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^\\d+$"
+            }
+          },
+          {
+            "name": "candidate",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^\\d+$"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EditImportCandidateBody"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ImportCandidate"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/imports/{id}/candidates/accept": {
+      "post": {
+        "operationId": "acceptImportCandidates",
+        "summary": "Accept open candidates of a verified import batch",
+        "security": [
+          {
+            "member": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^\\d+$"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AcceptImportCandidatesBody"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AcceptImportCandidatesResponse"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/imports/{id}/candidates/reject": {
+      "post": {
+        "operationId": "rejectImportCandidates",
+        "summary": "Reject open candidates of a verified import batch",
+        "security": [
+          {
+            "member": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^\\d+$"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AcceptImportCandidatesBody"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RejectImportCandidatesResponse"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
@@ -2909,6 +3143,63 @@
         "type": "array",
         "items": {
           "$ref": "#/components/schemas/ImportQuestion"
+        }
+      },
+      "AnswerImportQuestionBody": {
+        "type": "object",
+        "properties": {
+          "answer": {
+            "type": "string",
+            "description": "One of the options or free text; naming an existing member, account, category or reserve resolves every candidate carrying the asked name"
+          }
+        },
+        "required": [
+          "answer"
+        ]
+      },
+      "EditImportCandidateBody": {
+        "type": "object",
+        "properties": {
+          "payload": {
+            "type": "object",
+            "propertyNames": {
+              "type": "string"
+            },
+            "additionalProperties": {},
+            "description": "Full candidate payload in camelCase, checked against the schema of its kind"
+          }
+        },
+        "required": [
+          "payload"
+        ]
+      },
+      "AcceptImportCandidatesBody": {
+        "type": "object",
+        "properties": {
+          "ids": {
+            "minItems": 1,
+            "maxItems": 500,
+            "type": "array",
+            "items": {
+              "type": "string",
+              "pattern": "^\\d+$"
+            }
+          }
+        },
+        "required": [
+          "ids"
+        ]
+      },
+      "AcceptImportCandidatesResponse": {
+        "type": "array",
+        "items": {
+          "$ref": "#/components/schemas/ImportCandidate"
+        }
+      },
+      "RejectImportCandidatesResponse": {
+        "type": "array",
+        "items": {
+          "$ref": "#/components/schemas/ImportCandidate"
         }
       }
     },

@@ -5,6 +5,7 @@ import { connectPool, type Database } from '../db/connection.ts'
 import type { Actor } from '../db/write.ts'
 import { findBatch, listBatches, listCandidates, listQuestions } from '../import/batches.ts'
 import { maxBytes } from '../import/cli.ts'
+import { answerQuestion, editCandidate, reviewCandidates } from '../import/review.ts'
 import { type ImportUploads, importUploads } from '../import/uploads.ts'
 import { listAudit } from '../ledger/audit.ts'
 import { listAccounts, listCategories } from '../ledger/catalog.ts'
@@ -22,7 +23,31 @@ import { compareMonths } from '../ledger/summary.ts'
 import { netWorth } from '../ledger/worth.ts'
 import { toJson } from '../mcp/json.ts'
 import { HttpError, readBytes, readJson } from './body.ts'
-import { auditQuery, categoryQuery, decisionQuery, entryQuery, idPath, importQuery, memberHeader, monthPath, namePath, newDecision, newEntry, payment, referenceQuery, reserveChanges, schemas, summaryQuery, uploadHeaders, uploadQuery } from './contract.ts'
+import {
+  answerBody,
+  auditQuery,
+  candidateEdit,
+  candidateIds,
+  candidatePath,
+  categoryQuery,
+  decisionQuery,
+  entryQuery,
+  idPath,
+  importQuery,
+  memberHeader,
+  monthPath,
+  namePath,
+  newDecision,
+  newEntry,
+  payment,
+  questionPath,
+  referenceQuery,
+  reserveChanges,
+  schemas,
+  summaryQuery,
+  uploadHeaders,
+  uploadQuery,
+} from './contract.ts'
 import { listen } from './node.ts'
 import { openApi } from './openapi.ts'
 
@@ -59,6 +84,14 @@ const existingBatch = async (client: Database, id: string) => {
   if (!batch) throw new HttpError(404, `import batch ${id} not found`)
   return BigInt(id)
 }
+
+const reviewableBatch = async ({ client, imports }: { client: Database; imports: ImportUploads }, id: string) => {
+  const batchId = await existingBatch(client, id)
+  if (imports.progressOf(batchId)?.state === 'extracting') throw new HttpError(409, `import batch ${id} is still extracting`)
+  return batchId
+}
+
+const reviewSummaries = { accept: 'Accept open candidates of a verified import batch', reject: 'Reject open candidates of a verified import batch' } as const
 
 const decisionAnswers = [
   ['confirm', 'confirmDecision', 'Confirm a proposed decision as the caller', confirmDecision],
@@ -141,6 +174,24 @@ export const routes: Route[] = [
   route({ method: 'GET', path: '/imports/:id', operationId: 'getImport', summary: 'One import batch with its extraction progress', params: idPath, response: schemas.ImportBatch }, (input) => batchView(input, BigInt(input.params.id))),
   route({ method: 'GET', path: '/imports/:id/candidates', operationId: 'listImportCandidates', summary: 'Open candidates of an import batch', params: idPath, response: z.array(schemas.ImportCandidate) }, async ({ client, params }) => listCandidates(client, await existingBatch(client, params.id))),
   route({ method: 'GET', path: '/imports/:id/questions', operationId: 'listImportQuestions', summary: 'Open questions of an import batch', params: idPath, response: z.array(schemas.ImportQuestion) }, async ({ client, params }) => listQuestions(client, await existingBatch(client, params.id))),
+  route({ method: 'POST', path: '/imports/:id/questions/:question/answer', operationId: 'answerImportQuestion', summary: 'Answer an open question of a verified import batch', params: questionPath, body: answerBody, response: schemas.ImportQuestion }, async (input) => {
+    const batchId = await reviewableBatch(input, input.params.id)
+    await writing(input, (connection, actor) => answerQuestion(connection, actor, batchId, BigInt(input.params.question), input.body.answer))
+    return (await listQuestions(input.client, batchId)).find((item) => item.id === input.params.question)
+  }),
+  route({ method: 'PATCH', path: '/imports/:id/candidates/:candidate', operationId: 'editImportCandidate', summary: 'Replace the payload of an open candidate; it becomes edited and is verified again', params: candidatePath, body: candidateEdit, response: schemas.ImportCandidate }, async (input) => {
+    const batchId = await reviewableBatch(input, input.params.id)
+    await writing(input, (connection, actor) => editCandidate(connection, actor, batchId, BigInt(input.params.candidate), input.body.payload))
+    return (await listCandidates(input.client, batchId)).find((item) => item.id === input.params.candidate)
+  }),
+  ...(['accept', 'reject'] as const).map((decision) =>
+    route({ method: 'POST', path: `/imports/:id/candidates/${decision}`, operationId: `${decision}ImportCandidates`, summary: reviewSummaries[decision], params: idPath, body: candidateIds, response: z.array(schemas.ImportCandidate) }, async (input) => {
+      const batchId = await reviewableBatch(input, input.params.id)
+      const ids = await writing(input, (connection, actor) => reviewCandidates(connection, actor, batchId, input.body.ids.map(BigInt), decision))
+      const chosen = new Set(ids.map(String))
+      return (await listCandidates(input.client, batchId)).filter((item) => chosen.has(item.id))
+    }),
+  ),
 ]
 
 const error = (message: string, status: number, extra = {}) => Response.json({ error: message, ...extra }, { status })

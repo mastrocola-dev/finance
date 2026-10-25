@@ -1,6 +1,6 @@
 import type { Client } from 'pg'
 import * as z from 'zod'
-import { type Actor, write } from '../db/write.ts'
+import { type Actor, type Writer, write } from '../db/write.ts'
 import { RuleError } from '../ledger/rule.ts'
 import { type CandidateKind, payloads, type Total, total } from './candidate.ts'
 import { maskDigits } from './staging.ts'
@@ -24,7 +24,7 @@ export const normalize = (value: string) =>
     .trim()
 
 const text = (value: unknown) => (typeof value === 'string' ? value : undefined)
-const same = (a: string, b: string) => a.trim().toLowerCase() === b.trim().toLowerCase()
+export const same = (a: string, b: string) => a.trim().toLowerCase() === b.trim().toLowerCase()
 
 export const duplicateKey = (kind: CandidateKind, payload: Record<string, unknown>) => {
   const part = (key: string) => normalize(String(payload[key] ?? ''))
@@ -127,7 +127,7 @@ export const questionFor = (ask: Ask, references: References) => {
   return { question: maskDigits(`${prompt} "${ask.name.trim()}"?`), options: [...choices.slice(0, 5), fresh].map(maskDigits) }
 }
 
-const loadReferences = async (client: Client, candidates: Staged[]): Promise<References> => {
+export const loadReferences = async (client: Client, candidates: Staged[]): Promise<References> => {
   const names = async (sql: string) => (await client.query<Named>(sql)).rows
   const dates = candidates.filter((item) => item.kind === 'entry' && payloads.entry.safeParse(item.payload).success).map((item) => item.payload.date)
   const keyed = async (kind: CandidateKind, sql: string, values: unknown[] = []) => (await client.query<{ id: bigint; payload: Record<string, unknown> }>(sql, values)).rows.map((row) => ({ id: row.id, key: duplicateKey(kind, row.payload) }))
@@ -152,35 +152,36 @@ const loadReferences = async (client: Client, candidates: Staged[]): Promise<Ref
 
 const sameChecks = (a: Check[], b: Check[]) => JSON.stringify(a) === JSON.stringify(b)
 
-export const verifyBatch = (client: Client, actor: Actor, batchId: bigint, threshold = confidenceThreshold) =>
-  write(client, actor, async (ledger) => {
-    const batch = (await client.query<{ status: string; totals: Record<string, unknown>[]; checks: Check[] }>('select status, totals, checks from import_batch where id = $1 and closed_at is null for update', [batchId])).rows[0]
-    if (batch?.status !== 'draft' && batch?.status !== 'verified') throw new RuleError(`import batch ${batchId} is not open for verification`)
-    const { rows } = await client.query<Omit<Staged, 'confidence'> & { confidence: string }>("select id, kind, source, confidence, payload, checks from import_candidate where batch_id = $1 and closed_at is null and status <> 'rejected' order by id", [batchId])
-    const candidates = rows.map((row) => ({ ...row, confidence: Number(row.confidence) }))
-    const references = await loadReferences(client, candidates)
-    const { checks, asks } = findChecks(candidates, references, threshold)
-    for (const item of candidates) {
-      const found = checks.get(item.id) ?? []
-      if (!sameChecks(found, item.checks)) await ledger.update('import_candidate', item.id, { checks: JSON.stringify(found) })
-    }
-    const open = (await client.query<{ question: string; candidate_id: bigint | null }>('select question, candidate_id from import_question where batch_id = $1 and closed_at is null', [batchId])).rows
-    const covered = (ask: Ask, question: string) => open.some((item) => item.question === question || (item.candidate_id === ask.candidate && normalize(item.question).includes(normalize(ask.name))))
-    const questions: bigint[] = []
-    for (const ask of asks) {
-      const { question, options } = questionFor(ask, references)
-      if (covered(ask, question)) continue
-      const row = await ledger.create('import_question', { batch_id: batchId, candidate_id: ask.candidate, question, options: JSON.stringify(options), source: candidates.find((item) => item.id === ask.candidate)?.source ?? null })
-      questions.push(row.id as bigint)
-    }
-    const stated = totals.parse(batch.totals.map(({ chunk, ...item }) => item))
-    const mismatches = reconcile(candidates, stated)
-    const changes = { ...(batch.status === 'draft' && { status: 'verified' }), ...(!sameChecks(mismatches, batch.checks) && { checks: JSON.stringify(mismatches) }) }
-    if (Object.keys(changes).length > 0) await ledger.update('import_batch', batchId, changes)
-    const failed = candidates.filter((item) => checks.get(item.id)?.some((check) => check.code !== 'low_confidence')).map((item) => item.id)
-    const lowConfidence = candidates
-      .filter((item) => item.confidence < threshold)
-      .sort((a, b) => a.confidence - b.confidence)
-      .map((item) => item.id)
-    return { checked: candidates.length, failed, lowConfidence, questions, totals: { checked: stated.length, mismatches } }
-  })
+export const verifyWithin = async (client: Client, ledger: Writer, batchId: bigint, threshold = confidenceThreshold) => {
+  const batch = (await client.query<{ status: string; totals: Record<string, unknown>[]; checks: Check[] }>('select status, totals, checks from import_batch where id = $1 and closed_at is null for update', [batchId])).rows[0]
+  if (batch?.status !== 'draft' && batch?.status !== 'verified') throw new RuleError(`import batch ${batchId} is not open for verification`)
+  const { rows } = await client.query<Omit<Staged, 'confidence'> & { confidence: string }>("select id, kind, source, confidence, payload, checks from import_candidate where batch_id = $1 and closed_at is null and status <> 'rejected' order by id", [batchId])
+  const candidates = rows.map((row) => ({ ...row, confidence: Number(row.confidence) }))
+  const references = await loadReferences(client, candidates)
+  const { checks, asks } = findChecks(candidates, references, threshold)
+  for (const item of candidates) {
+    const found = checks.get(item.id) ?? []
+    if (!sameChecks(found, item.checks)) await ledger.update('import_candidate', item.id, { checks: JSON.stringify(found) })
+  }
+  const open = (await client.query<{ question: string; candidate_id: bigint | null }>('select question, candidate_id from import_question where batch_id = $1 and closed_at is null', [batchId])).rows
+  const covered = (ask: Ask, question: string) => open.some((item) => item.question === question || (item.candidate_id === ask.candidate && normalize(item.question).includes(normalize(ask.name))))
+  const questions: bigint[] = []
+  for (const ask of asks) {
+    const { question, options } = questionFor(ask, references)
+    if (covered(ask, question)) continue
+    const row = await ledger.create('import_question', { batch_id: batchId, candidate_id: ask.candidate, question, options: JSON.stringify(options), source: candidates.find((item) => item.id === ask.candidate)?.source ?? null })
+    questions.push(row.id as bigint)
+  }
+  const stated = totals.parse(batch.totals.map(({ chunk, ...item }) => item))
+  const mismatches = reconcile(candidates, stated)
+  const changes = { ...(batch.status === 'draft' && { status: 'verified' }), ...(!sameChecks(mismatches, batch.checks) && { checks: JSON.stringify(mismatches) }) }
+  if (Object.keys(changes).length > 0) await ledger.update('import_batch', batchId, changes)
+  const failed = candidates.filter((item) => checks.get(item.id)?.some((check) => check.code !== 'low_confidence')).map((item) => item.id)
+  const lowConfidence = candidates
+    .filter((item) => item.confidence < threshold)
+    .sort((a, b) => a.confidence - b.confidence)
+    .map((item) => item.id)
+  return { checked: candidates.length, failed, lowConfidence, questions, totals: { checked: stated.length, mismatches } }
+}
+
+export const verifyBatch = (client: Client, actor: Actor, batchId: bigint, threshold = confidenceThreshold) => write(client, actor, (ledger) => verifyWithin(client, ledger, batchId, threshold))

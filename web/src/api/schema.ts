@@ -426,6 +426,74 @@ export type paths = {
         patch?: never;
         trace?: never;
     };
+    "/api/imports/{id}/questions/{question}/answer": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Answer an open question of a verified import batch */
+        post: operations["answerImportQuestion"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/imports/{id}/candidates/{candidate}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Replace the payload of an open candidate; it becomes edited and is verified again */
+        patch: operations["editImportCandidate"];
+        trace?: never;
+    };
+    "/api/imports/{id}/candidates/accept": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Accept open candidates of a verified import batch */
+        post: operations["acceptImportCandidates"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/imports/{id}/candidates/reject": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Reject open candidates of a verified import batch */
+        post: operations["rejectImportCandidates"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 };
 export type webhooks = Record<string, never>;
 export type components = {
@@ -768,6 +836,21 @@ export type components = {
         ListImportsResponse: components["schemas"]["ImportBatch"][];
         ListImportCandidatesResponse: components["schemas"]["ImportCandidate"][];
         ListImportQuestionsResponse: components["schemas"]["ImportQuestion"][];
+        AnswerImportQuestionBody: {
+            /** @description One of the options or free text; naming an existing member, account, category or reserve resolves every candidate carrying the asked name */
+            answer: string;
+        };
+        EditImportCandidateBody: {
+            /** @description Full candidate payload in camelCase, checked against the schema of its kind */
+            payload: {
+                [key: string]: unknown;
+            };
+        };
+        AcceptImportCandidatesBody: {
+            ids: string[];
+        };
+        AcceptImportCandidatesResponse: components["schemas"]["ImportCandidate"][];
+        RejectImportCandidatesResponse: components["schemas"]["ImportCandidate"][];
     };
     responses: never;
     parameters: never;
@@ -816,6 +899,11 @@ export type ProposeDecisionBody = components['schemas']['ProposeDecisionBody'];
 export type ListImportsResponse = components['schemas']['ListImportsResponse'];
 export type ListImportCandidatesResponse = components['schemas']['ListImportCandidatesResponse'];
 export type ListImportQuestionsResponse = components['schemas']['ListImportQuestionsResponse'];
+export type AnswerImportQuestionBody = components['schemas']['AnswerImportQuestionBody'];
+export type EditImportCandidateBody = components['schemas']['EditImportCandidateBody'];
+export type AcceptImportCandidatesBody = components['schemas']['AcceptImportCandidatesBody'];
+export type AcceptImportCandidatesResponse = components['schemas']['AcceptImportCandidatesResponse'];
+export type RejectImportCandidatesResponse = components['schemas']['RejectImportCandidatesResponse'];
 export type $defs = Record<string, never>;
 export interface operations {
     getOpenApi: {
@@ -1688,6 +1776,148 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ListImportQuestionsResponse"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+        };
+    };
+    answerImportQuestion: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+                question: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AnswerImportQuestionBody"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ImportQuestion"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+        };
+    };
+    editImportCandidate: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+                candidate: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["EditImportCandidateBody"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ImportCandidate"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+        };
+    };
+    acceptImportCandidates: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AcceptImportCandidatesBody"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AcceptImportCandidatesResponse"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+        };
+    };
+    rejectImportCandidates: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AcceptImportCandidatesBody"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RejectImportCandidatesResponse"];
                 };
             };
             /** @description Error */

@@ -122,6 +122,9 @@ export const retryTargets = async (client: Client, batchId: bigint, threshold = 
   const { rows } = await client.query<{ chunk: string }>(
     `select chunk from import_candidate where batch_id = $1 and closed_at is null and status = 'pending' and chunk is not null and confidence < $2
     union select concat(failure->>'source', '@', failure->>'offset') from import_batch, jsonb_array_elements(failures) as failure where id = $1
+    except (select chunk from import_candidate where batch_id = $1 and closed_at is null and status <> 'pending' and chunk is not null
+      union select q.chunk from import_question q where q.batch_id = $1 and q.closed_at is null and q.answer is not null and q.chunk is not null
+      union select c.chunk from import_question q join import_candidate c on c.id = q.candidate_id where q.batch_id = $1 and q.closed_at is null and q.answer is not null and c.chunk is not null)
     order by 1`,
     [batchId, threshold],
   )

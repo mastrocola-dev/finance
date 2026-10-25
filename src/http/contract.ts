@@ -43,6 +43,12 @@ export const auditQuery = z.object({
 
 export const importQuery = z.object({ status: z.enum(batchStatuses).optional() })
 
+export const questionPath = z.object({ id, question: id })
+export const candidatePath = z.object({ id, candidate: id })
+export const answerBody = z.object({ answer: z.string().describe('One of the options or free text; naming an existing member, account, category or reserve resolves every candidate carrying the asked name') })
+export const candidateEdit = z.object({ payload: z.record(z.string(), z.unknown()).describe('Full candidate payload in camelCase, checked against the schema of its kind') })
+export const candidateIds = z.object({ ids: z.array(id).min(1).max(500) })
+
 export const uploadQuery = z.object({ consent: z.literal('true').describe('Confirms the member agreed that the file content is sent to the model for extraction') })
 
 const fileName = z

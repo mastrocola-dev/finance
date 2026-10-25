@@ -10,6 +10,7 @@ import { documentFile, serialized } from '../../src/http/document.ts'
 import { openApi } from '../../src/http/openapi.ts'
 import { importUploads } from '../../src/import/uploads.ts'
 import { testDatabase } from '../db/database.ts'
+import { sample as extracted } from '../import/sample.ts'
 
 type Operation = { operationId: string; parameters: { name: string; in: string }[]; requestBody?: unknown; responses: Record<string, { content?: Record<string, { schema?: { $ref?: string } }> }> }
 type Sample = { path: string; body?: unknown; file?: string }
@@ -39,7 +40,11 @@ describe('openapi', () => {
     await seed(db.client)
     pool = connectPool(db.url)
     folder = await mkdtemp(join(tmpdir(), 'finance-openapi-'))
-    uploads = importUploads(pool, { folder, segments: async () => [], extractor: () => ({ extract: async () => ({ output: {}, usage: { inputTokens: 0, outputTokens: 0, costUsdMicros: 0 } }) }) })
+    uploads = importUploads(pool, {
+      folder,
+      segments: async () => [{ id: 'text-1', kind: 'text' as const, source: 'L1-L1', shape: { lines: 1 } }],
+      extractor: () => ({ extract: async () => ({ output: extracted, usage: { inputTokens: 0, outputTokens: 0, costUsdMicros: 0 } }) }),
+    })
     server = await serveApi(pool, 0, '127.0.0.1', uploads)
   })
 
@@ -113,25 +118,40 @@ describe('openapi', () => {
       getImport: { path: '/imports/IMPORT' },
       listImportCandidates: { path: '/imports/IMPORT/candidates' },
       listImportQuestions: { path: '/imports/IMPORT/questions' },
+      answerImportQuestion: { path: '/imports/IMPORT/questions/QUESTION/answer', body: { answer: 'Gabriela' } },
+      editImportCandidate: { path: '/imports/IMPORT/candidates/FIRST', body: { payload: extracted.candidates[0]?.payload } },
+      acceptImportCandidates: { path: '/imports/IMPORT/candidates/accept', body: { ids: ['FIRST'] } },
+      rejectImportCandidates: { path: '/imports/IMPORT/candidates/reject', body: { ids: ['SECOND'] } },
     }
     let entry = ''
     let batch = ''
+    const staged: Record<string, string> = {}
+    const fill = (text: string) =>
+      text
+        .replace('ENTRY', entry)
+        .replace('IMPORT', batch)
+        .replace(/QUESTION|FIRST|SECOND/g, (key) => staged[key] ?? key)
     for (const route of routes) {
       const sample = samples[route.operationId]
       assert.ok(sample, `${route.operationId} has no sample request`)
       const member = route.operationId === 'rejectDecision' ? 'Gabriela' : 'Marcio'
       const upload: Record<string, string> = sample.file ? { 'content-type': 'application/octet-stream', 'x-file-name': sample.file } : {}
-      const response = await fetch(`${server.url}/api${sample.path.replace('ENTRY', entry).replace('IMPORT', batch)}`, {
+      const response = await fetch(`${server.url}/api${fill(sample.path)}`, {
         method: route.method,
         headers: { 'x-member': member, ...(sample.body === undefined ? {} : { 'content-type': 'application/json' }), ...upload },
-        body: sample.file ? 'aluguel 1500\n' : sample.body === undefined ? undefined : JSON.stringify(sample.body),
+        body: sample.file ? 'aluguel 1500\n' : sample.body === undefined ? undefined : fill(JSON.stringify(sample.body)),
       })
       const body = await response.json()
       assert.equal(response.status, route.status ?? 200, `${route.operationId}: ${JSON.stringify(body)}`)
       const parsed = route.response.safeParse(body)
       assert.ok(parsed.success, `${route.operationId}: ${parsed.error?.message}`)
       if (route.operationId === 'createEntry') entry = body.id
-      if (route.operationId === 'uploadImport') batch = body.id
+      if (route.operationId === 'uploadImport') {
+        batch = body.id
+        await uploads.settled()
+        const [candidates, questions] = await Promise.all(['candidates', 'questions'].map(async (list) => (await call('GET', `/imports/${batch}/${list}`)).body))
+        Object.assign(staged, { FIRST: candidates[0].id, SECOND: candidates[1].id, QUESTION: questions[0].id })
+      }
     }
   })
 })
