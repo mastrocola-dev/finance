@@ -12,12 +12,13 @@ import { cn } from '../lib/utils.ts'
 import { ApiFailure } from '../query/client.ts'
 import { useNames } from './candidate-form.tsx'
 import { CandidateRow, type EditForm } from './candidate-row.tsx'
+import { CommitCard, CommittedCard } from './commit-card.tsx'
 import { type Names, serverErrors } from './edit-model.ts'
-import { type Batch, canRetry, formatStamp, phaseLabels, phaseOf, phaseTones, plural, progressText, retryFailure, retryText } from './model.ts'
-import { useRetry } from './queries.ts'
+import { type Batch, canRetry, closeFailure, formatStamp, phaseLabels, phaseOf, phaseTones, plural, progressText, retryFailure, retryText } from './model.ts'
+import { useClose, useRetry } from './queries.ts'
 import { QuestionCard } from './question-card.tsx'
-import { acceptable, type Candidate, checkText, type Decision, type Group, groupCandidates, type Question, reviewCounts, reviewFailure, titleOf } from './review-model.ts'
-import { useAnswer, useBatch, useCandidates, useDecide, useEdit, useQuestions } from './review-queries.ts'
+import { acceptable, type Candidate, checkText, commitFailure, commitPlan, type Decision, type Group, groupCandidates, type Question, reviewCounts, reviewFailure, titleOf } from './review-model.ts'
+import { useAnswer, useBatch, useCandidates, useCommit, useDecide, useEdit, useQuestions } from './review-queries.ts'
 
 const card = 'flex min-w-0 flex-col gap-2 rounded-card border bg-surface px-4 py-3 md:px-6 md:py-4'
 
@@ -32,7 +33,6 @@ const Rows = () => (
 const waiting: Partial<Record<ReturnType<typeof phaseOf>, string>> = {
   failed: 'A leitura falhou. Volte ao histórico para descartar e enviar de novo.',
   draft: 'A leitura ainda não terminou a verificação.',
-  committed: 'Esta importação já foi gravada no livro.',
   abandoned: 'Esta importação foi descartada.',
   closed: 'Esta importação foi encerrada.',
 }
@@ -97,7 +97,7 @@ const GroupCard = ({ group, names, busy, onDecide, onEdit }: GroupProps) => {
 
 const decided = (decision: Decision, label: string) => (decision === 'accept' ? `Aceito: ${label}` : `Rejeitado: ${label}`)
 
-const Review = ({ batch, notify }: { batch: Batch; notify: (notice: Notice) => void }) => {
+const Review = ({ batch, notify, onCommit }: { batch: Batch; notify: (notice: Notice) => void; onCommit: () => void }) => {
   const candidates = useCandidates(batch.id, true)
   const questions = useQuestions(batch.id, true)
   const answer = useAnswer(batch.id)
@@ -154,7 +154,12 @@ const Review = ({ batch, notify }: { batch: Batch; notify: (notice: Notice) => v
                 {items.length === 0 ? (
                   <EmptyState title="Nenhum item lido">O Claude não encontrou lançamentos neste arquivo. Volte ao histórico para descartar a importação.</EmptyState>
                 ) : (
-                  groupCandidates(items).map((group) => <GroupCard key={group.key} group={group} names={names} busy={busy} onEdit={onEdit} onDecide={(ids, decision, label) => decide.mutate({ ids, decision }, { onSuccess: () => notify({ message: decided(decision, label) }), onError })} />)
+                  <>
+                    {groupCandidates(items).map((group) => (
+                      <GroupCard key={group.key} group={group} names={names} busy={busy} onEdit={onEdit} onDecide={(ids, decision, label) => decide.mutate({ ids, decision }, { onSuccess: () => notify({ message: decided(decision, label) }), onError })} />
+                    ))}
+                    <CommitCard plan={commitPlan(items)} open={open.length} busy={busy} onCommit={onCommit} />
+                  </>
                 )}
               </div>
             )
@@ -178,6 +183,8 @@ export const ReviewPage = () => {
   const { id } = useParams({ from: '/importar/$id' })
   const batch = useBatch(id)
   const retry = useRetry()
+  const commit = useCommit(id)
+  const close = useClose()
   const [notice, setNotice] = useState<Notice>()
   const dismiss = useCallback(() => setNotice(undefined), [])
   return (
@@ -193,7 +200,9 @@ export const ReviewPage = () => {
             <>
               <BatchHeader batch={data} />
               {canRetry(data) && <RetryCard batch={data} busy={retry.isPending} onRetry={() => retry.mutate(data, { onSuccess: () => setNotice({ message: `Lendo de novo: ${data.fileName}` }), onError: (error) => setNotice({ tone: 'error', message: retryFailure(error) }) })} />}
-              {phase === 'verified' ? <Review batch={data} notify={setNotice} /> : <EmptyState title={phase === 'extracting' ? 'O Claude está lendo o arquivo' : 'Nada para revisar'}>{phase === 'extracting' ? 'A revisão abre aqui assim que a leitura terminar.' : waiting[phase]}</EmptyState>}
+              {phase === 'verified' && <Review batch={data} notify={setNotice} onCommit={() => commit.mutate(undefined, { onSuccess: (done) => setNotice({ message: `Gravado no livro: ${plural(done.committed, 'item', 'itens')}` }), onError: (error) => setNotice({ tone: 'error', message: commitFailure(error) }) })} />}
+              {phase === 'committed' && <CommittedCard batch={data} busy={close.isPending} onClose={() => close.mutate(data, { onSuccess: () => setNotice({ message: `Importação encerrada: ${data.fileName}` }), onError: (error) => setNotice({ tone: 'error', message: closeFailure(error) }) })} />}
+              {phase !== 'verified' && phase !== 'committed' && <EmptyState title={phase === 'extracting' ? 'O Claude está lendo o arquivo' : 'Nada para revisar'}>{phase === 'extracting' ? 'A revisão abre aqui assim que a leitura terminar.' : waiting[phase]}</EmptyState>}
             </>
           )
         }}

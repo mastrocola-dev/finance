@@ -33,7 +33,7 @@ export const totalsOf = (entries: Entry[]) =>
 
 export const categoriesOf = (entries: Entry[]) => [...new Set(entries.map((entry) => entry.category))].sort((a, b) => a.localeCompare(b, 'pt-BR'))
 
-export const originLabels: Record<Entry['origin'], string> = { manual: 'Manual', claude: 'Claude', import: 'Planilha', forecast: 'Previsto' }
+export const originLabels: Record<Entry['origin'], string> = { manual: 'Manual', claude: 'Claude', import: 'Importado', forecast: 'Previsto' }
 
 const stateLabels: Record<Entry['direction'], Record<Entry['state'], string>> = {
   income: { paid: 'Recebida', pending: 'A receber', late: 'Recebimento atrasado' },

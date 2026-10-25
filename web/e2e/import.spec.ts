@@ -90,7 +90,7 @@ test('import review reads the low-confidence chunk again before anything is revi
   await expect(page.getByRole('status')).toContainText(`Lendo de novo: ${statement.name}`)
   await expect(page.getByRole('region', { name: 'Precisa de vocês' })).toBeVisible({ timeout: 30_000 })
   await expect(page.locator('[aria-busy="true"]')).toHaveCount(0)
-  expect(await pharmacy(page).getAttribute('id')).not.toBe(before)
+  await expect.poll(() => pharmacy(page).getAttribute('id')).not.toBe(before)
   expect((await new AxeBuilder({ page }).analyze()).violations).toEqual([])
   await context.close()
 })
@@ -128,18 +128,100 @@ test('import review answers, accepts and rejects candidates', async ({ browser }
   await context.close()
 })
 
-test('import discards the reviewed batch', async ({ browser }) => {
+const shoot = (name: string, prepare: (page: Page) => Promise<void>) => {
+  for (const theme of ['light', 'dark'] as const)
+    for (const viewport of viewports)
+      test(`${name} screenshot ${viewport.width} ${theme}`, async ({ browser }) => {
+        const context = await browser.newContext({ viewport, colorScheme: theme, locale: 'pt-BR', timezoneId: 'America/Sao_Paulo' })
+        await context.addInitScript(() => localStorage.setItem('finance.member', 'Marcio'))
+        const page = await context.newPage()
+        await prepare(page)
+        await expect(page.locator('[aria-busy="true"]')).toHaveCount(0)
+        await page.evaluate(() => document.fonts.ready)
+        await page.screenshot({ path: `screenshots/${name}-${viewport.width}-${theme}.png` })
+        await context.close()
+      })
+}
+
+const batchId = async (page: Page) => {
+  const batches: { id: string; fileName: string }[] = await (await page.request.get('/api/imports', { headers: { 'x-member': 'Marcio' } })).json()
+  return batches.find((batch) => batch.fileName === statement.name)?.id
+}
+
+const review = async (page: Page) => {
+  await page.goto('/importar')
+  await history(page)
+    .getByRole('link', { name: `Revisar ${statement.name}` })
+    .click()
+  await expect(page.getByRole('heading', { name: statement.name })).toBeVisible()
+}
+
+shoot('imports-commit', async (page) => {
+  await review(page)
+  const commit = page.getByRole('region', { name: 'Gravar no livro' })
+  await expect(commit.getByRole('button', { name: 'Gravar 2 itens' })).toBeEnabled()
+  await commit.scrollIntoViewIfNeeded()
+})
+
+test('import commit writes the accepted items, which reach the entries and the activity', async ({ browser }) => {
+  const context = await browser.newContext({ viewport: viewports[1], locale: 'pt-BR', timezoneId: 'America/Sao_Paulo' })
+  await context.addInitScript(() => localStorage.setItem('finance.member', 'Marcio'))
+  const page = await context.newPage()
+  await review(page)
+  const commit = page.getByRole('region', { name: 'Gravar no livro' })
+  await expect(commit.getByText('2 itens aceitos vão para o livro.', { exact: false })).toBeVisible()
+  await commit.getByRole('button', { name: 'Gravar 2 itens' }).click()
+  await commit.getByRole('button', { name: 'Confirmar gravação' }).click()
+  await expect(page.getByRole('status')).toContainText('Gravado no livro: 2 itens')
+  const done = page.getByRole('region', { name: 'Gravada no livro' })
+  await expect(done.getByText(/^2 itens gravados\./)).toBeVisible()
+  expect((await new AxeBuilder({ page }).analyze()).violations).toEqual([])
+  await done.getByRole('link', { name: 'Ver lançamentos' }).click()
+  await expect(page.getByRole('table').getByRole('row').filter({ hasText: 'Aluguel' }).filter({ hasText: 'Importado' })).toHaveCount(1)
+  await page.goto('/atividade')
+  await expect(page.getByText('Reserva da casa').first()).toBeVisible()
+  await context.close()
+})
+
+shoot('imports-committed', async (page) => {
+  await page.goto(`/importar/${await batchId(page)}`)
+  await expect(page.getByRole('region', { name: 'Gravada no livro' })).toBeVisible()
+})
+
+test('import closes the committed batch from the review', async ({ browser }) => {
   const context = await browser.newContext({ viewport: viewports[0], locale: 'pt-BR', timezoneId: 'America/Sao_Paulo' })
   await context.addInitScript(() => localStorage.setItem('finance.member', 'Marcio'))
   const page = await context.newPage()
   await page.goto('/importar')
-  await history(page)
-    .getByRole('button', { name: `Descartar ${statement.name}` })
-    .click()
-  await history(page)
-    .getByRole('button', { name: `Confirmar descarte de ${statement.name}` })
-    .click()
-  await expect(history(page).getByText('Descartado')).toBeVisible()
-  await expect(history(page).getByText('Nada foi gravado')).toBeVisible()
+  await expect(history(page).getByText('Gravado', { exact: true })).toBeVisible()
+  await page.goto(`/importar/${await batchId(page)}`)
+  const done = page.getByRole('region', { name: 'Gravada no livro' })
+  await done.getByRole('button', { name: 'Encerrar' }).click()
+  await done.getByRole('button', { name: 'Confirmar encerramento' }).click()
+  await expect(page.getByRole('status')).toContainText(`Importação encerrada: ${statement.name}`)
+  await expect(page.getByText('Esta importação foi encerrada.')).toBeVisible()
+  await page.goto('/importar')
+  await expect(history(page).getByText('Encerrado')).toBeVisible()
+  await expect(history(page).getByText('2 itens gravados')).toBeVisible()
+  await context.close()
+})
+
+const second = { name: 'extrato-novembro.csv', mimeType: 'text/csv', buffer: Buffer.from('data,descricao,valor\n2026-11-03,Padaria do bairro,-21.00\n') }
+
+test('import discards a batch that was never reviewed', async ({ browser }) => {
+  const context = await browser.newContext({ viewport: viewports[0], locale: 'pt-BR', timezoneId: 'America/Sao_Paulo' })
+  await context.addInitScript(() => localStorage.setItem('finance.member', 'Marcio'))
+  const page = await context.newPage()
+  await page.goto('/importar')
+  const form = page.getByRole('form', { name: 'Enviar arquivo' })
+  await form.getByLabel('Arquivo', { exact: true }).setInputFiles(second)
+  await form.getByRole('checkbox').check()
+  await form.getByRole('button', { name: 'Enviar para leitura' }).click()
+  const item = page.getByRole('region', { name: 'Histórico' }).getByRole('listitem').filter({ hasText: second.name })
+  await expect(item.getByText('Para revisar')).toBeVisible({ timeout: 30_000 })
+  await item.getByRole('button', { name: `Descartar ${second.name}` }).click()
+  await item.getByRole('button', { name: `Confirmar descarte de ${second.name}` }).click()
+  await expect(item.getByText('Descartado')).toBeVisible()
+  await expect(item.getByText('Nada foi gravado')).toBeVisible()
   await context.close()
 })

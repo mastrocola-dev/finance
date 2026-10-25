@@ -7,6 +7,9 @@ import { commitBatch } from '../../src/import/commit.ts'
 import { editCandidate, reviewCandidates } from '../../src/import/review.ts'
 import { openBatch, stageOutput } from '../../src/import/staging.ts'
 import { verifyBatch } from '../../src/import/verify.ts'
+import { listAudit } from '../../src/ledger/audit.ts'
+import { listEntries } from '../../src/ledger/entries.ts'
+import { monthSummary } from '../../src/ledger/summary.ts'
 import { testDatabase } from '../db/database.ts'
 import { freshHash } from './sample.ts'
 
@@ -99,6 +102,24 @@ describe('import commit', () => {
     assert.ok(audit.every((row) => row.author === 'import' && row.member_id === committer.memberId))
     await assert.rejects(reviewCandidates(client, member, batch, [banho], 'accept'), /not open for review/)
     await assert.rejects(commitBatch(client, committer, batch), /is not verified/)
+  })
+
+  test('committed rows reach the month entries, the summary and the activity as import', async () => {
+    const vet = candidate('entry', { date: '2026-10-08', description: 'Consulta veterinária', direction: 'expense', amountCents: 18000, category: 'saúde', member: 'joint', paid: true })
+    const { batch, candidates } = await staged({ candidates: [vet], questions: [], totals: [] })
+    const before = await monthSummary(client, '2026-10', '2026-10-25')
+    await reviewCandidates(client, member, batch, candidates, 'accept')
+    await commitBatch(client, committer, batch)
+    const listed = (await listEntries(client, { month: '2026-10' }, '2026-10-25')).filter((entry) => entry.description === 'Consulta veterinária')
+    assert.deepEqual(
+      listed.map((entry) => [entry.origin, entry.state]),
+      [['import', 'paid']],
+    )
+    const after = await monthSummary(client, '2026-10', '2026-10-25')
+    assert.equal(after.expenses.total - before.expenses.total, 18000n)
+    const [latest] = (await listAudit(client, { author: 'import', entity: 'entry', limit: 1 })).items
+    assert.equal(latest?.subject, 'Consulta veterinária')
+    assert.equal(latest?.member, 'Marcio')
   })
 
   test('refuses an empty commit and candidates with failed checks, writing nothing', async () => {

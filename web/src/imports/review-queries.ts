@@ -67,3 +67,15 @@ export const useEdit = (id: string) => {
     onSettled: () => refresh(queryClient),
   })
 }
+
+export const useCommit = (id: string) => {
+  const { api } = useIdentity()
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationKey: ['import-review', id],
+    scope: { id: `import-review-${id}` },
+    mutationFn: async () => unwrap(await api.POST('/api/imports/{id}/commit', { params: { path: { id } } })),
+    onSuccess: (batch) => queryClient.setQueryData(['imports', id], batch),
+    onSettled: () => queryClient.invalidateQueries(),
+  })
+}

@@ -78,6 +78,13 @@ const fetch = vi.fn(async (input: Request) => {
     current = { ...current, progress: { state: 'extracting', done: 0, total: 1, error: null } }
     return Response.json(current, { status: 202 })
   }
+  if (input.method === 'POST' && /\/(commit|close)$/.test(url.pathname)) {
+    calls.push({ path: url.pathname, body: null, member: input.headers.get('x-member') })
+    if (refusal) return Response.json({ error: refusal }, { status: 422 })
+    const committed = candidates.filter((item) => item.status === 'accepted' || item.status === 'edited').length
+    current = url.pathname.endsWith('/commit') ? { ...current, status: 'committed', committed } : { ...current, status: 'closed', closedAt: '2026-10-20T14:00:00.000Z' }
+    return Response.json(current)
+  }
   if (input.method === 'POST') {
     const body = await input.json()
     calls.push({ path: url.pathname, body, member: input.headers.get('x-member') })
@@ -163,9 +170,9 @@ test('accepts the ready items of a group at once, rejects and accepts one by one
 })
 
 test('a batch that is not verified shows why there is nothing to review', async () => {
-  current = batch({ status: 'committed', committed: 3 })
+  current = batch({ status: 'closed', committed: 3, closedAt: '2026-10-20T14:00:00.000Z' })
   start()
-  expect(await screen.findByText('Esta importação já foi gravada no livro.')).toBeTruthy()
+  expect(await screen.findByText('Esta importação foi encerrada.')).toBeTruthy()
   expect(screen.queryByRole('region', { name: 'Precisa de vocês' })).toBeNull()
   expect(calls).toEqual([])
 })
@@ -240,4 +247,46 @@ test('explains a retry the API refuses', async () => {
   await userEvent.click(within(retry).getByRole('button', { name: 'Ler de novo' }))
   expect(await screen.findByText('O arquivo não está mais guardado. Descarte a importação e envie o arquivo de novo.')).toBeTruthy()
   expect(screen.getByText('Farmácia')).toBeTruthy()
+})
+
+test('commit explains the blocking checks of accepted items and stays disabled', async () => {
+  candidates = candidates.map((item) => ({ ...item, status: item.id === '3' ? 'rejected' : 'accepted' }))
+  start()
+  const commit = await screen.findByRole('region', { name: 'Gravar no livro' })
+  expect(within(commit).getByText('1 item aceito vai para o livro. 1 item pendente ou rejeitado fica de fora. 1 pergunta segue aberta.')).toBeTruthy()
+  expect(within(commit).getByText('Um item aceito tem bloqueio. Edite, responda ou rejeite antes de gravar:')).toBeTruthy()
+  expect(within(within(commit).getByRole('list', { name: 'Bloqueios' })).getByRole('listitem').textContent).toBe('Farmácia · Pessoa desconhecida: GMA')
+  expect((within(commit).getByRole('button', { name: 'Gravar 1 item' }) as HTMLButtonElement).disabled).toBe(true)
+})
+
+test('commits the accepted items after confirmation, then closes the batch', async () => {
+  start()
+  await userEvent.click(await screen.findByRole('button', { name: 'Aceitar 2 prontos' }))
+  const commit = screen.getByRole('region', { name: 'Gravar no livro' })
+  await waitFor(() => expect(within(commit).getByText('2 itens aceitos vão para o livro. 1 item pendente ou rejeitado fica de fora. 1 pergunta segue aberta.')).toBeTruthy())
+  await userEvent.click(within(commit).getByRole('button', { name: 'Gravar 2 itens' }))
+  await userEvent.click(within(commit).getByRole('button', { name: 'Confirmar gravação' }))
+  expect(await screen.findByText('Gravado no livro: 2 itens')).toBeTruthy()
+  const done = await screen.findByRole('region', { name: 'Gravada no livro' })
+  expect(within(done).getByText(/^2 itens gravados\./)).toBeTruthy()
+  expect(within(done).getByRole('link', { name: 'Ver lançamentos' }).getAttribute('href')).toContain('/lancamentos')
+  expect(screen.queryByRole('region', { name: 'Gravar no livro' })).toBeNull()
+  await userEvent.click(within(done).getByRole('button', { name: 'Encerrar' }))
+  await userEvent.click(within(done).getByRole('button', { name: 'Confirmar encerramento' }))
+  expect(await screen.findByText('Esta importação foi encerrada.')).toBeTruthy()
+  expect(calls.slice(-2)).toEqual([
+    { path: '/api/imports/7/commit', body: null, member: 'Marcio' },
+    { path: '/api/imports/7/close', body: null, member: 'Marcio' },
+  ])
+})
+
+test('explains a commit the API refuses', async () => {
+  candidates = candidates.map((item) => ({ ...item, status: item.id === '1' ? 'accepted' : item.status }))
+  refusal = 'unknown account Conta antiga'
+  start()
+  const commit = await screen.findByRole('region', { name: 'Gravar no livro' })
+  await userEvent.click(within(commit).getByRole('button', { name: 'Gravar 1 item' }))
+  await userEvent.click(within(commit).getByRole('button', { name: 'Confirmar gravação' }))
+  expect(await screen.findByText('Conta antiga não existe no livro nem entre os itens aceitos. Aceite o item que cria esse nome ou edite os itens que o usam.')).toBeTruthy()
+  expect(screen.getByRole('region', { name: 'Gravar no livro' })).toBeTruthy()
 })

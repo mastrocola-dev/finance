@@ -141,3 +141,29 @@ export const reviewFailure = (error: Error) => {
   if (/answer must have/.test(error.message)) return 'A resposta precisa ter de 1 a 200 caracteres.'
   return 'Não foi possível salvar. Tente de novo.'
 }
+
+const chosen = (candidate: Candidate) => candidate.status === 'accepted' || candidate.status === 'edited'
+
+export const commitPlan = (candidates: Candidate[]) => ({
+  ready: candidates.filter((candidate) => chosen(candidate) && !hasBlocking(candidate)),
+  blocked: candidates.filter((candidate) => chosen(candidate) && hasBlocking(candidate)),
+  left: candidates.filter((candidate) => !chosen(candidate)).length,
+})
+
+export type CommitPlan = ReturnType<typeof commitPlan>
+
+export const blockingTexts = (candidate: Candidate) => candidate.checks.filter((check) => isBlocking(candidate.kind, check)).map(checkText)
+
+export const commitFailure = (error: Error) => {
+  if (!(error instanceof ApiFailure)) return 'Não foi possível gravar. Tente de novo.'
+  if (error.status === 401) return 'Escolha quem você é para gravar.'
+  if (error.status === 409) return 'A importação ainda está sendo lida. Espere terminar.'
+  if (/have failed checks/.test(error.message)) return 'Há itens aceitos com bloqueio. Edite, responda ou rejeite antes de gravar.'
+  if (/no accepted candidates/.test(error.message)) return 'Aceite ao menos um item antes de gravar.'
+  if (/is not verified|not open for review/.test(error.message)) return 'Esta importação não está mais em revisão. A página foi atualizada.'
+  const unknown = error.message.match(/^unknown (?:member|account|reserve|income category|expense category) (.+)$/)?.[1]
+  if (unknown) return `${unknown} não existe no livro nem entre os itens aceitos. Aceite o item que cria esse nome ou edite os itens que o usam.`
+  const lonely = error.message.match(/^income (.+) needs a member$/)?.[1]
+  if (lonely) return `A receita ${lonely} precisa de uma pessoa. Edite o item e escolha quem recebe.`
+  return 'Não foi possível gravar. Tente de novo.'
+}

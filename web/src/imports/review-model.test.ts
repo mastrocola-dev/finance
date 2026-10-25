@@ -1,6 +1,6 @@
 import { expect, test } from 'vitest'
 import { ApiFailure } from '../query/client.ts'
-import { acceptable, amountOf, blocked, type Candidate, checkText, detailsOf, groupCandidates, monthOfCandidate, reviewCounts, reviewFailure, titleOf } from './review-model.ts'
+import { acceptable, amountOf, blocked, type Candidate, checkText, commitFailure, commitPlan, detailsOf, groupCandidates, monthOfCandidate, reviewCounts, reviewFailure, titleOf } from './review-model.ts'
 
 const candidate = (id: string, kind: Candidate['kind'], payload: Record<string, unknown>, changes: Partial<Candidate> = {}): Candidate => ({ id, kind, source: 'A1', chunk: null, confidence: '0.90', status: 'pending', payload, checks: [], recordId: null, ...changes })
 
@@ -51,4 +51,22 @@ test('counts review state and maps failures', () => {
   expect(reviewFailure(new ApiFailure(422, 'candidate 2 has an invalid payload; edit it first'))).toBe('Este item tem dados incompletos. Corrija antes de aceitar.')
   expect(reviewFailure(new ApiFailure(409, 'import batch 1 is still extracting'))).toBe('A importação ainda está sendo lida. Espere terminar.')
   expect(reviewFailure(new Error('offline'))).toBe('Não foi possível salvar. Tente de novo.')
+})
+
+test('commit plan keeps accepted and edited items, blocked ones apart, and counts the rest', () => {
+  const plan = commitPlan([{ ...rent, status: 'accepted' }, { ...pharmacy, status: 'edited' }, salary, { ...pets, status: 'rejected' }, { ...debt, status: 'edited', checks: [{ code: 'low_confidence', detail: '0.5' }] }])
+  expect(plan.ready.map((item) => item.id)).toEqual(['1', '5'])
+  expect(plan.blocked.map((item) => item.id)).toEqual(['2'])
+  expect(plan.left).toBe(2)
+})
+
+test('commit refusals become Portuguese', () => {
+  const failure = (status: number, message: string) => commitFailure(new ApiFailure(status, message))
+  expect(failure(422, 'candidates 2, 3 have failed checks; edit, answer or reject them first')).toBe('Há itens aceitos com bloqueio. Edite, responda ou rejeite antes de gravar.')
+  expect(failure(422, 'import batch 7 has no accepted candidates')).toBe('Aceite ao menos um item antes de gravar.')
+  expect(failure(422, 'import batch 7 is not open for review')).toBe('Esta importação não está mais em revisão. A página foi atualizada.')
+  expect(failure(422, 'unknown account Conta Aves')).toBe('Conta Aves não existe no livro nem entre os itens aceitos. Aceite o item que cria esse nome ou edite os itens que o usam.')
+  expect(failure(422, 'income Aluguel recebido needs a member')).toBe('A receita Aluguel recebido precisa de uma pessoa. Edite o item e escolha quem recebe.')
+  expect(failure(401, 'x-member header required')).toBe('Escolha quem você é para gravar.')
+  expect(commitFailure(new Error('network'))).toBe('Não foi possível gravar. Tente de novo.')
 })
