@@ -67,6 +67,10 @@ export const summary = (batch: Batch) => {
   return [plural(batch.candidates, 'item', 'itens'), batch.openQuestions > 0 && plural(batch.openQuestions, 'pergunta', 'perguntas'), batch.flagged > 0 && plural(batch.flagged, 'com alerta', 'com alerta')].filter(Boolean).join(' · ')
 }
 
+export const canRetry = (batch: Batch) => batch.retryable > 0 && !isExtracting(batch) && (batch.status === 'draft' || batch.status === 'verified')
+
+export const retryText = (batch: Batch) => (batch.retryable === 1 ? '1 trecho pode ser lido de novo: falhou ou tem baixa confiança.' : `${integer.format(batch.retryable)} trechos podem ser lidos de novo: falharam ou têm baixa confiança.`)
+
 export const fileIssue = (file: File) => {
   const format = file.name.includes('.') ? file.name.split('.').pop()?.toLowerCase() : undefined
   if (!format || !formats.includes(format)) return `Formato não aceito. Use ${formats.join(', ')}.`
@@ -90,4 +94,14 @@ export const closeFailure = (error: Error) => {
   if (error instanceof ApiFailure && error.status === 409) return 'A importação ainda está sendo lida. Espere terminar.'
   if (error instanceof ApiFailure && error.status === 422) return 'Esta importação já foi encerrada. A lista foi atualizada.'
   return 'Não foi possível encerrar. Tente de novo.'
+}
+
+export const retryFailure = (error: Error) => {
+  if (!(error instanceof ApiFailure)) return 'Não foi possível ler de novo. Tente de novo.'
+  if (error.status === 401) return 'Escolha quem você é para ler de novo.'
+  if (error.status === 409) return 'A importação ainda está sendo lida. Espere terminar.'
+  if (/no longer kept/.test(error.message)) return 'O arquivo não está mais guardado. Descarte a importação e envie o arquivo de novo.'
+  if (/nothing to retry/.test(error.message)) return 'Não há trechos para ler de novo. A lista foi atualizada.'
+  if (/not open for a retry/.test(error.message)) return 'Esta importação já foi gravada ou encerrada. A lista foi atualizada.'
+  return 'Não foi possível ler de novo. Tente de novo.'
 }

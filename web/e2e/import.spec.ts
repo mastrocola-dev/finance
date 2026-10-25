@@ -13,6 +13,8 @@ const viewports = [
 
 const history = (page: Page) => page.getByRole('region', { name: 'Histórico' }).getByRole('listitem').filter({ hasText: statement.name })
 
+const pharmacy = (page: Page) => page.locator('[id^="candidate-title-"]').filter({ hasText: /^Farmácia$/ })
+
 test.describe.configure({ mode: 'serial' })
 test.beforeAll(reseed)
 test.afterAll(reseed)
@@ -71,6 +73,27 @@ for (const theme of ['light', 'dark'] as const)
       await page.screenshot({ path: `screenshots/imports-review-edit-${viewport.width}-${theme}.png` })
       await context.close()
     })
+
+test('import review reads the low-confidence chunk again before anything is reviewed', async ({ browser }) => {
+  const context = await browser.newContext({ viewport: viewports[1], locale: 'pt-BR', timezoneId: 'America/Sao_Paulo' })
+  await context.addInitScript(() => localStorage.setItem('finance.member', 'Marcio'))
+  const page = await context.newPage()
+  await page.goto('/importar')
+  await expect(history(page).getByText('1 trecho pode ser lido de novo: falhou ou tem baixa confiança.')).toBeVisible()
+  await history(page)
+    .getByRole('link', { name: `Revisar ${statement.name}` })
+    .click()
+  const retry = page.getByRole('region', { name: 'Ler de novo' })
+  await expect(retry.getByText('1 trecho pode ser lido de novo: falhou ou tem baixa confiança.')).toBeVisible()
+  const before = await pharmacy(page).getAttribute('id')
+  await retry.getByRole('button', { name: 'Ler de novo' }).click()
+  await expect(page.getByRole('status')).toContainText(`Lendo de novo: ${statement.name}`)
+  await expect(page.getByRole('region', { name: 'Precisa de vocês' })).toBeVisible({ timeout: 30_000 })
+  await expect(page.locator('[aria-busy="true"]')).toHaveCount(0)
+  expect(await pharmacy(page).getAttribute('id')).not.toBe(before)
+  expect((await new AxeBuilder({ page }).analyze()).violations).toEqual([])
+  await context.close()
+})
 
 test('import review answers, accepts and rejects candidates', async ({ browser }) => {
   const context = await browser.newContext({ viewport: viewports[1], locale: 'pt-BR', timezoneId: 'America/Sao_Paulo' })

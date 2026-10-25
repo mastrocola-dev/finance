@@ -798,6 +798,8 @@ export type components = {
             openQuestions: number;
             /** @description Candidates written to the ledger, kept after the batch is closed */
             committed: number;
+            /** @description Chunks a retry would extract again: failed, or holding pending candidates below the confidence threshold and nothing reviewed; 0 once committed or closed */
+            retryable: number;
             /** @description Extraction progress while this API process runs it; null otherwise */
             progress: {
                 /** @enum {string} */

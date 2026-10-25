@@ -43,3 +43,17 @@ export const useClose = () => {
     onSettled: () => refresh(queryClient),
   })
 }
+
+export const useRetry = () => {
+  const { api } = useIdentity()
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationKey: ['import-retry'],
+    mutationFn: async (batch: Batch) => unwrap(await api.POST('/api/imports/{id}/retry', { params: { path: { id: batch.id } } })),
+    onSuccess: (batch) => {
+      queryClient.setQueryData(['imports', batch.id], batch)
+      queryClient.setQueryData<Batch[]>(['imports'], (batches) => batches?.map((item) => (item.id === batch.id ? batch : item)))
+    },
+    onSettled: () => refresh(queryClient),
+  })
+}

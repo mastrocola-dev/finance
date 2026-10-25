@@ -8,8 +8,8 @@ import { useIdentity } from '../identity/identity-provider.tsx'
 import { screenOf } from '../shell/nav.ts'
 import { PageHeader } from '../shell/page-header.tsx'
 import { BatchItem } from './batch-item.tsx'
-import { type Batch, closeFailure, uploadFailure } from './model.ts'
-import { useClose, useImports, useUpload } from './queries.ts'
+import { type Batch, closeFailure, retryFailure, uploadFailure } from './model.ts'
+import { useClose, useImports, useRetry, useUpload } from './queries.ts'
 import { UploadForm } from './upload-form.tsx'
 
 const RowsSkeleton = () => (
@@ -27,9 +27,10 @@ export const ImportsPage = () => {
   const imports = useImports()
   const upload = useUpload()
   const close = useClose()
+  const retry = useRetry()
   const [notice, setNotice] = useState<Notice>()
   const dismiss = useCallback(() => setNotice(undefined), [])
-  const busy = useMutationState({ filters: { mutationKey: ['import-close'], status: 'pending' }, select: (mutation) => (mutation.state.variables as Batch).id })
+  const busy = useMutationState({ filters: { predicate: (mutation) => ['import-close', 'import-retry'].includes(String(mutation.options.mutationKey?.[0])), status: 'pending' }, select: (mutation) => (mutation.state.variables as Batch).id })
 
   return (
     <>
@@ -63,6 +64,12 @@ export const ImportsPage = () => {
                     key={batch.id}
                     batch={batch}
                     busy={busy.includes(batch.id)}
+                    onRetry={() =>
+                      retry.mutate(batch, {
+                        onSuccess: () => setNotice({ message: `Lendo de novo: ${batch.fileName}` }),
+                        onError: (error) => setNotice({ tone: 'error', message: retryFailure(error) }),
+                      })
+                    }
                     onClose={() =>
                       close.mutate(batch, {
                         onSuccess: () => setNotice({ message: closed(batch) }),

@@ -3,9 +3,9 @@ import { useState } from 'react'
 import { Button, buttonVariants } from '../components/ui/button.tsx'
 import { chip } from '../decisions/decision-card.tsx'
 import { cn } from '../lib/utils.ts'
-import { type Batch, closeAction, formatStamp, formatTokens, formatUsd, phaseLabels, phaseOf, phaseTones, plural, progressText, summary } from './model.ts'
+import { type Batch, canRetry, closeAction, formatStamp, formatTokens, formatUsd, phaseLabels, phaseOf, phaseTones, plural, progressText, retryText, summary } from './model.ts'
 
-type Props = { batch: Batch; busy: boolean; onClose: () => void }
+type Props = { batch: Batch; busy: boolean; onClose: () => void; onRetry: () => void }
 
 const Progress = ({ batch, progress }: { batch: Batch; progress: NonNullable<Batch['progress']> }) => (
   <div className="flex flex-col gap-1.5">
@@ -30,10 +30,11 @@ const Failures = ({ batch }: { batch: Batch }) => (
   </details>
 )
 
-export const BatchItem = ({ batch, busy, onClose }: Props) => {
+export const BatchItem = ({ batch, busy, onClose, onRetry }: Props) => {
   const [confirming, setConfirming] = useState(false)
   const phase = phaseOf(batch)
   const action = closeAction(batch)
+  const retry = canRetry(batch)
   return (
     <li className="flex flex-col gap-2.5 border-b py-3.5 last:border-b-0">
       <div className="flex items-start gap-2.5">
@@ -48,11 +49,17 @@ export const BatchItem = ({ batch, busy, onClose }: Props) => {
       {batch.progress && phase === 'extracting' ? <Progress batch={batch} progress={batch.progress} /> : <span className="text-meta">{summary(batch)}</span>}
       {phase === 'failed' && batch.progress?.error && <span className="text-meta text-late">{batch.progress.error}</span>}
       {batch.failures.length > 0 && <Failures batch={batch} />}
+      {retry && <span className="text-xs text-muted">{retryText(batch)}</span>}
       <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted">
         <span className="amount">{formatTokens(batch)}</span>
         <span className="amount">{formatUsd(batch.costUsd)}</span>
-        {(phase === 'verified' || action) && (
-          <span className="ml-auto flex gap-2">
+        {(phase === 'verified' || action || retry) && (
+          <span className="ml-auto flex flex-wrap justify-end gap-2">
+            {retry && !confirming && (
+              <Button variant="outline" disabled={busy} aria-label={`Ler de novo ${batch.fileName}`} onClick={onRetry}>
+                Ler de novo
+              </Button>
+            )}
             {phase === 'verified' && !confirming && (
               <Link to="/importar/$id" params={{ id: batch.id }} aria-label={`Revisar ${batch.fileName}`} className={buttonVariants({ variant: 'primary' })}>
                 Revisar

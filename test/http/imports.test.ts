@@ -192,6 +192,7 @@ describe('import api', () => {
     const batch = accepted.body.id
     await uploads.settled()
     const first = (await get(`/imports/${batch}/candidates`)).body.map(({ id }: { id: string }) => id)
+    assert.equal((await get(`/imports/${batch}`)).body.retryable, 1)
     const started = await retry(batch)
     assert.deepEqual([started.status, started.body.progress], [202, { state: 'extracting', done: 0, total: 1, error: null }])
     await uploads.settled()
@@ -215,6 +216,7 @@ describe('import api', () => {
     await uploads.settled()
     const [chosen] = (await get(`/imports/${batch}/candidates`)).body
     await fetch(`${server.url}/api/imports/${batch}/candidates/accept`, { method: 'POST', headers: { 'content-type': 'application/json', 'x-member': 'Marcio' }, body: JSON.stringify({ ids: [chosen.id] }) })
+    assert.equal((await get(`/imports/${batch}`)).body.retryable, 0)
     const nothing = await retry(batch)
     assert.deepEqual([nothing.status, nothing.body.error], [422, `nothing to retry in import batch ${batch}`])
     assert.equal((await get(`/imports/${batch}`)).body.progress.state, 'done')
@@ -224,6 +226,7 @@ describe('import api', () => {
     assert.match((await retry(gone.body.id)).body.error, /no longer kept; close the batch and upload the file again/)
     await fetch(`${server.url}/api/imports/${gone.body.id}/close`, { method: 'POST', headers: { 'x-member': 'Marcio' } })
     assert.deepEqual(await retry(gone.body.id), { status: 422, body: { error: `import batch ${gone.body.id} is not open for a retry` } })
+    assert.equal((await get(`/imports/${gone.body.id}`)).body.retryable, 0)
     assert.equal((await retry('999999')).status, 404)
     assert.equal((await fetch(`${server.url}/api/imports/${batch}/retry`, { method: 'POST' })).status, 401)
   })

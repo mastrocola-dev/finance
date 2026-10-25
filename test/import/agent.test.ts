@@ -3,6 +3,7 @@ import { after, before, describe, test } from 'node:test'
 import type { Client } from 'pg'
 import type { Actor } from '../../src/db/write.ts'
 import { chunkSize, type Extractor, extract, plan, retryImport, retryTargets, runImport, type Segment, strategyOf, type Task } from '../../src/import/agent.ts'
+import { findBatch } from '../../src/import/batches.ts'
 import { type Recording, recordedExtractor } from '../../src/import/recorded.ts'
 import { openBatch } from '../../src/import/staging.ts'
 import { verifyBatch } from '../../src/import/verify.ts'
@@ -185,6 +186,7 @@ describe('import run against staging', () => {
     const { rows } = await client.query('select failures from import_batch where id = $1', [batch])
     assert.deepEqual(rows[0]?.failures, [{ source: 'L1-L95', offset: 0, reason: 'agent failed on L1-L95' }])
     assert.deepEqual(await retryTargets(client, batch), ['2026-10!A1:G3@0', 'L1-L95@0'])
+    assert.equal((await findBatch(client, batch)).retryable, 2)
   })
 
   test('retries low-confidence and failed chunks, replacing their rows and totals', async () => {

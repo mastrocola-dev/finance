@@ -23,6 +23,7 @@ const batch = (changes: Partial<Batch> = {}): Batch => ({
   flagged: 1,
   openQuestions: 1,
   committed: 0,
+  retryable: 0,
   progress: null,
   ...changes,
 })
@@ -51,6 +52,7 @@ let current = batch()
 let candidates = seedCandidates()
 let questions = seedQuestions()
 let calls: { path: string; body: unknown; member: string | null }[] = []
+let refusal: string | undefined
 
 const fetch = vi.fn(async (input: Request) => {
   const url = new URL(input.url)
@@ -69,6 +71,12 @@ const fetch = vi.fn(async (input: Request) => {
     const id = url.pathname.split('/').at(-1)
     candidates = candidates.map((item) => (item.id === id ? { ...item, payload: body.payload, status: 'edited', checks: [] } : item))
     return Response.json(candidates.find((item) => item.id === id))
+  }
+  if (input.method === 'POST' && url.pathname.endsWith('/retry')) {
+    calls.push({ path: url.pathname, body: null, member: input.headers.get('x-member') })
+    if (refusal) return Response.json({ error: refusal }, { status: 422 })
+    current = { ...current, progress: { state: 'extracting', done: 0, total: 1, error: null } }
+    return Response.json(current, { status: 202 })
   }
   if (input.method === 'POST') {
     const body = await input.json()
@@ -97,6 +105,7 @@ afterEach(() => {
   candidates = seedCandidates()
   questions = seedQuestions()
   calls = []
+  refusal = undefined
 })
 
 const start = () => render(<App history={createMemoryHistory({ initialEntries: ['/importar/7'] })} fetch={fetch} />)
@@ -201,4 +210,34 @@ test('cancel closes the edit form without saving', async () => {
   await userEvent.click(screen.getByRole('button', { name: 'Cancelar' }))
   expect(screen.queryByRole('form', { name: 'Editar Aluguel' })).toBeNull()
   expect(calls).toEqual([])
+})
+
+test('reads low-confidence chunks again, waits for the extraction and shows the new candidates', async () => {
+  current = batch({ retryable: 1 })
+  start()
+  const retry = await screen.findByRole('region', { name: 'Ler de novo' })
+  expect(within(retry).getByText('1 trecho pode ser lido de novo: falhou ou tem baixa confiança.')).toBeTruthy()
+  await screen.findByText('Farmácia')
+  await userEvent.click(within(retry).getByRole('button', { name: 'Ler de novo' }))
+  expect(await screen.findByText('Lendo de novo: planilha-casa.xlsx')).toBeTruthy()
+  expect(await screen.findByText('O Claude está lendo o arquivo')).toBeTruthy()
+  expect(screen.queryByRole('region', { name: 'Ler de novo' })).toBeNull()
+  expect(calls).toEqual([{ path: '/api/imports/7/retry', body: null, member: 'Marcio' }])
+  candidates = [candidate('4', { date: '2026-10-15', description: 'Drogaria', direction: 'expense', amountCents: 8990, category: 'Saúde', member: 'Gabriela', paid: false })]
+  questions = []
+  current = batch({ retryable: 0, progress: { state: 'done', done: 1, total: 1, error: null } })
+  expect(await screen.findByText('Drogaria', {}, { timeout: 3000 })).toBeTruthy()
+  expect(screen.queryByText('Farmácia')).toBeNull()
+  expect(screen.queryByRole('region', { name: 'Ler de novo' })).toBeNull()
+})
+
+test('explains a retry the API refuses', async () => {
+  current = batch({ retryable: 2 })
+  refusal = 'the file of import batch 7 is no longer kept; close the batch and upload the file again'
+  start()
+  const retry = await screen.findByRole('region', { name: 'Ler de novo' })
+  expect(within(retry).getByText('2 trechos podem ser lidos de novo: falharam ou têm baixa confiança.')).toBeTruthy()
+  await userEvent.click(within(retry).getByRole('button', { name: 'Ler de novo' }))
+  expect(await screen.findByText('O arquivo não está mais guardado. Descarte a importação e envie o arquivo de novo.')).toBeTruthy()
+  expect(screen.getByText('Farmácia')).toBeTruthy()
 })

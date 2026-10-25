@@ -1,15 +1,21 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useIdentity } from '../identity/identity-provider.tsx'
 import { unwrap } from '../query/client.ts'
-import { isExtracting } from './model.ts'
+import { type Batch, isExtracting } from './model.ts'
 import { pollMs } from './queries.ts'
 import type { Decision, Question } from './review-model.ts'
 
 export const useBatch = (id: string) => {
   const { api } = useIdentity()
+  const queryClient = useQueryClient()
   return useQuery({
     queryKey: ['imports', id],
-    queryFn: async () => unwrap(await api.GET('/api/imports/{id}', { params: { path: { id } } })),
+    queryFn: async () => {
+      const before = queryClient.getQueryData<Batch>(['imports', id])
+      const batch = unwrap(await api.GET('/api/imports/{id}', { params: { path: { id } } }))
+      if (before && isExtracting(before) && !isExtracting(batch)) for (const part of ['candidates', 'questions']) await queryClient.invalidateQueries({ queryKey: ['imports', id, part] })
+      return batch
+    },
     refetchInterval: (query) => (query.state.data && isExtracting(query.state.data) ? pollMs : false),
   })
 }

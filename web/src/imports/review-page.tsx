@@ -13,7 +13,8 @@ import { ApiFailure } from '../query/client.ts'
 import { useNames } from './candidate-form.tsx'
 import { CandidateRow, type EditForm } from './candidate-row.tsx'
 import { type Names, serverErrors } from './edit-model.ts'
-import { type Batch, formatStamp, phaseLabels, phaseOf, phaseTones, plural, progressText } from './model.ts'
+import { type Batch, canRetry, formatStamp, phaseLabels, phaseOf, phaseTones, plural, progressText, retryFailure, retryText } from './model.ts'
+import { useRetry } from './queries.ts'
 import { QuestionCard } from './question-card.tsx'
 import { acceptable, type Candidate, checkText, type Decision, type Group, groupCandidates, type Question, reviewCounts, reviewFailure, titleOf } from './review-model.ts'
 import { useAnswer, useBatch, useCandidates, useDecide, useEdit, useQuestions } from './review-queries.ts'
@@ -96,82 +97,89 @@ const GroupCard = ({ group, names, busy, onDecide, onEdit }: GroupProps) => {
 
 const decided = (decision: Decision, label: string) => (decision === 'accept' ? `Aceito: ${label}` : `Rejeitado: ${label}`)
 
-const Review = ({ batch }: { batch: Batch }) => {
+const Review = ({ batch, notify }: { batch: Batch; notify: (notice: Notice) => void }) => {
   const candidates = useCandidates(batch.id, true)
   const questions = useQuestions(batch.id, true)
   const answer = useAnswer(batch.id)
   const decide = useDecide(batch.id)
   const edit = useEdit(batch.id)
   const names = useNames(candidates.data ?? [])
-  const [notice, setNotice] = useState<Notice>()
-  const dismiss = useCallback(() => setNotice(undefined), [])
   const busy = useMutationState({ filters: { mutationKey: ['import-review', batch.id], status: 'pending' } }).length > 0
-  const onError = (error: Error) => setNotice({ tone: 'error', message: reviewFailure(error) })
+  const onError = (error: Error) => notify({ tone: 'error', message: reviewFailure(error) })
   const onEdit = (candidate: Candidate, payload: Record<string, unknown>, form: EditForm) =>
     edit.mutate(
       { candidate: candidate.id, payload },
       {
         onSuccess: () => {
           form.close()
-          setNotice({ message: `Editado: ${titleOf({ ...candidate, payload })}` })
+          notify({ message: `Editado: ${titleOf({ ...candidate, payload })}` })
         },
         onError: (error) => (error instanceof ApiFailure && /^invalid \w+ payload/.test(error.message) ? form.refuse(serverErrors(candidate.kind, error.message)) : onError(error)),
       },
     )
 
   return (
-    <>
-      <QueryView query={candidates} skeleton={<Rows />}>
-        {(items) => (
-          <QueryView query={questions} skeleton={<Rows />}>
-            {(asked) => {
-              const open = asked.filter((question) => question.answer === null)
-              const titles = new Map(items.map((item) => [item.id, titleOf(item)]))
-              return (
-                <div className="flex w-full max-w-4xl flex-col gap-5">
-                  <Summary candidates={items} questions={asked} />
-                  {(open.length > 0 || batch.checks.length > 0) && (
-                    <section aria-labelledby="attention-title" className={cn(card, 'border-accent/40')}>
-                      <h2 id="attention-title" className="m-0 text-section font-semibold">
-                        Precisa de vocês
-                      </h2>
-                      {batch.checks.length > 0 && (
-                        <ul aria-label="Alertas do arquivo" className="m-0 flex list-none flex-col gap-1 p-0">
-                          {batch.checks.map((check) => (
-                            <li key={`${check.code}-${check.detail ?? ''}`} className="text-meta text-late">
-                              {checkText(check)}
-                            </li>
-                          ))}
-                        </ul>
-                      )}
-                      {open.length > 0 && (
-                        <ul aria-label="Perguntas" className="m-0 flex list-none flex-col gap-2.5 p-0">
-                          {open.map((question) => (
-                            <QuestionCard key={question.id} question={question} about={question.candidateId ? titles.get(question.candidateId) : undefined} busy={busy} onAnswer={(text) => answer.mutate({ question, answer: text }, { onSuccess: () => setNotice({ message: `Resposta registrada: ${text}` }), onError })} />
-                          ))}
-                        </ul>
-                      )}
-                    </section>
-                  )}
-                  {items.length === 0 ? (
-                    <EmptyState title="Nenhum item lido">O Claude não encontrou lançamentos neste arquivo. Volte ao histórico para descartar a importação.</EmptyState>
-                  ) : (
-                    groupCandidates(items).map((group) => <GroupCard key={group.key} group={group} names={names} busy={busy} onEdit={onEdit} onDecide={(ids, decision, label) => decide.mutate({ ids, decision }, { onSuccess: () => setNotice({ message: decided(decision, label) }), onError })} />)
-                  )}
-                </div>
-              )
-            }}
-          </QueryView>
-        )}
-      </QueryView>
-      <Toast notice={notice} onClose={dismiss} />
-    </>
+    <QueryView query={candidates} skeleton={<Rows />}>
+      {(items) => (
+        <QueryView query={questions} skeleton={<Rows />}>
+          {(asked) => {
+            const open = asked.filter((question) => question.answer === null)
+            const titles = new Map(items.map((item) => [item.id, titleOf(item)]))
+            return (
+              <div className="flex w-full max-w-4xl flex-col gap-5">
+                <Summary candidates={items} questions={asked} />
+                {(open.length > 0 || batch.checks.length > 0) && (
+                  <section aria-labelledby="attention-title" className={cn(card, 'border-accent/40')}>
+                    <h2 id="attention-title" className="m-0 text-section font-semibold">
+                      Precisa de vocês
+                    </h2>
+                    {batch.checks.length > 0 && (
+                      <ul aria-label="Alertas do arquivo" className="m-0 flex list-none flex-col gap-1 p-0">
+                        {batch.checks.map((check) => (
+                          <li key={`${check.code}-${check.detail ?? ''}`} className="text-meta text-late">
+                            {checkText(check)}
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                    {open.length > 0 && (
+                      <ul aria-label="Perguntas" className="m-0 flex list-none flex-col gap-2.5 p-0">
+                        {open.map((question) => (
+                          <QuestionCard key={question.id} question={question} about={question.candidateId ? titles.get(question.candidateId) : undefined} busy={busy} onAnswer={(text) => answer.mutate({ question, answer: text }, { onSuccess: () => notify({ message: `Resposta registrada: ${text}` }), onError })} />
+                        ))}
+                      </ul>
+                    )}
+                  </section>
+                )}
+                {items.length === 0 ? (
+                  <EmptyState title="Nenhum item lido">O Claude não encontrou lançamentos neste arquivo. Volte ao histórico para descartar a importação.</EmptyState>
+                ) : (
+                  groupCandidates(items).map((group) => <GroupCard key={group.key} group={group} names={names} busy={busy} onEdit={onEdit} onDecide={(ids, decision, label) => decide.mutate({ ids, decision }, { onSuccess: () => notify({ message: decided(decision, label) }), onError })} />)
+                )}
+              </div>
+            )
+          }}
+        </QueryView>
+      )}
+    </QueryView>
   )
 }
+
+const RetryCard = ({ batch, busy, onRetry }: { batch: Batch; busy: boolean; onRetry: () => void }) => (
+  <section aria-label="Ler de novo" className={cn(card, 'max-w-4xl flex-row flex-wrap items-center gap-3')}>
+    <span className="min-w-0 flex-1 text-meta">{retryText(batch)}</span>
+    <Button variant="outline" disabled={busy} onClick={onRetry}>
+      Ler de novo
+    </Button>
+  </section>
+)
 
 export const ReviewPage = () => {
   const { id } = useParams({ from: '/importar/$id' })
   const batch = useBatch(id)
+  const retry = useRetry()
+  const [notice, setNotice] = useState<Notice>()
+  const dismiss = useCallback(() => setNotice(undefined), [])
   return (
     <>
       <Link to="/importar" className="inline-flex min-h-11 w-fit items-center gap-1.5 text-meta text-accent md:min-h-0">
@@ -184,11 +192,13 @@ export const ReviewPage = () => {
           return (
             <>
               <BatchHeader batch={data} />
-              {phase === 'verified' ? <Review batch={data} /> : <EmptyState title={phase === 'extracting' ? 'O Claude está lendo o arquivo' : 'Nada para revisar'}>{phase === 'extracting' ? 'A revisão abre aqui assim que a leitura terminar.' : waiting[phase]}</EmptyState>}
+              {canRetry(data) && <RetryCard batch={data} busy={retry.isPending} onRetry={() => retry.mutate(data, { onSuccess: () => setNotice({ message: `Lendo de novo: ${data.fileName}` }), onError: (error) => setNotice({ tone: 'error', message: retryFailure(error) }) })} />}
+              {phase === 'verified' ? <Review batch={data} notify={setNotice} /> : <EmptyState title={phase === 'extracting' ? 'O Claude está lendo o arquivo' : 'Nada para revisar'}>{phase === 'extracting' ? 'A revisão abre aqui assim que a leitura terminar.' : waiting[phase]}</EmptyState>}
             </>
           )
         }}
       </QueryView>
+      <Toast notice={notice} onClose={dismiss} />
     </>
   )
 }

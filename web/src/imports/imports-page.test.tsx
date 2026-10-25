@@ -22,19 +22,21 @@ const batch = (id: string, fileName: string, changes: Partial<Batch> = {}): Batc
   flagged: 2,
   openQuestions: 1,
   committed: 0,
+  retryable: 0,
   progress: null,
   ...changes,
 })
 
 const seed = () => [
   batch('3', 'extrato-outubro.ofx', { status: 'draft', candidates: 0, flagged: 0, openQuestions: 0, progress: { state: 'extracting', done: 1, total: 4, error: null } }),
-  batch('2', 'planilha-casa.xlsx', { failures: [{ source: 'Setembro!A1:G40', offset: 0, reason: 'model refused' }] }),
+  batch('2', 'planilha-casa.xlsx', { failures: [{ source: 'Setembro!A1:G40', offset: 0, reason: 'model refused' }], retryable: 1 }),
   batch('1', 'notas.txt', { status: 'closed', closedAt: '2026-10-19T12:00:00.000Z', candidates: 0, flagged: 0, openQuestions: 0, committed: 6 }),
 ]
 
 let batches = seed()
 let uploads: { name: string | null; consent: string | null; type: string | null; size: number; member: string | null }[] = []
 let closes: string[] = []
+let retries: { id: string; member: string | null }[] = []
 let failing: { status: number; error: string } | undefined
 
 const fetch = vi.fn(async (input: Request) => {
@@ -52,6 +54,16 @@ const fetch = vi.fn(async (input: Request) => {
     const created = batch('4', decodeURIComponent(input.headers.get('x-file-name') ?? ''), { status: 'draft', candidates: 0, flagged: 0, openQuestions: 0, inputTokens: 0, outputTokens: 0, costUsd: '0.0000', progress: { state: 'extracting', done: 0, total: 0, error: null } })
     batches = [created, ...batches]
     return Response.json(created, { status: 202 })
+  }
+  const [, again] = url.pathname.match(/^\/api\/imports\/(\d+)\/retry$/) ?? []
+  if (input.method === 'POST' && again) {
+    retries.push({ id: again, member: input.headers.get('x-member') })
+    if (failing) return Response.json({ error: failing.error }, { status: failing.status })
+    batches = batches.map((current) => (current.id === again ? { ...current, progress: { state: 'extracting' as const, done: 0, total: 1, error: null } } : current))
+    return Response.json(
+      batches.find((current) => current.id === again),
+      { status: 202 },
+    )
   }
   const [, id] = url.pathname.match(/^\/api\/imports\/(\d+)\/close$/) ?? []
   if (input.method === 'POST' && id) {
@@ -71,6 +83,7 @@ afterEach(() => {
   batches = seed()
   uploads = []
   closes = []
+  retries = []
   failing = undefined
 })
 
@@ -183,4 +196,25 @@ test('shows an empty history', async () => {
   batches = []
   start()
   expect(await screen.findByText('Nenhuma importação ainda')).toBeTruthy()
+})
+
+test('reads the failed chunks of a batch again from the history', async () => {
+  start()
+  const sheet = await item('planilha-casa.xlsx')
+  expect(within(sheet).getByText('1 trecho pode ser lido de novo: falhou ou tem baixa confiança.')).toBeTruthy()
+  expect(within(await item('notas.txt')).queryByRole('button', { name: /Ler de novo/ })).toBeNull()
+  await userEvent.click(within(sheet).getByRole('button', { name: 'Ler de novo planilha-casa.xlsx' }))
+  expect(await screen.findByText('Lendo de novo: planilha-casa.xlsx')).toBeTruthy()
+  expect(retries).toEqual([{ id: '2', member: 'Marcio' }])
+  const reading = await item('planilha-casa.xlsx')
+  expect(within(reading).getByText('Extraindo')).toBeTruthy()
+  expect(within(reading).queryByRole('button', { name: 'Ler de novo planilha-casa.xlsx' })).toBeNull()
+})
+
+test('explains a retry with nothing left to read', async () => {
+  failing = { status: 422, error: 'nothing to retry in import batch 2' }
+  start()
+  const sheet = await item('planilha-casa.xlsx')
+  await userEvent.click(within(sheet).getByRole('button', { name: 'Ler de novo planilha-casa.xlsx' }))
+  expect(await screen.findByText('Não há trechos para ler de novo. A lista foi atualizada.')).toBeTruthy()
 })

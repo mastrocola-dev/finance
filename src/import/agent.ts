@@ -2,6 +2,7 @@ import type { Client } from 'pg'
 import * as z from 'zod'
 import type { Actor } from '../db/write.ts'
 import { RuleError } from '../ledger/rule.ts'
+import { retryChunks } from './batches.ts'
 import { type ImportOutput, importOutput } from './candidate.ts'
 import { chunkKey, maskDigits, stageOutput } from './staging.ts'
 import { confidenceThreshold } from './verify.ts'
@@ -119,15 +120,7 @@ export const runImport = async (client: Client, actor: Actor, batchId: bigint, r
 }
 
 export const retryTargets = async (client: Client, batchId: bigint, threshold = confidenceThreshold) => {
-  const { rows } = await client.query<{ chunk: string }>(
-    `select chunk from import_candidate where batch_id = $1 and closed_at is null and status = 'pending' and chunk is not null and confidence < $2
-    union select concat(failure->>'source', '@', failure->>'offset') from import_batch, jsonb_array_elements(failures) as failure where id = $1
-    except (select chunk from import_candidate where batch_id = $1 and closed_at is null and status <> 'pending' and chunk is not null
-      union select q.chunk from import_question q where q.batch_id = $1 and q.closed_at is null and q.answer is not null and q.chunk is not null
-      union select c.chunk from import_question q join import_candidate c on c.id = q.candidate_id where q.batch_id = $1 and q.closed_at is null and q.answer is not null and c.chunk is not null)
-    order by 1`,
-    [batchId, threshold],
-  )
+  const { rows } = await client.query<{ chunk: string }>(`${retryChunks('$1', '$2')} order by 1`, [batchId, threshold])
   return rows.map((row) => row.chunk)
 }
 

@@ -2873,6 +2873,12 @@
             "maximum": 9007199254740991,
             "description": "Candidates written to the ledger, kept after the batch is closed"
           },
+          "retryable": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991,
+            "description": "Chunks a retry would extract again: failed, or holding pending candidates below the confidence threshold and nothing reviewed; 0 once committed or closed"
+          },
           "progress": {
             "anyOf": [
               {
@@ -2937,6 +2943,7 @@
           "flagged",
           "openQuestions",
           "committed",
+          "retryable",
           "progress"
         ],
         "additionalProperties": false

@@ -232,6 +232,7 @@ const importBatch = z.strictObject({
   flagged: z.int().describe('Open candidates with at least one check'),
   openQuestions: z.int(),
   committed: z.int().describe('Candidates written to the ledger, kept after the batch is closed'),
+  retryable: z.int().describe('Chunks a retry would extract again: failed, or holding pending candidates below the confidence threshold and nothing reviewed; 0 once committed or closed'),
   progress: progress.nullable().describe('Extraction progress while this API process runs it; null otherwise'),
 })
 
