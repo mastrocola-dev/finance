@@ -1,6 +1,7 @@
 import { execSync } from 'node:child_process'
 import AxeBuilder from '@axe-core/playwright'
 import { expect, type Page, test } from '@playwright/test'
+import { fullShot } from './shot.ts'
 
 const reseed = () => execSync('npm run db:reset && npm run db:seed', { cwd: '..', stdio: 'ignore' })
 
@@ -46,7 +47,7 @@ for (const theme of ['light', 'dark'] as const)
       await expect(history(page).getByText('Para revisar')).toBeVisible()
       await expect(page.locator('[aria-busy="true"]')).toHaveCount(0)
       await page.evaluate(() => document.fonts.ready)
-      await page.screenshot({ path: `screenshots/imports-${viewport.width}-${theme}.png`, fullPage: true })
+      await fullShot(page, `screenshots/imports-${viewport.width}-${theme}.png`)
       await context.close()
     })
 
@@ -63,7 +64,7 @@ for (const theme of ['light', 'dark'] as const)
       await expect(page.getByRole('region', { name: 'Precisa de vocês' })).toBeVisible()
       await expect(page.locator('[aria-busy="true"]')).toHaveCount(0)
       await page.evaluate(() => document.fonts.ready)
-      await page.screenshot({ path: `screenshots/imports-review-${viewport.width}-${theme}.png`, fullPage: true })
+      await fullShot(page, `screenshots/imports-review-${viewport.width}-${theme}.png`)
       await page.getByRole('button', { name: 'Editar Farmácia' }).click()
       const form = page.getByRole('form', { name: 'Editar Farmácia' })
       await form.getByLabel('Valor', { exact: true }).fill('')

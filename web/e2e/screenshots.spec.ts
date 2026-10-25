@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test'
+import { fullShot } from './shot.ts'
 
 const routes = [
   { name: 'overview', path: '/?month=2026-10', heading: 'Outubro de 2026' },
@@ -26,6 +27,6 @@ for (const theme of ['light', 'dark'] as const)
         await expect(page.getByLabel('Você é').locator('visible=true')).toHaveValue('Marcio')
         await expect(page.locator('[aria-busy="true"]')).toHaveCount(0)
         await page.evaluate(() => document.fonts.ready)
-        await page.screenshot({ path: `screenshots/${route.name}-${viewport.width}-${theme}.png`, fullPage: true })
+        await fullShot(page, `screenshots/${route.name}-${viewport.width}-${theme}.png`)
         await context.close()
       })

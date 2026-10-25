@@ -4,7 +4,7 @@ import { TabBar } from './tab-bar.tsx'
 import { TopBar } from './top-bar.tsx'
 
 export const Layout = () => (
-  <div className="flex min-h-dvh">
+  <div className="relative flex min-h-dvh">
     <Sidebar />
     <div className="flex min-w-0 flex-1 flex-col">
       <TopBar />
