@@ -1,0 +1,65 @@
+{
+  "file": "financiamento-carro.xml",
+  "candidates": [
+    {
+      "kind": "debt",
+      "payload": {
+        "creditor": "Financeira Horizonte Fictícia",
+        "description": "Financiamento do carro",
+        "principalCents": 2800000,
+        "balanceCents": 2631045,
+        "monthlyRatePercent": 1.49,
+        "installmentCents": 98000,
+        "installmentsTotal": 36,
+        "installmentsPaid": 2,
+        "startsOn": "2026-07-20",
+        "member": "Marcio"
+      }
+    },
+    {
+      "kind": "entry",
+      "payload": {
+        "date": "2026-08-20",
+        "description": "Financiamento do carro",
+        "direction": "expense",
+        "amountCents": 98000,
+        "member": "Marcio",
+        "paid": true,
+        "installment": {
+          "number": 1,
+          "total": 36
+        }
+      }
+    },
+    {
+      "kind": "entry",
+      "payload": {
+        "date": "2026-09-20",
+        "description": "Financiamento do carro",
+        "direction": "expense",
+        "amountCents": 98000,
+        "member": "Marcio",
+        "paid": true,
+        "installment": {
+          "number": 2,
+          "total": 36
+        }
+      }
+    },
+    {
+      "kind": "entry",
+      "payload": {
+        "date": "2026-10-20",
+        "description": "Financiamento do carro",
+        "direction": "expense",
+        "amountCents": 98000,
+        "member": "Marcio",
+        "paid": false,
+        "installment": {
+          "number": 3,
+          "total": 36
+        }
+      }
+    }
+  ]
+}

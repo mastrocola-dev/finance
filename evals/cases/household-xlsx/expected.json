@@ -1,0 +1,222 @@
+{
+  "file": "orcamento-casa.xlsx",
+  "candidates": [
+    {
+      "kind": "entry",
+      "payload": {
+        "date": "2026-09-05",
+        "description": "Salário Marcio",
+        "direction": "income",
+        "amountCents": 680000,
+        "member": "Marcio",
+        "paid": true
+      }
+    },
+    {
+      "kind": "entry",
+      "payload": {
+        "date": "2026-09-05",
+        "description": "Salário Gabriela",
+        "direction": "income",
+        "amountCents": 590000,
+        "member": "Gabriela",
+        "paid": true
+      }
+    },
+    {
+      "kind": "entry",
+      "payload": {
+        "date": "2026-09-10",
+        "description": "Aluguel",
+        "direction": "expense",
+        "amountCents": 220000,
+        "member": "joint",
+        "paid": true
+      }
+    },
+    {
+      "kind": "entry",
+      "payload": {
+        "date": "2026-09-10",
+        "description": "Condomínio",
+        "direction": "expense",
+        "amountCents": 65000,
+        "member": "joint",
+        "paid": true
+      }
+    },
+    {
+      "kind": "entry",
+      "payload": {
+        "date": "2026-09-15",
+        "description": "Internet",
+        "direction": "expense",
+        "amountCents": 12000,
+        "member": "joint",
+        "paid": true
+      }
+    },
+    {
+      "kind": "entry",
+      "payload": {
+        "date": "2026-09-20",
+        "description": "Parcela carro",
+        "direction": "expense",
+        "amountCents": 98000,
+        "member": "Marcio",
+        "paid": true,
+        "installment": {
+          "number": 2,
+          "total": 36
+        }
+      }
+    },
+    {
+      "kind": "entry",
+      "payload": {
+        "date": "2026-09-08",
+        "description": "Mercado",
+        "direction": "expense",
+        "amountCents": 121030,
+        "member": "joint",
+        "paid": true
+      }
+    },
+    {
+      "kind": "entry",
+      "payload": {
+        "date": "2026-09-12",
+        "description": "Farmácia",
+        "direction": "expense",
+        "amountCents": 6450,
+        "member": "Gabriela",
+        "paid": true
+      }
+    },
+    {
+      "kind": "entry",
+      "payload": {
+        "date": "2026-10-05",
+        "description": "Salário Marcio",
+        "direction": "income",
+        "amountCents": 680000,
+        "member": "Marcio",
+        "paid": true
+      }
+    },
+    {
+      "kind": "entry",
+      "payload": {
+        "date": "2026-10-05",
+        "description": "Salário Gabriela",
+        "direction": "income",
+        "amountCents": 590000,
+        "member": "Gabriela",
+        "paid": true
+      }
+    },
+    {
+      "kind": "entry",
+      "payload": {
+        "date": "2026-10-20",
+        "description": "Freela site",
+        "direction": "income",
+        "amountCents": 120000,
+        "member": "Marcio",
+        "paid": false
+      }
+    },
+    {
+      "kind": "entry",
+      "payload": {
+        "date": "2026-10-10",
+        "description": "Aluguel",
+        "direction": "expense",
+        "amountCents": 220000,
+        "member": "joint",
+        "paid": true
+      }
+    },
+    {
+      "kind": "entry",
+      "payload": {
+        "date": "2026-10-10",
+        "description": "Condomínio",
+        "direction": "expense",
+        "amountCents": 65000,
+        "member": "joint",
+        "paid": true
+      }
+    },
+    {
+      "kind": "entry",
+      "payload": {
+        "date": "2026-10-15",
+        "description": "Internet",
+        "direction": "expense",
+        "amountCents": 12000,
+        "member": "joint",
+        "paid": true
+      }
+    },
+    {
+      "kind": "entry",
+      "payload": {
+        "date": "2026-10-20",
+        "description": "Parcela carro",
+        "direction": "expense",
+        "amountCents": 98000,
+        "member": "Marcio",
+        "paid": false,
+        "installment": {
+          "number": 3,
+          "total": 36
+        }
+      }
+    },
+    {
+      "kind": "entry",
+      "payload": {
+        "date": "2026-10-08",
+        "description": "Mercado",
+        "direction": "expense",
+        "amountCents": 134050,
+        "member": "joint",
+        "paid": true
+      }
+    },
+    {
+      "kind": "entry",
+      "payload": {
+        "date": "2026-10-12",
+        "description": "Farmácia",
+        "direction": "expense",
+        "amountCents": 8990,
+        "member": "Gabriela",
+        "paid": true
+      }
+    },
+    {
+      "kind": "entry",
+      "payload": {
+        "date": "2026-10-14",
+        "description": "Gasolina",
+        "direction": "expense",
+        "amountCents": 31000,
+        "member": "Marcio",
+        "paid": true
+      }
+    },
+    {
+      "kind": "entry",
+      "payload": {
+        "date": "2026-10-18",
+        "description": "Restaurante",
+        "direction": "expense",
+        "amountCents": 22000,
+        "member": "joint",
+        "paid": false
+      }
+    }
+  ]
+}

@@ -1,0 +1,248 @@
+[
+  {
+    "source": "$.accounts",
+    "offset": 0,
+    "output": {
+      "candidates": [
+        {
+          "kind": "account",
+          "source": "$.accounts[0]",
+          "confidence": 0.9,
+          "payload": {
+            "institution": "Banco Imaginário",
+            "nickname": "Conta Imaginária",
+            "lastFour": "1122",
+            "kind": "checking"
+          }
+        },
+        {
+          "kind": "account",
+          "source": "$.accounts[1]",
+          "confidence": 0.9,
+          "payload": {
+            "institution": "Banco Imaginário",
+            "nickname": "Cartão Imaginário",
+            "lastFour": "7788",
+            "kind": "credit_card"
+          }
+        }
+      ],
+      "questions": [],
+      "totals": []
+    },
+    "usage": {
+      "inputTokens": 1700,
+      "outputTokens": 200,
+      "costUsdMicros": 8100
+    }
+  },
+  {
+    "source": "$.categories",
+    "offset": 0,
+    "output": {
+      "candidates": [
+        {
+          "kind": "category",
+          "source": "$.categories[0]",
+          "confidence": 0.95,
+          "payload": {
+            "name": "Mercado",
+            "kind": "expense"
+          }
+        },
+        {
+          "kind": "category",
+          "source": "$.categories[1]",
+          "confidence": 0.95,
+          "payload": {
+            "name": "Pets",
+            "kind": "expense"
+          }
+        },
+        {
+          "kind": "category",
+          "source": "$.categories[2]",
+          "confidence": 0.95,
+          "payload": {
+            "name": "Freela",
+            "kind": "expense"
+          }
+        }
+      ],
+      "questions": [],
+      "totals": []
+    },
+    "usage": {
+      "inputTokens": 1600,
+      "outputTokens": 180,
+      "costUsdMicros": 7500
+    }
+  },
+  {
+    "source": "$.transactions",
+    "offset": 0,
+    "output": {
+      "candidates": [
+        {
+          "kind": "entry",
+          "source": "$.transactions[0]",
+          "confidence": 0.92,
+          "payload": {
+            "date": "2026-10-03",
+            "description": "Padaria",
+            "direction": "expense",
+            "amountCents": 4590,
+            "category": "Mercado",
+            "account": "Conta Imaginária",
+            "paid": true
+          }
+        },
+        {
+          "kind": "entry",
+          "source": "$.transactions[1]",
+          "confidence": 0.92,
+          "payload": {
+            "date": "2026-10-05",
+            "description": "Ração e areia",
+            "direction": "expense",
+            "amountCents": 18900,
+            "category": "Pets",
+            "account": "Cartão Imaginário",
+            "paid": true
+          }
+        },
+        {
+          "kind": "entry",
+          "source": "$.transactions[2]",
+          "confidence": 0.92,
+          "payload": {
+            "date": "2026-10-09",
+            "description": "Site da Dona Rosa",
+            "direction": "income",
+            "amountCents": 150000,
+            "category": "Freela",
+            "account": "Conta Imaginária",
+            "paid": true
+          }
+        },
+        {
+          "kind": "entry",
+          "source": "$.transactions[3]",
+          "confidence": 0.92,
+          "payload": {
+            "date": "2026-10-12",
+            "description": "Feira do mês",
+            "direction": "expense",
+            "amountCents": 31245,
+            "category": "Mercado",
+            "account": "Cartão Imaginário",
+            "paid": true
+          }
+        },
+        {
+          "kind": "entry",
+          "source": "$.transactions[4]",
+          "confidence": 0.92,
+          "payload": {
+            "date": "2026-10-15",
+            "description": "Banho e tosa",
+            "direction": "expense",
+            "amountCents": 8000,
+            "category": "Pets",
+            "account": "Cartão Imaginário",
+            "paid": true
+          }
+        },
+        {
+          "kind": "entry",
+          "source": "$.transactions[5]",
+          "confidence": 0.6,
+          "payload": {
+            "date": "2026-10-20",
+            "description": "Transferência para reserva",
+            "direction": "expense",
+            "amountCents": 50000,
+            "category": "Outros",
+            "account": "Conta Imaginária",
+            "paid": true
+          }
+        },
+        {
+          "kind": "entry",
+          "source": "$.transactions[6]",
+          "confidence": 0.92,
+          "payload": {
+            "date": "2026-10-22",
+            "description": "Padaria",
+            "direction": "expense",
+            "amountCents": 2750,
+            "category": "Mercado",
+            "account": "Conta Imaginária",
+            "paid": true
+          }
+        }
+      ],
+      "questions": [],
+      "totals": []
+    },
+    "usage": {
+      "inputTokens": 3400,
+      "outputTokens": 1300,
+      "costUsdMicros": 29700
+    }
+  },
+  {
+    "source": "$.transactions[*].tags",
+    "offset": 0,
+    "output": {
+      "candidates": [],
+      "questions": [],
+      "totals": []
+    },
+    "usage": {
+      "inputTokens": 1500,
+      "outputTokens": 60,
+      "costUsdMicros": 5400
+    }
+  },
+  {
+    "source": "$.budgets",
+    "offset": 0,
+    "output": {
+      "candidates": [],
+      "questions": [],
+      "totals": []
+    },
+    "usage": {
+      "inputTokens": 1500,
+      "outputTokens": 60,
+      "costUsdMicros": 5400
+    }
+  },
+  {
+    "source": "$.goals",
+    "offset": 0,
+    "output": {
+      "candidates": [
+        {
+          "kind": "goal",
+          "source": "$.goals[0]",
+          "confidence": 0.9,
+          "payload": {
+            "name": "Viagem para a praia",
+            "targetCents": 500000,
+            "savedCents": 125000,
+            "dueOn": "2027-01-31"
+          }
+        }
+      ],
+      "questions": [],
+      "totals": []
+    },
+    "usage": {
+      "inputTokens": 1500,
+      "outputTokens": 120,
+      "costUsdMicros": 6300
+    }
+  }
+]

@@ -1,0 +1,19 @@
+{
+  "app": "Cofrinho",
+  "version": "3.2",
+  "exportedAt": "2026-10-24T21:10:00-03:00",
+  "currency": "BRL",
+  "accounts": [{ "id": "a1", "name": "Conta Imaginária", "bank": "Banco Imaginário", "number": "****1122", "type": "checking" }, { "id": "a2", "name": "Cartão Imaginário", "bank": "Banco Imaginário", "number": "****7788", "type": "credit" }],
+  "categories": [{ "id": "c1", "name": "Mercado", "type": "expense" }, { "id": "c2", "name": "Pets", "type": "expense" }, { "id": "c3", "name": "Freela", "type": "income" }],
+  "transactions": [
+    { "id": "t1", "date": "2026-10-03", "amount": -45.9, "description": "Padaria", "categoryId": "c1", "accountId": "a1", "status": "cleared", "tags": ["café"] },
+    { "id": "t2", "date": "2026-10-05", "amount": -189.0, "description": "Ração e areia", "categoryId": "c2", "accountId": "a2", "status": "cleared", "tags": [] },
+    { "id": "t3", "date": "2026-10-09", "amount": 1500.0, "description": "Site da Dona Rosa", "categoryId": "c3", "accountId": "a1", "status": "cleared", "tags": ["freela"] },
+    { "id": "t4", "date": "2026-10-12", "amount": -312.45, "description": "Feira do mês", "categoryId": "c1", "accountId": "a2", "status": "cleared", "tags": [] },
+    { "id": "t5", "date": "2026-10-15", "amount": -80.0, "description": "Banho e tosa", "categoryId": "c2", "accountId": "a2", "status": "pending", "tags": ["pet"] },
+    { "id": "t6", "date": "2026-10-20", "amount": -500.0, "description": "Transferência para reserva", "categoryId": null, "accountId": "a1", "status": "cleared", "type": "transfer", "tags": [] },
+    { "id": "t7", "date": "2026-10-22", "amount": -27.5, "description": "Padaria", "categoryId": "c1", "accountId": "a1", "status": "cleared", "tags": ["café"] }
+  ],
+  "budgets": [{ "categoryId": "c2", "month": "2026-10", "limit": 300.0 }],
+  "goals": [{ "name": "Viagem para a praia", "target": 5000.0, "saved": 1250.0, "deadline": "2027-01-31" }]
+}

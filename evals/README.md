@@ -7,6 +7,15 @@ Each folder under `cases/` holds one fictional source file and two JSON files:
 
 `npm run eval` reads each file through ingest, plans chunks like a real import, answers them from the recordings and prints candidate and per-field precision and recall, totals reconciliation and cost. Pass case names to run only those (`npm run eval -- notes`). It exits 1 when a chunk has no recording or returns invalid output.
 
-Matching: an expected item pairs with the predicted item of the same kind that agrees on the most fields, at least half of them. Text agrees when the normalized expected value (accents, case and punctuation removed) is contained in the predicted one; other values must be equal.
+Matching: an expected item pairs with the predicted item of the same kind that agrees on the most fields, at least half of them and at least one field that identifies the item (`identities` in `src/eval/score.ts`: date, description or amount for entries, name for categories, reserves and goals). Text agrees when the normalized expected value (accents, case and punctuation removed) is contained in the predicted one; other values must be equal.
+
+Cases:
+
+- `bank-csv`: bank statement in Windows encoding with a preamble and Portuguese headers
+- `notes`: free-text notes of the month
+- `card-ofx`: credit card OFX with a bill payment and a refund
+- `household-xlsx`: household workbook, one tab per month with blocks for income, fixed and variable expenses, printed totals and the month balance; the recordings miss one bill and take a total row for an entry, so two of four totals fail to reconcile
+- `app-json`: export of another finance app with accounts, categories, transactions, budgets and goals; a transfer between own accounts is not an entry
+- `loan-xml`: car loan contract in XML with a namespace and attributes; the contract fields live outside any list, so no chunk covers them and the debt is recorded from the installments chunk
 
 The current recordings are hand-written stand-ins with deliberate mistakes, not real model answers.

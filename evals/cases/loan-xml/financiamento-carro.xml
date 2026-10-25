@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<contrato xmlns="urn:ficticio:financiamento" versao="2">
+  <credor>Financeira Horizonte Fictícia</credor>
+  <descricao>Financiamento do carro</descricao>
+  <titular>Marcio</titular>
+  <inicio>2026-07-20</inicio>
+  <valorFinanciado>28000.00</valorFinanciado>
+  <taxaMensal>1.49</taxaMensal>
+  <saldoDevedor>26310.45</saldoDevedor>
+  <parcelas quantidade="36" valor="980.00">
+    <parcela numero="1" vencimento="2026-08-20" situacao="paga" pagoEm="2026-08-19"/>
+    <parcela numero="2" vencimento="2026-09-20" situacao="paga" pagoEm="2026-09-20"/>
+    <parcela numero="3" vencimento="2026-10-20" situacao="aberta"/>
+  </parcelas>
+</contrato>

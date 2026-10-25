@@ -51,18 +51,31 @@ describe('evaluations', () => {
     assert.deepEqual(
       results.map(({ name, failures }) => [name, failures]),
       [
+        ['app-json', []],
         ['bank-csv', []],
         ['card-ofx', []],
+        ['household-xlsx', []],
+        ['loan-xml', []],
         ['notes', []],
       ],
     )
     assert.deepEqual(
       results.map(({ score }) => [score.candidates.correct, score.candidates.predicted, score.candidates.expected]),
       [
+        [12, 13, 12],
         [10, 10, 10],
         [8, 9, 8],
+        [18, 19, 19],
+        [4, 4, 4],
         [6, 8, 7],
       ],
     )
+    const household = results.find(({ name }) => name === 'household-xlsx')
+    assert.deepEqual(household?.score.totals, {
+      stated: 4,
+      mismatched: ['Set-26!A23:C23: net 2026-09 expected 747520, found 620040', 'Out-26!A26:C26: net 2026-10 expected 798960, found 810960'],
+    })
+    const loan = results.find(({ name }) => name === 'loan-xml')
+    assert.deepEqual(loan?.score.fields['debt.principalCents'], { expected: 1, predicted: 1, correct: 0, precision: 0, recall: 0 })
   })
 })

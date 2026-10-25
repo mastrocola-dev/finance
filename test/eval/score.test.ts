@@ -31,6 +31,15 @@ describe('eval scoring', () => {
     assert.deepEqual(match([entry({ date: '2026-10-02', amountCents: 500, category: 'Casa' })], [entry({ date: '2026-10-02', amountCents: 1 })]), [])
   })
 
+  test('pairs only items that agree on a field identifying them', () => {
+    const internet = entry({ date: '2026-10-15', description: 'Internet', amountCents: 12000, direction: 'expense', member: 'joint', paid: true })
+    const total = entry({ date: '2026-09-01', description: 'Total variáveis', amountCents: 127480, direction: 'expense', member: 'joint', paid: true })
+    assert.deepEqual(match([internet], [total]), [])
+    const category = { kind: 'category' as const, payload: { name: 'Freela', kind: 'income' } }
+    assert.equal(match([category], [{ kind: 'category', payload: { name: 'Freela', kind: 'expense' } }]).length, 1)
+    assert.deepEqual(match([category], [{ kind: 'category', payload: { name: 'Pets', kind: 'income' } }]), [])
+  })
+
   test('scores candidates, judged fields, totals and cost', () => {
     const expected = [entry({ date: '2026-10-01', amountCents: 1000, category: 'Moradia' }), entry({ date: '2026-10-05', amountCents: 300, direction: 'income' }), { kind: 'reserve' as const, payload: { name: 'Viagem' } }]
     const output: ImportOutput = {

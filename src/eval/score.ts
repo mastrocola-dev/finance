@@ -19,12 +19,26 @@ export const sameValue = (expected: unknown, predicted: unknown) => {
   return JSON.stringify(expected) === JSON.stringify(predicted)
 }
 
-const agreement = (expected: Expected, predicted: Expected) => (expected.kind === predicted.kind ? Object.entries(expected.payload).filter(([key, value]) => sameValue(value, predicted.payload[key])).length : 0)
+const identities: Record<CandidateKind, string[]> = {
+  entry: ['date', 'description', 'amountCents'],
+  account: ['institution', 'nickname', 'lastFour'],
+  category: ['name'],
+  income: ['description', 'amountCents'],
+  recurring_expense: ['description', 'amountCents'],
+  debt: ['creditor', 'description', 'principalCents'],
+  reserve: ['name'],
+  goal: ['name'],
+}
+
+const agreement = (expected: Expected, predicted: Expected) => {
+  const agreed = expected.kind === predicted.kind ? Object.keys(expected.payload).filter((key) => sameValue(expected.payload[key], predicted.payload[key])) : []
+  return { agree: agreed.length, identified: agreed.some((key) => identities[expected.kind].includes(key)) }
+}
 
 export const match = (expected: Expected[], predicted: Expected[]) => {
   const pairs = expected
-    .flatMap((want, wanted) => predicted.map((got, found) => ({ wanted, found, agree: agreement(want, got), size: Object.keys(want.payload).length })))
-    .filter(({ agree, size }) => agree > 0 && agree * 2 >= size)
+    .flatMap((want, wanted) => predicted.map((got, found) => ({ wanted, found, ...agreement(want, got), size: Object.keys(want.payload).length })))
+    .filter(({ agree, identified, size }) => identified && agree * 2 >= size)
     .sort((a, b) => b.agree - a.agree || a.wanted - b.wanted || a.found - b.found)
   const [taken, used] = [new Set<number>(), new Set<number>()]
   return pairs.filter(({ wanted, found }) => {
