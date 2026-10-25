@@ -426,6 +426,23 @@ export type paths = {
         patch?: never;
         trace?: never;
     };
+    "/api/imports/{id}/retry": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Extract the failed and low-confidence chunks of a draft or verified batch again from its kept upload, in the background */
+        post: operations["retryImport"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/imports/{id}/questions/{question}/answer": {
         parameters: {
             query?: never;
@@ -1814,6 +1831,37 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ListImportQuestionsResponse"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+        };
+    };
+    retryImport: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Accepted */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ImportBatch"];
                 };
             };
             /** @description Error */

@@ -8,7 +8,7 @@ import { maxBytes } from '../import/cli.ts'
 import { closeBatch } from '../import/close.ts'
 import { commitBatch } from '../import/commit.ts'
 import { answerQuestion, editCandidate, reviewCandidates } from '../import/review.ts'
-import { type ImportUploads, importUploads } from '../import/uploads.ts'
+import { Busy, type ImportUploads, importUploads } from '../import/uploads.ts'
 import { listAudit } from '../ledger/audit.ts'
 import { listAccounts, listCategories } from '../ledger/catalog.ts'
 import { listDebts } from '../ledger/debts.ts'
@@ -178,6 +178,14 @@ export const routes: Route[] = [
   route({ method: 'GET', path: '/imports/:id', operationId: 'getImport', summary: 'One import batch with its extraction progress', params: idPath, response: schemas.ImportBatch }, (input) => batchView(input, BigInt(input.params.id))),
   route({ method: 'GET', path: '/imports/:id/candidates', operationId: 'listImportCandidates', summary: 'Open candidates of an import batch', params: idPath, response: z.array(schemas.ImportCandidate) }, async ({ client, params }) => listCandidates(client, await existingBatch(client, params.id))),
   route({ method: 'GET', path: '/imports/:id/questions', operationId: 'listImportQuestions', summary: 'Open questions of an import batch', params: idPath, response: z.array(schemas.ImportQuestion) }, async ({ client, params }) => listQuestions(client, await existingBatch(client, params.id))),
+  route({ method: 'POST', path: '/imports/:id/retry', operationId: 'retryImport', summary: 'Extract the failed and low-confidence chunks of a draft or verified batch again from its kept upload, in the background', params: idPath, response: schemas.ImportBatch, status: 202 }, async (input) => {
+    if (!input.member) throw new HttpError(401, `writes need the ${memberHeader} header`)
+    const batchId = await existingBatch(input.client, input.params.id)
+    await input.imports.retry({ author: 'import', memberId: input.member.id }, batchId).catch((caught) => {
+      throw caught instanceof Busy ? new HttpError(409, caught.message) : caught
+    })
+    return batchView(input, batchId)
+  }),
   route({ method: 'POST', path: '/imports/:id/questions/:question/answer', operationId: 'answerImportQuestion', summary: 'Answer an open question of a verified import batch', params: questionPath, body: answerBody, response: schemas.ImportQuestion }, async (input) => {
     const batchId = await reviewableBatch(input, input.params.id)
     await writing(input, (connection, actor) => answerQuestion(connection, actor, batchId, BigInt(input.params.question), input.body.answer))

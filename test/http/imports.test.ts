@@ -8,7 +8,7 @@ import { connectPool } from '../../src/db/connection.ts'
 import { seed } from '../../src/db/seed.ts'
 import { serveApi } from '../../src/http/api.ts'
 import { serviceAgentExtractor } from '../../src/import/service-agent.ts'
-import { fileNameIssue, importUploads } from '../../src/import/uploads.ts'
+import { Busy, fileNameIssue, importUploads } from '../../src/import/uploads.ts'
 import { testDatabase } from '../db/database.ts'
 import { sample } from '../import/sample.ts'
 
@@ -181,5 +181,50 @@ describe('import api', () => {
     assert.equal(await exists(hashOf('mantido\n')), true)
     assert.ok((await readdir(folder)).includes('notas'))
     assert.equal((await get(`/imports/${kept.body.id}`)).body.status, 'verified')
+  })
+
+  test('retries a batch from its kept upload as the member, one extraction at a time', async () => {
+    const retry = async (batch: string, at = server.url) => {
+      const response = await fetch(`${at}/api/imports/${batch}/retry`, { method: 'POST', headers: { 'x-member': 'Gabriela' } })
+      return { status: response.status, body: await response.json() }
+    }
+    const accepted = await upload('retentar.txt', 'retentar\n')
+    const batch = accepted.body.id
+    await uploads.settled()
+    const first = (await get(`/imports/${batch}/candidates`)).body.map(({ id }: { id: string }) => id)
+    const started = await retry(batch)
+    assert.deepEqual([started.status, started.body.progress], [202, { state: 'extracting', done: 0, total: 1, error: null }])
+    await uploads.settled()
+    const done = await get(`/imports/${batch}`)
+    assert.deepEqual([done.body.status, done.body.progress, done.body.inputTokens], ['verified', { state: 'done', done: 1, total: 1, error: null }, 2400])
+    const second = (await get(`/imports/${batch}/candidates`)).body.map(({ id }: { id: string }) => id)
+    assert.equal(second.length, first.length)
+    assert.ok(second.every((id: string) => !first.includes(id)))
+    const audit = await pool.query<{ author: string; name: string }>("select distinct a.author, m.name from audit_log a join member m on m.id = a.member_id where a.entity = 'import_candidate' and a.action = 'close' and a.entity_id = any($1)", [first])
+    assert.deepEqual(audit.rows, [{ author: 'import', name: 'Gabriela' }])
+    const actor = { author: 'import' as const, memberId: 1n }
+    const once = uploads.retry(actor, BigInt(batch))
+    await assert.rejects(uploads.retry(actor, BigInt(batch)), Busy)
+    await once
+    const busy = await serveApi(pool, 0, '127.0.0.1', { ...uploads, retry: () => Promise.reject(new Busy(`import batch ${batch} is still extracting`)) })
+    try {
+      assert.deepEqual(await retry(batch, busy.url), { status: 409, body: { error: `import batch ${batch} is still extracting` } })
+    } finally {
+      await busy.close()
+    }
+    await uploads.settled()
+    const [chosen] = (await get(`/imports/${batch}/candidates`)).body
+    await fetch(`${server.url}/api/imports/${batch}/candidates/accept`, { method: 'POST', headers: { 'content-type': 'application/json', 'x-member': 'Marcio' }, body: JSON.stringify({ ids: [chosen.id] }) })
+    const nothing = await retry(batch)
+    assert.deepEqual([nothing.status, nothing.body.error], [422, `nothing to retry in import batch ${batch}`])
+    assert.equal((await get(`/imports/${batch}`)).body.progress.state, 'done')
+    const gone = await upload('perdido.txt', 'perdido\n')
+    await uploads.settled()
+    await rm(join(folder, createHash('sha256').update('perdido\n').digest('hex')), { recursive: true })
+    assert.match((await retry(gone.body.id)).body.error, /no longer kept; close the batch and upload the file again/)
+    await fetch(`${server.url}/api/imports/${gone.body.id}/close`, { method: 'POST', headers: { 'x-member': 'Marcio' } })
+    assert.deepEqual(await retry(gone.body.id), { status: 422, body: { error: `import batch ${gone.body.id} is not open for a retry` } })
+    assert.equal((await retry('999999')).status, 404)
+    assert.equal((await fetch(`${server.url}/api/imports/${batch}/retry`, { method: 'POST' })).status, 401)
   })
 })

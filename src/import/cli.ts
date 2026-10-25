@@ -5,7 +5,7 @@ import type { Client } from 'pg'
 import { connect } from '../db/connection.ts'
 import type { Actor } from '../db/write.ts'
 import { RuleError } from '../ledger/rule.ts'
-import { type Extractor, plan, retryImport, runImport, type Segment } from './agent.ts'
+import { type Extractor, plan, retryImport, retryTargets, runImport, type Segment } from './agent.ts'
 import { ingestSegments } from './ingest.ts'
 import { serviceAgentExtractor } from './service-agent.ts'
 import { formats, type ImportFile, maskDigits, openBatch } from './staging.ts'
@@ -54,18 +54,27 @@ export const finishImport = async (client: Client, { batchId, file, agent, found
 
 export const importFile = async (client: Client, path: string, options: FileImport = {}) => finishImport(client, await openImport(client, path, options), options.onProgress)
 
-export const retryFile = async (client: Client, batchId: bigint, path: string, { segments = defaults.segments, extractor = defaults.extractor, onProgress }: FileImport = {}) => {
+export const openRetry = async (client: Client, batchId: bigint, path: string, { segments = defaults.segments, extractor = defaults.extractor }: FileImport = {}) => {
   const file = await describeFile(path)
-  const { rows } = await client.query<{ file_hash: string }>('select file_hash from import_batch where id = $1', [batchId])
+  const { rows } = await client.query<{ file_hash: string; open: boolean }>("select file_hash, closed_at is null and status in ('draft', 'verified') as open from import_batch where id = $1", [batchId])
   if (!rows[0]) throw new RuleError(`import batch ${batchId} not found`)
+  if (!rows[0].open) throw new RuleError(`import batch ${batchId} is not open for a retry`)
   if (rows[0].file_hash !== file.hash) throw new RuleError(`${file.name} is not the file of import batch ${batchId}`)
+  const targets = await retryTargets(client, batchId)
+  if (!targets.length) throw new RuleError(`nothing to retry in import batch ${batchId}`)
   const folder = dirname(path)
-  const agent = extractor(folder)
-  const found = await segments(folder, file.name)
-  const result = await retryImport(client, actor, batchId, { file: file.name, segments: found, extractor: agent, onProgress })
-  const verification = await verifyBatch(client, actor, batchId)
+  return { batchId, file, agent: extractor(folder), found: await segments(folder, file.name), chunks: targets.length }
+}
+
+export type OpenRetry = Awaited<ReturnType<typeof openRetry>>
+
+export const finishRetry = async (client: Client, { batchId, file, agent, found }: OpenRetry, onProgress?: FileImport['onProgress'], by: Actor = actor) => {
+  const result = await retryImport(client, by, batchId, { file: file.name, segments: found, extractor: agent, onProgress })
+  const verification = await verifyBatch(client, by, batchId)
   return { batchId, ...result, verification }
 }
+
+export const retryFile = async (client: Client, batchId: bigint, path: string, options: FileImport = {}) => finishRetry(client, await openRetry(client, batchId, path, options), options.onProgress)
 
 type Summary = Awaited<ReturnType<typeof importFile>> & { targets?: string[] }
 

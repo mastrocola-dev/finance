@@ -227,6 +227,13 @@ describe('import run against staging', () => {
     assert.equal(batchRow.rows[0]?.status, 'draft')
     assert.equal(batchRow.rows[0]?.totals.length, 1)
     assert.equal(batchRow.rows[0]?.failures.length, 1)
+    const settled = await openBatch(client, actor, { name: 'sure.json', format: 'json', hash: freshHash() })
+    const confident = { file: 'sure.json', segments: [table(3)], extractor: recordedExtractor(sure), tokenCap: 10_000 }
+    await runImport(client, actor, settled, confident)
+    const writes = "select count(*)::int as total from audit_log where entity = 'import_batch' and entity_id = $1"
+    const written = (await client.query<{ total: number }>(writes, [settled])).rows[0]?.total
+    await assert.rejects(retryImport(client, actor, settled, confident), new RegExp(`nothing to retry in import batch ${settled}`))
+    assert.equal((await client.query<{ total: number }>(writes, [settled])).rows[0]?.total, written)
     await assert.rejects(retryImport(client, actor, 999_999n, { file: 'a', segments: [tree], extractor: recordedExtractor(recordings), tokenCap: 1000 }), /not open for a retry/)
   })
 })

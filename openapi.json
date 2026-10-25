@@ -1365,6 +1365,50 @@
         }
       }
     },
+    "/api/imports/{id}/retry": {
+      "post": {
+        "operationId": "retryImport",
+        "summary": "Extract the failed and low-confidence chunks of a draft or verified batch again from its kept upload, in the background",
+        "security": [
+          {
+            "member": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^\\d+$"
+            }
+          }
+        ],
+        "responses": {
+          "202": {
+            "description": "Accepted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ImportBatch"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/imports/{id}/questions/{question}/answer": {
       "post": {
         "operationId": "answerImportQuestion",

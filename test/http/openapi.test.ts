@@ -118,6 +118,7 @@ describe('openapi', () => {
       getImport: { path: '/imports/IMPORT' },
       listImportCandidates: { path: '/imports/IMPORT/candidates' },
       listImportQuestions: { path: '/imports/IMPORT/questions' },
+      retryImport: { path: '/imports/IMPORT/retry' },
       answerImportQuestion: { path: '/imports/IMPORT/questions/QUESTION/answer', body: { answer: 'Gabriela' } },
       editImportCandidate: { path: '/imports/IMPORT/candidates/FIRST', body: { payload: extracted.candidates[0]?.payload } },
       acceptImportCandidates: { path: '/imports/IMPORT/candidates/accept', body: { ids: ['FIRST'] } },
@@ -148,8 +149,8 @@ describe('openapi', () => {
       const parsed = route.response.safeParse(body)
       assert.ok(parsed.success, `${route.operationId}: ${parsed.error?.message}`)
       if (route.operationId === 'createEntry') entry = body.id
-      if (route.operationId === 'uploadImport') {
-        batch = body.id
+      if (route.operationId === 'uploadImport') batch = body.id
+      if (route.operationId === 'uploadImport' || route.operationId === 'retryImport') {
         await uploads.settled()
         const [candidates, questions] = await Promise.all(['candidates', 'questions'].map(async (list) => (await call('GET', `/imports/${batch}/${list}`)).body))
         Object.assign(staged, { FIRST: candidates[0].id, SECOND: candidates[1].id, QUESTION: questions[0].id })

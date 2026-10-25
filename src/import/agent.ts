@@ -135,6 +135,7 @@ export const retryImport = async (client: Client, actor: Actor, batchId: bigint,
   const status = await openBatchStatus(client, batchId)
   if (status !== 'draft' && status !== 'verified') throw new RuleError(`import batch ${batchId} is not open for a retry`)
   const targets = await retryTargets(client, batchId, threshold)
+  if (!targets.length) throw new RuleError(`nothing to retry in import batch ${batchId}`)
   const extracted = await extract({ ...run, only: targets })
   return { targets, ...(await staged(client, actor, batchId, extracted, extracted.attempted)) }
 }
