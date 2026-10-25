@@ -280,6 +280,21 @@ test('commits the accepted items after confirmation, then closes the batch', asy
   ])
 })
 
+test('commit lists accepted items naming what only a pending item creates', async () => {
+  candidates = [
+    candidate('1', { date: '2026-10-10', description: 'Aluguel', direction: 'expense', amountCents: 150000, category: 'Moradia', account: 'Conta nova', member: 'joint', paid: true }, { status: 'accepted' }),
+    candidate('4', { nickname: 'Conta nova', institution: 'Banco Exemplo', kind: 'checking', member: 'joint' }, { kind: 'account', source: 'Outubro!A4:G4' }),
+  ]
+  start()
+  const commit = await screen.findByRole('region', { name: 'Gravar no livro' })
+  await waitFor(() => expect(within(commit).getByText('Um item aceito usa um nome que só existe num item não aceito. Aceite esse item ou edite o que usa o nome:')).toBeTruthy())
+  expect(within(within(commit).getByRole('list', { name: 'Nomes não aceitos' })).getByRole('listitem').textContent).toBe('Aluguel · Conta Conta nova está num item pendente')
+  expect((within(commit).getByRole('button', { name: 'Gravar 1 item' }) as HTMLButtonElement).disabled).toBe(true)
+  await userEvent.click(screen.getByRole('button', { name: 'Aceitar Conta nova' }))
+  await waitFor(() => expect(within(commit).queryByRole('list', { name: 'Nomes não aceitos' })).toBeNull())
+  expect((within(commit).getByRole('button', { name: 'Gravar 2 itens' }) as HTMLButtonElement).disabled).toBe(false)
+})
+
 test('explains a commit the API refuses', async () => {
   candidates = candidates.map((item) => ({ ...item, status: item.id === '1' ? 'accepted' : item.status }))
   refusal = 'unknown account Conta antiga'

@@ -1,6 +1,6 @@
 import { expect, test } from 'vitest'
 import { ApiFailure } from '../query/client.ts'
-import { acceptable, amountOf, blocked, type Candidate, checkText, commitFailure, commitPlan, detailsOf, groupCandidates, monthOfCandidate, reviewCounts, reviewFailure, titleOf } from './review-model.ts'
+import { acceptable, amountOf, blocked, type Candidate, checkText, commitFailure, commitPlan, detailsOf, groupCandidates, monthOfCandidate, reviewCounts, reviewFailure, titleOf, unstagedText } from './review-model.ts'
 
 const candidate = (id: string, kind: Candidate['kind'], payload: Record<string, unknown>, changes: Partial<Candidate> = {}): Candidate => ({ id, kind, source: 'A1', chunk: null, confidence: '0.90', status: 'pending', payload, checks: [], recordId: null, ...changes })
 
@@ -58,6 +58,20 @@ test('commit plan keeps accepted and edited items, blocked ones apart, and count
   expect(plan.ready.map((item) => item.id)).toEqual(['1', '5'])
   expect(plan.blocked.map((item) => item.id)).toEqual(['2'])
   expect(plan.left).toBe(2)
+})
+
+test('commit plan lists accepted items naming what only an unaccepted item stages', () => {
+  const ledger = { accounts: ['Conta conjunta'], categories: [{ name: 'Moradia', direction: 'expense' }], reserves: [] }
+  const vet = candidate('6', 'entry', { date: '2026-10-12', description: 'Veterinário', direction: 'expense', amountCents: 20000, category: 'pets ', account: 'Cartão Novo', member: 'joint', paid: true }, { status: 'accepted' })
+  const card = candidate('7', 'account', { nickname: 'Cartão Novo', institution: 'Banco Exemplo', kind: 'credit_card', member: 'joint' }, { status: 'rejected' })
+  const savings = candidate('8', 'goal', { name: 'Viagem', targetCents: 500000, reserve: 'Férias' }, { status: 'edited' })
+  const holidays = candidate('9', 'reserve', { name: 'Férias', balanceCents: 0 }, { status: 'accepted' })
+  const incomePets = candidate('10', 'category', { name: 'Pets', kind: 'income' })
+  const plan = commitPlan([{ ...rent, status: 'accepted', payload: { ...rent.payload, account: 'Conta conjunta' } }, vet, pets, incomePets, card, savings, holidays], ledger)
+  expect(plan.unstaged.map(({ candidate, references }) => [candidate.id, references.map(unstagedText)])).toEqual([['6', ['Conta Cartão Novo está num item rejeitado', 'Categoria pets está num item pendente']]])
+  expect(commitPlan([vet, pets, card]).unstaged).toEqual([])
+  expect(commitPlan([vet, { ...pets, status: 'accepted' }, { ...card, status: 'edited' }], ledger).unstaged).toEqual([])
+  expect(commitPlan([vet, pets, card], { ...ledger, accounts: ['cartão novo'], categories: [{ name: 'Pets', direction: 'expense' }] }).unstaged).toEqual([])
 })
 
 test('commit refusals become Portuguese', () => {

@@ -5,7 +5,7 @@ import { cn } from '../lib/utils.ts'
 import { useMembers } from '../query/shell.ts'
 import { useSavings } from '../worth/queries.ts'
 import { type Errors, type Field, fieldsOf, type Names, toPayload, toValues, type Values } from './edit-model.ts'
-import type { Candidate } from './review-model.ts'
+import type { Candidate, Ledger } from './review-model.ts'
 
 const input = 'min-h-11 w-full rounded-control border bg-bg px-3 text-body text-text focus-visible:border-accent focus-visible:outline-2 focus-visible:outline-accent-soft aria-invalid:border-late md:min-h-10'
 
@@ -23,6 +23,14 @@ export const useNames = (candidates: Candidate[]): Record<Names, string[]> => {
     categories: unique([...categories.map((item) => item.name), ...stagedNames(candidates, 'category', 'name')]),
     reserves: unique([...reserves.map((item) => item.name), ...stagedNames(candidates, 'reserve', 'name')]),
   }
+}
+
+export const useLedger = (): Ledger | undefined => {
+  const accounts = useAccounts().data
+  const categories = useCategories().data
+  const reserves = useSavings().data?.reserves
+  if (!accounts || !categories || !reserves) return undefined
+  return { accounts: accounts.map((item) => item.nickname), categories, reserves: reserves.map((item) => item.name) }
 }
 
 type FieldProps = { id: string; field: Field; value: string; error?: string; onChange: (value: string) => void }

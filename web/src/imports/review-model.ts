@@ -144,11 +144,68 @@ export const reviewFailure = (error: Error) => {
 
 const chosen = (candidate: Candidate) => candidate.status === 'accepted' || candidate.status === 'edited'
 
-export const commitPlan = (candidates: Candidate[]) => ({
-  ready: candidates.filter((candidate) => chosen(candidate) && !hasBlocking(candidate)),
-  blocked: candidates.filter((candidate) => chosen(candidate) && hasBlocking(candidate)),
-  left: candidates.filter((candidate) => !chosen(candidate)).length,
-})
+export type Ledger = { accounts: string[]; categories: { name: string; direction: string }[]; reserves: string[] }
+
+type Reference = { kind: 'account' | 'category' | 'reserve'; name: string; direction?: string }
+
+type Missing = Reference & { status: 'pending' | 'rejected' }
+
+export type Unstaged = { candidate: Candidate; references: Missing[] }
+
+const same = (left: string, right: string) => left.trim().toLowerCase() === right.trim().toLowerCase()
+
+const matches = (left: Reference, right: Reference) => left.kind === right.kind && same(left.name, right.name) && left.direction === right.direction
+
+const categoryDirection = ({ kind, payload }: Candidate) => (kind === 'entry' ? String(payload.direction) : kind === 'income' ? 'income' : 'expense')
+
+const referencesOf = (candidate: Candidate) => {
+  const { account, category, reserve } = candidate.payload
+  const found: Reference[] = []
+  if (text(account)) found.push({ kind: 'account', name: String(account).trim() })
+  if (text(category)) found.push({ kind: 'category', name: String(category).trim(), direction: categoryDirection(candidate) })
+  if (text(reserve)) found.push({ kind: 'reserve', name: String(reserve).trim() })
+  return found
+}
+
+const stagedAs = ({ kind, payload }: Candidate): Reference | undefined => {
+  if (kind === 'account' && text(payload.nickname)) return { kind, name: String(payload.nickname) }
+  if (kind === 'category' && text(payload.name)) return { kind, name: String(payload.name), direction: String(payload.kind) }
+  if (kind === 'reserve' && text(payload.name)) return { kind, name: String(payload.name) }
+}
+
+const inLedger = (ledger: Ledger, reference: Reference) =>
+  reference.kind === 'account' ? ledger.accounts.some((name) => same(name, reference.name)) : reference.kind === 'reserve' ? ledger.reserves.some((name) => same(name, reference.name)) : ledger.categories.some((item) => matches(reference, { kind: 'category', name: item.name, direction: item.direction }))
+
+const unstagedOf = (candidates: Candidate[], ready: Candidate[], ledger: Ledger): Unstaged[] => {
+  const staged = candidates.flatMap((candidate) => {
+    const reference = stagedAs(candidate)
+    return reference ? [{ ...reference, status: candidate.status }] : []
+  })
+  return ready
+    .map((candidate) => ({
+      candidate,
+      references: referencesOf(candidate).flatMap((reference): Missing[] => {
+        const creators = staged.filter((item) => matches(item, reference))
+        if (inLedger(ledger, reference) || creators.length === 0 || creators.some((item) => item.status === 'accepted' || item.status === 'edited')) return []
+        return [{ ...reference, status: creators.some((item) => item.status === 'pending') ? 'pending' : 'rejected' }]
+      }),
+    }))
+    .filter((item) => item.references.length > 0)
+}
+
+export const commitPlan = (candidates: Candidate[], ledger?: Ledger) => {
+  const ready = candidates.filter((candidate) => chosen(candidate) && !hasBlocking(candidate))
+  return {
+    ready,
+    blocked: candidates.filter((candidate) => chosen(candidate) && hasBlocking(candidate)),
+    unstaged: ledger ? unstagedOf(candidates, ready, ledger) : [],
+    left: candidates.filter((candidate) => !chosen(candidate)).length,
+  }
+}
+
+const referenceLabels: Record<Reference['kind'], string> = { account: 'Conta', category: 'Categoria', reserve: 'Reserva' }
+
+export const unstagedText = ({ kind, name, status }: Missing) => `${referenceLabels[kind]} ${name} está num item ${status === 'rejected' ? 'rejeitado' : 'pendente'}`
 
 export type CommitPlan = ReturnType<typeof commitPlan>
 

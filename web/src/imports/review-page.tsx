@@ -10,7 +10,7 @@ import { Button } from '../components/ui/button.tsx'
 import { chip } from '../decisions/decision-card.tsx'
 import { cn } from '../lib/utils.ts'
 import { ApiFailure } from '../query/client.ts'
-import { useNames } from './candidate-form.tsx'
+import { useLedger, useNames } from './candidate-form.tsx'
 import { CandidateRow, type EditForm } from './candidate-row.tsx'
 import { CommitCard, CommittedCard } from './commit-card.tsx'
 import { type Names, serverErrors } from './edit-model.ts'
@@ -104,6 +104,7 @@ const Review = ({ batch, notify, onCommit }: { batch: Batch; notify: (notice: No
   const decide = useDecide(batch.id)
   const edit = useEdit(batch.id)
   const names = useNames(candidates.data ?? [])
+  const ledger = useLedger()
   const busy = useMutationState({ filters: { mutationKey: ['import-review', batch.id], status: 'pending' } }).length > 0
   const onError = (error: Error) => notify({ tone: 'error', message: reviewFailure(error) })
   const onEdit = (candidate: Candidate, payload: Record<string, unknown>, form: EditForm) =>
@@ -158,7 +159,7 @@ const Review = ({ batch, notify, onCommit }: { batch: Batch; notify: (notice: No
                     {groupCandidates(items).map((group) => (
                       <GroupCard key={group.key} group={group} names={names} busy={busy} onEdit={onEdit} onDecide={(ids, decision, label) => decide.mutate({ ids, decision }, { onSuccess: () => notify({ message: decided(decision, label) }), onError })} />
                     ))}
-                    <CommitCard plan={commitPlan(items)} open={open.length} busy={busy} onCommit={onCommit} />
+                    <CommitCard plan={commitPlan(items, ledger)} open={open.length} busy={busy} onCommit={onCommit} />
                   </>
                 )}
               </div>

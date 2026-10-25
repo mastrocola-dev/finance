@@ -3,7 +3,7 @@ import { useState } from 'react'
 import { Button, buttonVariants } from '../components/ui/button.tsx'
 import { cn } from '../lib/utils.ts'
 import { type Batch, plural } from './model.ts'
-import { blockingTexts, type CommitPlan, titleOf } from './review-model.ts'
+import { blockingTexts, type CommitPlan, titleOf, unstagedText } from './review-model.ts'
 
 const card = 'flex min-w-0 flex-col gap-2.5 rounded-card border bg-surface px-4 py-3 md:px-6 md:py-4'
 
@@ -46,7 +46,7 @@ const Confirmed = ({ label, confirm, disabled, onConfirm }: Confirm) => {
 }
 
 export const CommitCard = ({ plan, open, busy, onCommit }: { plan: CommitPlan; open: number; busy: boolean; onCommit: () => void }) => (
-  <section aria-labelledby="commit-title" className={cn(card, plan.blocked.length > 0 && 'border-late/40')}>
+  <section aria-labelledby="commit-title" className={cn(card, (plan.blocked.length > 0 || plan.unstaged.length > 0) && 'border-late/40')}>
     <h2 id="commit-title" className="m-0 text-section font-semibold">
       Gravar no livro
     </h2>
@@ -64,8 +64,23 @@ export const CommitCard = ({ plan, open, busy, onCommit }: { plan: CommitPlan; o
         </ul>
       </>
     )}
+    {plan.unstaged.length > 0 && (
+      <>
+        <p className="m-0 text-meta text-late">
+          {plan.unstaged.length === 1 ? 'Um item aceito usa um nome que só existe num item não aceito. Aceite esse item ou edite o que usa o nome:' : `${plan.unstaged.length} itens aceitos usam nomes que só existem em itens não aceitos. Aceite esses itens ou edite os que usam os nomes:`}
+        </p>
+        <ul aria-label="Nomes não aceitos" className="m-0 flex list-none flex-col gap-1 p-0">
+          {plan.unstaged.map(({ candidate, references }) => (
+            <li key={candidate.id} className="text-meta">
+              <span className="font-medium">{titleOf(candidate)}</span>
+              <span className="text-late"> · {references.map(unstagedText).join(' · ')}</span>
+            </li>
+          ))}
+        </ul>
+      </>
+    )}
     <div className="flex flex-wrap items-center gap-2">
-      <Confirmed label={plan.ready.length > 0 ? `Gravar ${plural(plan.ready.length, 'item', 'itens')}` : 'Gravar'} confirm="Confirmar gravação" disabled={busy || plan.ready.length === 0 || plan.blocked.length > 0} onConfirm={onCommit} />
+      <Confirmed label={plan.ready.length > 0 ? `Gravar ${plural(plan.ready.length, 'item', 'itens')}` : 'Gravar'} confirm="Confirmar gravação" disabled={busy || plan.ready.length === 0 || plan.blocked.length > 0 || plan.unstaged.length > 0} onConfirm={onCommit} />
     </div>
   </section>
 )
