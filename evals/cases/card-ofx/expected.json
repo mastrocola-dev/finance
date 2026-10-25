@@ -1,0 +1,84 @@
+{
+  "file": "fatura-cartao.ofx",
+  "candidates": [
+    {
+      "kind": "account",
+      "payload": {
+        "lastFour": "8765",
+        "kind": "credit_card"
+      }
+    },
+    {
+      "kind": "entry",
+      "payload": {
+        "date": "2026-10-02",
+        "description": "Farmácia",
+        "direction": "expense",
+        "amountCents": 8990,
+        "category": "Saúde"
+      }
+    },
+    {
+      "kind": "entry",
+      "payload": {
+        "date": "2026-10-04",
+        "description": "Móveis",
+        "direction": "expense",
+        "amountCents": 21000,
+        "category": "Casa",
+        "installment": {
+          "number": 2,
+          "total": 6
+        }
+      }
+    },
+    {
+      "kind": "entry",
+      "payload": {
+        "date": "2026-10-09",
+        "description": "Transporte",
+        "direction": "expense",
+        "amountCents": 5675,
+        "category": "Transporte"
+      }
+    },
+    {
+      "kind": "entry",
+      "payload": {
+        "date": "2026-10-15",
+        "description": "Streaming",
+        "direction": "expense",
+        "amountCents": 3990,
+        "category": "Lazer"
+      }
+    },
+    {
+      "kind": "entry",
+      "payload": {
+        "date": "2026-10-18",
+        "description": "Restaurante",
+        "direction": "expense",
+        "amountCents": 14860,
+        "category": "Alimentação"
+      }
+    },
+    {
+      "kind": "entry",
+      "payload": {
+        "date": "2026-10-20",
+        "description": "Estorno",
+        "direction": "income",
+        "amountCents": 2000
+      }
+    },
+    {
+      "kind": "entry",
+      "payload": {
+        "date": "2026-10-22",
+        "description": "IOF",
+        "direction": "expense",
+        "amountCents": 1290
+      }
+    }
+  ]
+}

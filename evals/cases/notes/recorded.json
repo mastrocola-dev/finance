@@ -1,0 +1,177 @@
+[
+  {
+    "source": "L1",
+    "offset": 0,
+    "output": {
+      "candidates": [],
+      "questions": [],
+      "totals": []
+    },
+    "usage": {
+      "inputTokens": 1500,
+      "outputTokens": 60,
+      "costUsdMicros": 5400
+    }
+  },
+  {
+    "source": "L3-L9",
+    "offset": 0,
+    "output": {
+      "candidates": [
+        {
+          "kind": "entry",
+          "source": "L3",
+          "confidence": 0.9,
+          "payload": {
+            "date": "2026-10-03",
+            "description": "Mercado do mês no Atacadão Fictício",
+            "direction": "expense",
+            "amountCents": 68745,
+            "category": "Mercado",
+            "account": "Cartão do Marcio",
+            "member": "Marcio",
+            "paid": true
+          }
+        },
+        {
+          "kind": "entry",
+          "source": "L4",
+          "confidence": 0.8,
+          "payload": {
+            "date": "2026-10-10",
+            "description": "Escola de inglês",
+            "direction": "expense",
+            "amountCents": 35000,
+            "category": "Educação",
+            "member": "Gabi",
+            "paid": true
+          }
+        },
+        {
+          "kind": "entry",
+          "source": "L5",
+          "confidence": 0.92,
+          "payload": {
+            "date": "2026-10-18",
+            "description": "Conta de luz",
+            "direction": "expense",
+            "amountCents": 21430,
+            "category": "Contas da casa",
+            "paid": false
+          }
+        },
+        {
+          "kind": "recurring_expense",
+          "source": "L6",
+          "confidence": 0.85,
+          "payload": {
+            "description": "Streaming",
+            "amountCents": 3990,
+            "dayOfMonth": 15,
+            "startsOn": "2026-10-01",
+            "category": "Lazer",
+            "account": "Cartão"
+          }
+        },
+        {
+          "kind": "entry",
+          "source": "L7",
+          "confidence": 0.55,
+          "payload": {
+            "date": "2026-10-01",
+            "description": "Empréstimo para o irmão",
+            "direction": "expense",
+            "amountCents": 20000,
+            "category": "Empréstimos",
+            "paid": true
+          }
+        },
+        {
+          "kind": "entry",
+          "source": "L8",
+          "confidence": 0.75,
+          "payload": {
+            "date": "2026-10-20",
+            "description": "Sofá novo",
+            "direction": "expense",
+            "amountCents": 24990,
+            "category": "Casa",
+            "paid": false,
+            "installment": {
+              "number": 1,
+              "total": 12
+            }
+          }
+        },
+        {
+          "kind": "entry",
+          "source": "L9",
+          "confidence": 0.9,
+          "payload": {
+            "date": "2026-10-05",
+            "description": "Salário",
+            "direction": "income",
+            "amountCents": 680000,
+            "category": "Salário",
+            "member": "Marcio",
+            "paid": true
+          }
+        },
+        {
+          "kind": "entry",
+          "source": "L9",
+          "confidence": 0.82,
+          "payload": {
+            "date": "2026-10-06",
+            "description": "Salário Gabi",
+            "direction": "income",
+            "amountCents": 520000,
+            "category": "Salário",
+            "member": "Gabi",
+            "paid": true
+          }
+        }
+      ],
+      "questions": [
+        {
+          "question": "Gabi é a Gabriela?",
+          "options": ["Sim", "Não"],
+          "source": "L4",
+          "candidate": 1
+        },
+        {
+          "question": "O empréstimo de 200 ao irmão deve entrar como despesa?",
+          "options": ["Sim", "Não"],
+          "source": "L7",
+          "candidate": 4
+        }
+      ],
+      "totals": []
+    },
+    "usage": {
+      "inputTokens": 2600,
+      "outputTokens": 1700,
+      "costUsdMicros": 33300
+    }
+  },
+  {
+    "source": "L11",
+    "offset": 0,
+    "output": {
+      "candidates": [],
+      "questions": [
+        {
+          "question": "O total de cerca de R$ 1.500 em outubro é um valor exato?",
+          "options": ["Sim", "Não"],
+          "source": "L11"
+        }
+      ],
+      "totals": []
+    },
+    "usage": {
+      "inputTokens": 1550,
+      "outputTokens": 90,
+      "costUsdMicros": 6000
+    }
+  }
+]

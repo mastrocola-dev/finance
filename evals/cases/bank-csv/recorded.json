@@ -1,0 +1,182 @@
+[
+  {
+    "source": "extrato-conjunta!A1:B3",
+    "offset": 0,
+    "output": {
+      "candidates": [
+        {
+          "kind": "account",
+          "source": "extrato-conjunta!A2:B2",
+          "confidence": 0.9,
+          "payload": {
+            "institution": "Banco Fictício",
+            "nickname": "Conta corrente",
+            "lastFour": "4321",
+            "kind": "checking"
+          }
+        }
+      ],
+      "questions": [],
+      "totals": []
+    },
+    "usage": {
+      "inputTokens": 1800,
+      "outputTokens": 220,
+      "costUsdMicros": 8700
+    }
+  },
+  {
+    "source": "extrato-conjunta!A5:E16",
+    "offset": 0,
+    "output": {
+      "candidates": [
+        {
+          "kind": "entry",
+          "source": "extrato-conjunta!A7:E7",
+          "confidence": 0.95,
+          "payload": {
+            "date": "2026-10-02",
+            "description": "Pix enviado aluguel apto",
+            "direction": "expense",
+            "amountCents": 220000,
+            "category": "Moradia",
+            "account": "Conta corrente",
+            "paid": true
+          }
+        },
+        {
+          "kind": "entry",
+          "source": "extrato-conjunta!A8:E8",
+          "confidence": 0.93,
+          "payload": {
+            "date": "2026-10-05",
+            "description": "TED recebida salário Marcio",
+            "direction": "income",
+            "amountCents": 680000,
+            "category": "Salário",
+            "account": "Conta corrente",
+            "member": "Marcio",
+            "paid": true
+          }
+        },
+        {
+          "kind": "entry",
+          "source": "extrato-conjunta!A9:E9",
+          "confidence": 0.95,
+          "payload": {
+            "date": "2026-10-06",
+            "description": "Compra cartão débito Supermercado Sol",
+            "direction": "expense",
+            "amountCents": 41237,
+            "category": "Alimentação",
+            "account": "Conta corrente",
+            "paid": true
+          }
+        },
+        {
+          "kind": "entry",
+          "source": "extrato-conjunta!A10:E10",
+          "confidence": 0.94,
+          "payload": {
+            "date": "2026-10-08",
+            "description": "Conta de luz Energia Fictícia",
+            "direction": "expense",
+            "amountCents": 18990,
+            "category": "Contas da casa",
+            "account": "Conta corrente",
+            "paid": true
+          }
+        },
+        {
+          "kind": "entry",
+          "source": "extrato-conjunta!A11:E11",
+          "confidence": 0.62,
+          "payload": {
+            "date": "2026-10-10",
+            "description": "Pix recebido Gabriela",
+            "direction": "income",
+            "amountCents": 300000,
+            "category": "Transferência",
+            "account": "Conta corrente",
+            "member": "Gabriela",
+            "paid": true
+          }
+        },
+        {
+          "kind": "entry",
+          "source": "extrato-conjunta!A12:E12",
+          "confidence": 0.94,
+          "payload": {
+            "date": "2026-10-12",
+            "description": "Débito automático internet",
+            "direction": "expense",
+            "amountCents": 11990,
+            "category": "Contas da casa",
+            "account": "Conta corrente",
+            "paid": true
+          }
+        },
+        {
+          "kind": "entry",
+          "source": "extrato-conjunta!A13:E13",
+          "confidence": 0.9,
+          "payload": {
+            "date": "2026-10-15",
+            "description": "Tarifa pacote serviços",
+            "direction": "expense",
+            "amountCents": 3250,
+            "category": "Tarifas bancárias",
+            "account": "Conta corrente",
+            "paid": true
+          }
+        },
+        {
+          "kind": "entry",
+          "source": "extrato-conjunta!A14:E14",
+          "confidence": 0.88,
+          "payload": {
+            "date": "2026-10-20",
+            "description": "Parcela financiamento carro",
+            "direction": "expense",
+            "amountCents": 115000,
+            "category": "Transporte",
+            "account": "Conta corrente",
+            "paid": true,
+            "installment": {
+              "number": 3,
+              "total": 10
+            }
+          }
+        },
+        {
+          "kind": "entry",
+          "source": "extrato-conjunta!A15:E15",
+          "confidence": 0.7,
+          "payload": {
+            "date": "2026-10-25",
+            "description": "Estorno compra Supermercado Sol",
+            "direction": "expense",
+            "amountCents": 4500,
+            "category": "Alimentação",
+            "account": "Conta corrente",
+            "paid": true
+          }
+        }
+      ],
+      "questions": [
+        {
+          "question": "O Pix recebido da Gabriela no dia 10 é renda ou transferência entre contas?",
+          "options": ["Renda", "Transferência"],
+          "source": "extrato-conjunta!A11:E11",
+          "candidate": 4
+        }
+      ],
+      "totals": []
+    },
+    "usage": {
+      "inputTokens": 4100,
+      "outputTokens": 1900,
+      "costUsdMicros": 40800
+    }
+  }
+]

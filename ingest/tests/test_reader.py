@@ -44,6 +44,16 @@ def test_csv_with_semicolons_in_windows_encoding(fixtures):
     assert result['segments'][1]['preview'] == [['Saldo final', None, None, '8.752,70']]
 
 
+def test_csv_delimiter_survives_a_preamble_and_decimal_commas(tmp_path):
+    path = tmp_path / 'extrato.csv'
+    lines = ['Banco Fictício - extrato', 'Período: 01/10/2026 a 31/10/2026', '', 'Data;Histórico;Valor;Saldo']
+    lines += [f'0{day}/10/2026;Compra {day};-1{day},50;2.40{day},00' for day in range(1, 8)]
+    path.write_text('\n'.join(lines), encoding='utf-8')
+    result = inspect(path)
+    assert sources(result) == [('table-1', 'extrato!A1:A2'), ('table-2', 'extrato!A4:D11')]
+    assert result['segments'][1]['preview'][1] == ['01/10/2026', 'Compra 1', '-11,50', '2.401,00']
+
+
 def test_json_arrays_become_tree_segments_with_samples(fixtures):
     result = inspect(fixtures / 'carteira.json')
     assert sources(result) == [

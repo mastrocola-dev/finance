@@ -1,0 +1,81 @@
+{
+  "file": "gastos-outubro.txt",
+  "candidates": [
+    {
+      "kind": "entry",
+      "payload": {
+        "date": "2026-10-03",
+        "description": "Mercado",
+        "direction": "expense",
+        "amountCents": 68745,
+        "category": "Alimentação",
+        "paid": true
+      }
+    },
+    {
+      "kind": "entry",
+      "payload": {
+        "date": "2026-10-10",
+        "description": "Inglês",
+        "direction": "expense",
+        "amountCents": 35000,
+        "member": "Gabriela",
+        "paid": true
+      }
+    },
+    {
+      "kind": "entry",
+      "payload": {
+        "date": "2026-10-18",
+        "description": "Luz",
+        "direction": "expense",
+        "amountCents": 21430,
+        "category": "Contas da casa",
+        "paid": false
+      }
+    },
+    {
+      "kind": "recurring_expense",
+      "payload": {
+        "description": "Streaming",
+        "amountCents": 3990,
+        "dayOfMonth": 15,
+        "startsOn": "2026-10-01",
+        "category": "Lazer"
+      }
+    },
+    {
+      "kind": "recurring_expense",
+      "payload": {
+        "description": "Sofá",
+        "amountCents": 24990,
+        "dayOfMonth": 20,
+        "startsOn": "2026-10-01",
+        "installmentsTotal": 12,
+        "category": "Casa"
+      }
+    },
+    {
+      "kind": "entry",
+      "payload": {
+        "date": "2026-10-05",
+        "description": "Salário",
+        "direction": "income",
+        "amountCents": 680000,
+        "category": "Salário",
+        "paid": true
+      }
+    },
+    {
+      "kind": "entry",
+      "payload": {
+        "date": "2026-10-06",
+        "description": "Gabi",
+        "direction": "income",
+        "amountCents": 520000,
+        "member": "Gabriela",
+        "paid": true
+      }
+    }
+  ]
+}

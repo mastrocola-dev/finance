@@ -1,5 +1,6 @@
 import csv
 import io
+from collections import Counter
 from pathlib import Path
 
 from ingest.segment import plain
@@ -12,14 +13,17 @@ def decode(data: bytes) -> str:
         return data.decode('cp1252', errors='replace')
 
 
-def dialect(sample: str) -> type[csv.Dialect] | str:
-    try:
-        return csv.Sniffer().sniff(sample, delimiters=',;\t|')
-    except csv.Error:
-        return 'excel'
+def score(sample: str, candidate: str) -> int:
+    widths = Counter(len(row) for row in csv.reader(io.StringIO(sample), delimiter=candidate) if row)
+    lines, columns = max((lines, columns) for columns, lines in widths.items()) if widths else (0, 1)
+    return lines * (columns - 1)
+
+
+def delimiter(sample: str) -> str:
+    return max(',;\t|', key=lambda candidate: score(sample, candidate))
 
 
 def load_csv(path: Path) -> dict[str, list[list[object]]]:
     text = decode(path.read_bytes())
-    rows = csv.reader(io.StringIO(text, newline=''), dialect(text[:8192]))
+    rows = csv.reader(io.StringIO(text, newline=''), delimiter=delimiter(text[:8192]))
     return {path.stem: [[plain(value) for value in row] for row in rows]}
