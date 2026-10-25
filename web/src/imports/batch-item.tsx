@@ -1,5 +1,6 @@
+import { Link } from '@tanstack/react-router'
 import { useState } from 'react'
-import { Button } from '../components/ui/button.tsx'
+import { Button, buttonVariants } from '../components/ui/button.tsx'
 import { chip } from '../decisions/decision-card.tsx'
 import { cn } from '../lib/utils.ts'
 import { type Batch, closeAction, formatStamp, formatTokens, formatUsd, phaseLabels, phaseOf, phaseTones, plural, progressText, summary } from './model.ts'
@@ -50,9 +51,14 @@ export const BatchItem = ({ batch, busy, onClose }: Props) => {
       <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted">
         <span className="amount">{formatTokens(batch)}</span>
         <span className="amount">{formatUsd(batch.costUsd)}</span>
-        {action && (
+        {(phase === 'verified' || action) && (
           <span className="ml-auto flex gap-2">
-            {confirming ? (
+            {phase === 'verified' && !confirming && (
+              <Link to="/importar/$id" params={{ id: batch.id }} aria-label={`Revisar ${batch.fileName}`} className={buttonVariants({ variant: 'primary' })}>
+                Revisar
+              </Link>
+            )}
+            {!action ? null : confirming ? (
               <>
                 <Button variant="ghost" onClick={() => setConfirming(false)}>
                   Cancelar

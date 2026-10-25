@@ -21,7 +21,9 @@ const pages: Record<Path, ReturnType<typeof lazyRouteComponent>> = {
   '/importar': lazyRouteComponent(() => import('./imports/imports-page.tsx'), 'ImportsPage'),
 }
 
-const routeTree = rootRoute.addChildren(screens.map((screen) => createRoute({ getParentRoute: () => rootRoute, path: screen.path, component: pages[screen.path] })))
+const reviewRoute = createRoute({ getParentRoute: () => rootRoute, path: '/importar/$id', component: lazyRouteComponent(() => import('./imports/review-page.tsx'), 'ReviewPage') })
+
+const routeTree = rootRoute.addChildren([...screens.map((screen) => createRoute({ getParentRoute: () => rootRoute, path: screen.path, component: pages[screen.path] })), reviewRoute])
 
 export const createAppRouter = (history?: RouterHistory) => createRouter({ routeTree, history, defaultPreload: 'intent', scrollRestoration: true })
 

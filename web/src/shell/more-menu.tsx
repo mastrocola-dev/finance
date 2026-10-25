@@ -40,7 +40,7 @@ export const MoreMenu = () => {
         <div id={id} className="absolute top-full right-0 z-20 mt-2 flex w-60 flex-col gap-3 rounded-card border bg-surface p-3">
           <nav aria-label="Mais telas" className="flex flex-col gap-1">
             {extras.map(({ path, title }) => (
-              <Link key={path} to={path} activeOptions={{ exact: true }} onClick={() => setOpen(false)} className="flex min-h-11 items-center rounded-control px-2.5 text-text data-[status=active]:bg-accent-soft data-[status=active]:font-semibold data-[status=active]:text-accent">
+              <Link key={path} to={path} activeOptions={{ exact: path === '/' }} onClick={() => setOpen(false)} className="flex min-h-11 items-center rounded-control px-2.5 text-text data-[status=active]:bg-accent-soft data-[status=active]:font-semibold data-[status=active]:text-accent">
                 {title}
               </Link>
             ))}

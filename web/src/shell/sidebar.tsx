@@ -15,7 +15,7 @@ export const Sidebar = () => {
       </div>
       <nav aria-label="Principal" className="flex flex-col gap-1">
         {screens.map(({ path, title }) => (
-          <Link key={path} to={path} activeOptions={{ exact: true }} className="group flex min-h-10 items-center gap-2.5 rounded-control px-2.5 text-text data-[status=active]:bg-accent-soft data-[status=active]:font-semibold data-[status=active]:text-accent">
+          <Link key={path} to={path} activeOptions={{ exact: path === '/' }} className="group flex min-h-10 items-center gap-2.5 rounded-control px-2.5 text-text data-[status=active]:bg-accent-soft data-[status=active]:font-semibold data-[status=active]:text-accent">
             <span aria-hidden="true" className="size-2 rounded-[2px] bg-border group-data-[status=active]:bg-accent" />
             <span>{title}</span>
             {path === '/decisoes' && proposed && proposed.length > 0 && (
