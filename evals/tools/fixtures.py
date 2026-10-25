@@ -7,6 +7,7 @@ from pathlib import Path
 from fpdf import FPDF
 from openpyxl import Workbook
 from openpyxl.writer.excel import ExcelWriter
+from openpyxl.xml import LXML
 
 HEADER = ['Item', 'Dia', 'Valor', 'Quem', 'Pago?']
 
@@ -138,6 +139,8 @@ def statement(pages, path):
 
 
 def main(root):
+    if not LXML:
+        sys.exit('fixtures need lxml: run them through npm run eval:fixtures')
     cases = Path(root)
     workbook(HOUSEHOLD, datetime(2026, 10, 25), cases / 'household-xlsx' / 'orcamento-casa.xlsx')
     workbook(PLANNING, datetime(2026, 10, 25), cases / 'planning-xlsx' / 'planejamento-lado-a-lado.xlsx')

@@ -30,7 +30,7 @@
     "web:screenshots": "npm run screenshots -w web --",
     "import": "node --env-file-if-exists=.env src/import/cli.ts",
     "eval": "node --env-file-if-exists=.env src/eval/run.ts",
-    "eval:fixtures": "uv run --no-project --with openpyxl==3.1.5 --with fpdf2==2.8.9 python evals/tools/fixtures.py"
+    "eval:fixtures": "uv run --project ingest --frozen python evals/tools/fixtures.py"
   },
   "devDependencies": {
     "@biomejs/biome": "2.5.14",
