@@ -1,16 +1,17 @@
 import { useState } from 'react'
 import { Button } from '../components/ui/button.tsx'
 import { chip } from '../decisions/decision-card.tsx'
+import { recordProps } from '../lib/record.tsx'
 import { cn } from '../lib/utils.ts'
 import { CandidateForm } from './candidate-form.tsx'
 import type { Errors, Names } from './edit-model.ts'
-import { amountOf, type Candidate, checkText, confidenceText, type Decision, detailsOf, hasBlocking, isBlocking, statusLabels, statusTones, titleOf } from './review-model.ts'
+import { amountOf, type Candidate, candidateRecord, checkText, confidenceText, type Decision, detailsOf, hasBlocking, isBlocking, statusLabels, statusTones, titleOf } from './review-model.ts'
 
 export type EditForm = { close: () => void; refuse: (errors: Errors) => void }
 
-type Props = { candidate: Candidate; names: Record<Names, string[]>; busy: boolean; onDecide: (decision: Decision) => void; onEdit: (payload: Record<string, unknown>, form: EditForm) => void }
+type Props = { candidate: Candidate; hash: string; names: Record<Names, string[]>; busy: boolean; onDecide: (decision: Decision) => void; onEdit: (payload: Record<string, unknown>, form: EditForm) => void }
 
-export const CandidateRow = ({ candidate, names, busy, onDecide, onEdit }: Props) => {
+export const CandidateRow = ({ candidate, hash, names, busy, onDecide, onEdit }: Props) => {
   const [editing, setEditing] = useState(false)
   const [refused, setRefused] = useState<Errors>()
   const close = () => {
@@ -23,7 +24,7 @@ export const CandidateRow = ({ candidate, names, busy, onDecide, onEdit }: Props
   const accepted = candidate.status === 'accepted' || candidate.status === 'edited'
   const titleId = `candidate-title-${candidate.id}`
   return (
-    <li aria-labelledby={titleId} className="flex flex-col gap-2 border-b py-3 last:border-b-0">
+    <li aria-labelledby={titleId} {...recordProps(candidateRecord(candidate.id), hash)} className="flex flex-col gap-2 border-b py-3 last:border-b-0 aria-[current=true]:bg-accent-soft">
       <div className="flex items-start gap-3">
         <div className="flex min-w-0 flex-1 flex-col gap-0.5">
           <span id={titleId} className={cn('font-medium', candidate.status === 'rejected' && 'text-muted line-through')}>

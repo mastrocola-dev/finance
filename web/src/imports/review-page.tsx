@@ -8,6 +8,7 @@ import { Skeleton } from '../components/skeleton.tsx'
 import { type Notice, Toast } from '../components/toast.tsx'
 import { Button } from '../components/ui/button.tsx'
 import { chip } from '../decisions/decision-card.tsx'
+import { RecordScroll, useRecordHash } from '../lib/record.tsx'
 import { cn } from '../lib/utils.ts'
 import { ApiFailure } from '../query/client.ts'
 import { useLedger, useNames } from './candidate-form.tsx'
@@ -68,9 +69,9 @@ const Summary = ({ candidates, questions }: { candidates: Candidate[]; questions
   )
 }
 
-type GroupProps = { group: Group; names: Record<Names, string[]>; busy: boolean; onDecide: (ids: string[], decision: Decision, label: string) => void; onEdit: (candidate: Candidate, payload: Record<string, unknown>, form: EditForm) => void }
+type GroupProps = { group: Group; hash: string; names: Record<Names, string[]>; busy: boolean; onDecide: (ids: string[], decision: Decision, label: string) => void; onEdit: (candidate: Candidate, payload: Record<string, unknown>, form: EditForm) => void }
 
-const GroupCard = ({ group, names, busy, onDecide, onEdit }: GroupProps) => {
+const GroupCard = ({ group, hash, names, busy, onDecide, onEdit }: GroupProps) => {
   const ready = acceptable(group)
   const headingId = `group-${group.key}`
   return (
@@ -88,7 +89,7 @@ const GroupCard = ({ group, names, busy, onDecide, onEdit }: GroupProps) => {
       </div>
       <ul className="m-0 flex list-none flex-col p-0">
         {group.candidates.map((candidate) => (
-          <CandidateRow key={candidate.id} candidate={candidate} names={names} busy={busy} onDecide={(decision) => onDecide([candidate.id], decision, titleOf(candidate))} onEdit={(payload, form) => onEdit(candidate, payload, form)} />
+          <CandidateRow key={candidate.id} candidate={candidate} hash={hash} names={names} busy={busy} onDecide={(decision) => onDecide([candidate.id], decision, titleOf(candidate))} onEdit={(payload, form) => onEdit(candidate, payload, form)} />
         ))}
       </ul>
     </section>
@@ -105,6 +106,7 @@ const Review = ({ batch, notify, onCommit }: { batch: Batch; notify: (notice: No
   const edit = useEdit(batch.id)
   const names = useNames(candidates.data ?? [])
   const ledger = useLedger()
+  const hash = useRecordHash()
   const busy = useMutationState({ filters: { mutationKey: ['import-review', batch.id], status: 'pending' } }).length > 0
   const onError = (error: Error) => notify({ tone: 'error', message: reviewFailure(error) })
   const onEdit = (candidate: Candidate, payload: Record<string, unknown>, form: EditForm) =>
@@ -157,9 +159,10 @@ const Review = ({ batch, notify, onCommit }: { batch: Batch; notify: (notice: No
                 ) : (
                   <>
                     {groupCandidates(items).map((group) => (
-                      <GroupCard key={group.key} group={group} names={names} busy={busy} onEdit={onEdit} onDecide={(ids, decision, label) => decide.mutate({ ids, decision }, { onSuccess: () => notify({ message: decided(decision, label) }), onError })} />
+                      <GroupCard key={group.key} group={group} hash={hash} names={names} busy={busy} onEdit={onEdit} onDecide={(ids, decision, label) => decide.mutate({ ids, decision }, { onSuccess: () => notify({ message: decided(decision, label) }), onError })} />
                     ))}
-                    <CommitCard plan={commitPlan(items, ledger)} open={open.length} busy={busy} onCommit={onCommit} />
+                    <CommitCard plan={commitPlan(items, ledger)} open={open.length} busy={busy} hash={hash} onCommit={onCommit} />
+                    <RecordScroll />
                   </>
                 )}
               </div>

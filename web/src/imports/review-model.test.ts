@@ -1,6 +1,6 @@
 import { expect, test } from 'vitest'
 import { ApiFailure } from '../query/client.ts'
-import { acceptable, amountOf, blocked, type Candidate, checkText, commitFailure, commitPlan, detailsOf, groupCandidates, monthOfCandidate, reviewCounts, reviewFailure, titleOf, unstagedText } from './review-model.ts'
+import { acceptable, amountOf, blocked, type Candidate, candidateRecord, checkText, commitFailure, commitPlan, detailsOf, groupCandidates, monthOfCandidate, reviewCounts, reviewFailure, titleOf, unstagedText } from './review-model.ts'
 
 const candidate = (id: string, kind: Candidate['kind'], payload: Record<string, unknown>, changes: Partial<Candidate> = {}): Candidate => ({ id, kind, source: 'A1', chunk: null, confidence: '0.90', status: 'pending', payload, checks: [], recordId: null, ...changes })
 
@@ -69,6 +69,8 @@ test('commit plan lists accepted items naming what only an unaccepted item stage
   const incomePets = candidate('10', 'category', { name: 'Pets', kind: 'income' })
   const plan = commitPlan([{ ...rent, status: 'accepted', payload: { ...rent.payload, account: 'Conta conjunta' } }, vet, pets, incomePets, card, savings, holidays], ledger)
   expect(plan.unstaged.map(({ candidate, references }) => [candidate.id, references.map(unstagedText)])).toEqual([['6', ['Conta Cartão Novo está num item rejeitado', 'Categoria pets está num item pendente']]])
+  expect(plan.unstaged[0]?.references.map(({ creator }) => candidateRecord(creator))).toEqual(['candidate-7', 'candidate-4'])
+  expect(commitPlan([vet, { ...pets, id: '11', status: 'rejected' }, pets], ledger).unstaged[0]?.references.map(({ status, creator }) => [status, creator])).toEqual([['pending', '4']])
   expect(commitPlan([vet, pets, card]).unstaged).toEqual([])
   expect(commitPlan([vet, { ...pets, status: 'accepted' }, { ...card, status: 'edited' }], ledger).unstaged).toEqual([])
   expect(commitPlan([vet, pets, card], { ...ledger, accounts: ['cartão novo'], categories: [{ name: 'Pets', direction: 'expense' }] }).unstaged).toEqual([])

@@ -1,9 +1,10 @@
 import { Link } from '@tanstack/react-router'
-import { useState } from 'react'
+import { Fragment, useState } from 'react'
 import { Button, buttonVariants } from '../components/ui/button.tsx'
+import { scrollToRecord } from '../lib/record.tsx'
 import { cn } from '../lib/utils.ts'
 import { type Batch, plural } from './model.ts'
-import { blockingTexts, type CommitPlan, titleOf, unstagedText } from './review-model.ts'
+import { blockingTexts, type CommitPlan, candidateRecord, titleOf, type Unstaged, unstagedText } from './review-model.ts'
 
 const card = 'flex min-w-0 flex-col gap-2.5 rounded-card border bg-surface px-4 py-3 md:px-6 md:py-4'
 
@@ -15,6 +16,15 @@ const outcome = (plan: CommitPlan, open: number) =>
   ]
     .filter(Boolean)
     .join(' ')
+
+const CreatorLink = ({ reference, hash }: { reference: Unstaged['references'][number]; hash: string }) => {
+  const record = candidateRecord(reference.creator)
+  return (
+    <Link to="." hash={record} resetScroll={false} activeOptions={{ includeHash: true }} onClick={() => record === hash && scrollToRecord(record)} className="text-late underline underline-offset-2">
+      {unstagedText(reference)}
+    </Link>
+  )
+}
 
 type Confirm = { label: string; confirm: string; disabled: boolean; onConfirm: () => void }
 
@@ -45,7 +55,9 @@ const Confirmed = ({ label, confirm, disabled, onConfirm }: Confirm) => {
   )
 }
 
-export const CommitCard = ({ plan, open, busy, onCommit }: { plan: CommitPlan; open: number; busy: boolean; onCommit: () => void }) => (
+type Props = { plan: CommitPlan; open: number; busy: boolean; hash: string; onCommit: () => void }
+
+export const CommitCard = ({ plan, open, busy, hash, onCommit }: Props) => (
   <section aria-labelledby="commit-title" className={cn(card, (plan.blocked.length > 0 || plan.unstaged.length > 0) && 'border-late/40')}>
     <h2 id="commit-title" className="m-0 text-section font-semibold">
       Gravar no livro
@@ -73,7 +85,12 @@ export const CommitCard = ({ plan, open, busy, onCommit }: { plan: CommitPlan; o
           {plan.unstaged.map(({ candidate, references }) => (
             <li key={candidate.id} className="text-meta">
               <span className="font-medium">{titleOf(candidate)}</span>
-              <span className="text-late"> · {references.map(unstagedText).join(' · ')}</span>
+              {references.map((reference) => (
+                <Fragment key={`${reference.kind}-${reference.name}`}>
+                  <span className="text-late"> · </span>
+                  <CreatorLink reference={reference} hash={hash} />
+                </Fragment>
+              ))}
             </li>
           ))}
         </ul>

@@ -148,7 +148,7 @@ export type Ledger = { accounts: string[]; categories: { name: string; direction
 
 type Reference = { kind: 'account' | 'category' | 'reserve'; name: string; direction?: string }
 
-type Missing = Reference & { status: 'pending' | 'rejected' }
+type Missing = Reference & { status: 'pending' | 'rejected'; creator: string }
 
 export type Unstaged = { candidate: Candidate; references: Missing[] }
 
@@ -179,15 +179,16 @@ const inLedger = (ledger: Ledger, reference: Reference) =>
 const unstagedOf = (candidates: Candidate[], ready: Candidate[], ledger: Ledger): Unstaged[] => {
   const staged = candidates.flatMap((candidate) => {
     const reference = stagedAs(candidate)
-    return reference ? [{ ...reference, status: candidate.status }] : []
+    return reference ? [{ ...reference, status: candidate.status, id: candidate.id }] : []
   })
   return ready
     .map((candidate) => ({
       candidate,
       references: referencesOf(candidate).flatMap((reference): Missing[] => {
         const creators = staged.filter((item) => matches(item, reference))
-        if (inLedger(ledger, reference) || creators.length === 0 || creators.some((item) => item.status === 'accepted' || item.status === 'edited')) return []
-        return [{ ...reference, status: creators.some((item) => item.status === 'pending') ? 'pending' : 'rejected' }]
+        const creator = creators.find((item) => item.status === 'pending') ?? creators[0]
+        if (!creator || inLedger(ledger, reference) || creators.some((item) => item.status === 'accepted' || item.status === 'edited')) return []
+        return [{ ...reference, status: creator.status === 'pending' ? 'pending' : 'rejected', creator: creator.id }]
       }),
     }))
     .filter((item) => item.references.length > 0)
@@ -204,6 +205,8 @@ export const commitPlan = (candidates: Candidate[], ledger?: Ledger) => {
 }
 
 const referenceLabels: Record<Reference['kind'], string> = { account: 'Conta', category: 'Categoria', reserve: 'Reserva' }
+
+export const candidateRecord = (id: string) => `candidate-${id}`
 
 export const unstagedText = ({ kind, name, status }: Missing) => `${referenceLabels[kind]} ${name} está num item ${status === 'rejected' ? 'rejeitado' : 'pendente'}`
 
