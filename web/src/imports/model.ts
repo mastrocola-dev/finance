@@ -6,12 +6,19 @@ export type Batch = components['schemas']['ImportBatch']
 export type Runtime = components['schemas']['ImportRuntime']
 
 export const runtimeTexts: Record<NonNullable<Runtime['cause']>, string> = {
-  missing: 'A leitura de arquivos não está instalada neste computador. Instale o uv e reinicie a API.',
-  timeout: 'A preparação da leitura de arquivos demorou demais. Reinicie a API para tentar de novo.',
-  failed: 'Não foi possível preparar a leitura de arquivos. Veja o log da API e reinicie.',
+  missing: 'A leitura de arquivos não está instalada neste computador. Instale o uv; a API tenta de novo sozinha.',
+  timeout: 'A preparação da leitura de arquivos demorou demais. A API tenta de novo em instantes.',
+  failed: 'Não foi possível preparar a leitura de arquivos. Veja o log da API; ela tenta de novo em instantes.',
 }
 
-export const unavailableText = (runtime: Runtime | undefined) => (runtime?.cause ? runtimeTexts[runtime.cause] : undefined)
+export const warmingText = 'Preparando a leitura de arquivos. O envio volta assim que ela estiver pronta.'
+
+export const unavailableText = (runtime: Runtime | undefined) => {
+  if (!runtime || runtime.ready) return undefined
+  return runtime.warming ? warmingText : runtime.cause ? runtimeTexts[runtime.cause] : undefined
+}
+
+export const runtimePollMs = 5000
 
 const offline = 'A leitura de arquivos não está disponível agora. Veja o aviso acima.'
 

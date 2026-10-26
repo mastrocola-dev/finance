@@ -7,7 +7,6 @@ import { findBatch, listBatches, listCandidates, listQuestions } from '../import
 import { maxBytes } from '../import/cli.ts'
 import { closeBatch } from '../import/close.ts'
 import { commitBatch } from '../import/commit.ts'
-import { warmIngest } from '../import/ingest.ts'
 import { answerQuestion, editCandidate, reviewCandidates } from '../import/review.ts'
 import { Busy, type ImportUploads, importUploads, Unavailable } from '../import/uploads.ts'
 import { listAudit } from '../ledger/audit.ts'
@@ -271,11 +270,9 @@ export const serveApi = (client: Database, port = Number(process.env.API_PORT ??
 
 if (import.meta.main) {
   const pool = connectPool()
-  const imports = importUploads(pool)
+  const imports = importUploads(pool, { onWarmed: (readiness) => console.error(readiness.ready ? 'ingest runtime ready' : `ingest runtime not ready (${readiness.reason}): uploads wait until uv can sync ingest/.venv-runtime`) })
   await imports.sweep()
-  const readiness = await warmIngest()
-  imports.warmed(readiness)
-  if (!readiness.ready) console.error(`ingest runtime not ready (${readiness.reason}): uploads will fail until uv can sync ingest/.venv-runtime`)
+  await imports.warm()
   const server = await serveApi(pool, undefined, undefined, imports)
   console.error(`finance api on ${server.url}${apiPrefix}`)
   const stop = async () => {

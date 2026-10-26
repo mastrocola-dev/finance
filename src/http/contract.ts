@@ -259,7 +259,7 @@ const importQuestion = z.strictObject({
   answer: z.string().nullable(),
 })
 
-const importRuntime = z.strictObject({ ready: z.boolean(), cause: z.enum(runtimeCauses).nullable() })
+const importRuntime = z.strictObject({ ready: z.boolean(), cause: z.enum(runtimeCauses).nullable(), warming: z.boolean() })
 
 const error = z.strictObject({ error: z.string(), issues: z.array(z.strictObject({ path: z.string(), message: z.string() })).optional() })
 

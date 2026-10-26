@@ -38,7 +38,7 @@ let uploads: { name: string | null; consent: string | null; type: string | null;
 let closes: string[] = []
 let retries: { id: string; member: string | null }[] = []
 let failing: { status: number; error: string } | undefined
-let runtime: { ready: boolean; cause: 'missing' | 'timeout' | 'failed' | null } | undefined = { ready: true, cause: null }
+let runtime: { ready: boolean; cause: 'missing' | 'timeout' | 'failed' | null; warming: boolean } | undefined = { ready: true, cause: null, warming: false }
 
 const fetch = vi.fn(async (input: Request) => {
   const url = new URL(input.url)
@@ -87,7 +87,7 @@ afterEach(() => {
   closes = []
   retries = []
   failing = undefined
-  runtime = { ready: true, cause: null }
+  runtime = { ready: true, cause: null, warming: false }
 })
 
 const start = () => render(<App history={createMemoryHistory({ initialEntries: ['/importar'] })} fetch={fetch} />)
@@ -223,16 +223,28 @@ test('explains a retry with nothing left to read', async () => {
 })
 
 test('disables the upload and says why while the ingest runtime is not ready', async () => {
-  runtime = { ready: false, cause: 'missing' }
+  runtime = { ready: false, cause: 'missing', warming: false }
   start()
   const form = await screen.findByRole('form', { name: 'Enviar arquivo' })
   const notice = await within(form).findByRole('status')
-  expect(notice.textContent).toBe('Leitura indisponível. A leitura de arquivos não está instalada neste computador. Instale o uv e reinicie a API.')
+  expect(notice.textContent).toBe('Leitura indisponível. A leitura de arquivos não está instalada neste computador. Instale o uv; a API tenta de novo sozinha.')
   const button = within(form).getByRole('button', { name: 'Enviar para leitura' }) as HTMLButtonElement
   expect(button.disabled).toBe(true)
   expect(button.getAttribute('aria-describedby')).toBe(notice.id)
   expect(notice.textContent).not.toMatch(/\/|uv --directory/)
 })
+
+test('says the reading is being prepared and opens the upload once the runtime is ready', async () => {
+  runtime = { ready: false, cause: 'failed', warming: true }
+  start()
+  const form = await screen.findByRole('form', { name: 'Enviar arquivo' })
+  expect((await within(form).findByRole('status')).textContent).toBe('Leitura indisponível. Preparando a leitura de arquivos. O envio volta assim que ela estiver pronta.')
+  runtime = { ready: true, cause: null, warming: false }
+  await waitFor(() => expect(within(form).queryByRole('status')).toBeNull(), { timeout: 8000 })
+  await userEvent.upload(within(form).getByLabelText('Arquivo'), csv())
+  await userEvent.click(within(form).getByRole('checkbox'))
+  expect((within(form).getByRole('button', { name: 'Enviar para leitura' }) as HTMLButtonElement).disabled).toBe(false)
+}, 10000)
 
 test('keeps the upload open when the runtime check itself fails', async () => {
   runtime = undefined
@@ -250,9 +262,9 @@ test('explains a 503 from the upload and shows the notice it refreshes', async (
   await userEvent.upload(within(form).getByLabelText('Arquivo'), csv())
   await userEvent.click(within(form).getByRole('checkbox'))
   failing = { status: 503, error: 'the ingest runtime is not ready (failed)' }
-  runtime = { ready: false, cause: 'failed' }
+  runtime = { ready: false, cause: 'failed', warming: false }
   await userEvent.click(within(form).getByRole('button', { name: 'Enviar para leitura' }))
   expect(await screen.findByText('A leitura de arquivos não está disponível agora. Veja o aviso acima.')).toBeTruthy()
-  expect((await within(form).findByRole('status')).textContent).toContain('Veja o log da API e reinicie.')
+  expect((await within(form).findByRole('status')).textContent).toContain('Veja o log da API; ela tenta de novo em instantes.')
   expect((within(form).getByRole('button', { name: 'Enviar para leitura' }) as HTMLButtonElement).disabled).toBe(true)
 })

@@ -153,7 +153,7 @@ const shoot = (name: string, prepare: (page: Page) => Promise<void>) => {
 }
 
 const unavailable = async (page: Page) => {
-  await page.route('**/api/imports/runtime', (route) => route.fulfill({ json: { ready: false, cause: 'failed' } }))
+  await page.route('**/api/imports/runtime', (route) => route.fulfill({ json: { ready: false, cause: 'failed', warming: false } }))
   await page.goto('/importar')
   await expect(page.getByRole('form', { name: 'Enviar arquivo' }).getByRole('status')).toContainText('Leitura indisponível')
 }

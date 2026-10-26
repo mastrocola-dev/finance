@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useIdentity } from '../identity/identity-provider.tsx'
 import { unwrap } from '../query/client.ts'
-import { type Batch, isExtracting } from './model.ts'
+import { type Batch, isExtracting, runtimePollMs } from './model.ts'
 
 export const pollMs = 1000
 
@@ -16,7 +16,11 @@ export const useImports = () => {
 
 export const useRuntime = () => {
   const { api } = useIdentity()
-  return useQuery({ queryKey: ['imports', 'runtime'], queryFn: async () => unwrap(await api.GET('/api/imports/runtime')) })
+  return useQuery({
+    queryKey: ['imports', 'runtime'],
+    queryFn: async () => unwrap(await api.GET('/api/imports/runtime')),
+    refetchInterval: (query) => (query.state.data?.ready === false ? runtimePollMs : false),
+  })
 }
 
 const refresh = (queryClient: ReturnType<typeof useQueryClient>) => Promise.all(['imports', 'audit'].map((key) => queryClient.invalidateQueries({ queryKey: [key] })))

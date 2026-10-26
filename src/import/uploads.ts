@@ -6,12 +6,12 @@ import type { Database } from '../db/connection.ts'
 import type { Actor } from '../db/write.ts'
 import { RuleError } from '../ledger/rule.ts'
 import { type FileImport, finishImport, finishRetry, openImport, openRetry } from './cli.ts'
-import type { IngestReadiness } from './ingest.ts'
+import { type IngestReadiness, warmIngest } from './ingest.ts'
 import { batchOfFile, maskDigits } from './staging.ts'
 
 export type Progress = { state: 'extracting' | 'done' | 'failed'; done: number; total: number; error: string | null }
 
-export type Uploads = Omit<FileImport, 'onProgress'> & { folder?: string }
+export type Uploads = Omit<FileImport, 'onProgress'> & { folder?: string; warm?: () => Promise<IngestReadiness>; cooldownMs?: number; onWarmed?: (readiness: IngestReadiness) => void }
 
 export const uploadsFolder = () => resolve(process.env.IMPORT_UPLOADS ?? '.imports')
 
@@ -44,14 +44,37 @@ const folders = async (folder: string) => {
   }
 }
 
-export const importUploads = (pool: Database, { folder = uploadsFolder(), ...options }: Uploads = {}) => {
+export const importUploads = (pool: Database, { folder = uploadsFolder(), warm: warmer = warmIngest, cooldownMs = 30000, onWarmed, ...options }: Uploads = {}) => {
   const progress = new Map<bigint, Progress>()
   const running = new Set<Promise<void>>()
   let readiness: IngestReadiness = { ready: true }
+  let warming: Promise<IngestReadiness> | undefined
+  let attempted = Number.NEGATIVE_INFINITY
 
-  const runtime = () => (readiness.ready ? { ready: true, cause: null } : { ready: false, cause: readiness.cause })
+  const warm = () => {
+    warming ??= warmer()
+      .catch((error: unknown): IngestReadiness => ({ ready: false, cause: 'failed', reason: String(error) }))
+      .then((value) => {
+        readiness = value
+        attempted = Date.now()
+        warming = undefined
+        onWarmed?.(value)
+        return value
+      })
+    return warming
+  }
+
+  const rewarm = () => {
+    if (!readiness.ready && !warming && Date.now() - attempted >= cooldownMs) void warm()
+  }
+
+  const runtime = () => {
+    rewarm()
+    return readiness.ready ? { ready: true, cause: null, warming: false } : { ready: false, cause: readiness.cause, warming: Boolean(warming) }
+  }
 
   const available = () => {
+    rewarm()
     if (!readiness.ready) throw new Unavailable(`the ingest runtime is not ready (${readiness.cause})`)
   }
 
@@ -135,11 +158,7 @@ export const importUploads = (pool: Database, { folder = uploadsFolder(), ...opt
 
   const sweep = async () => prune(await folders(folder))
 
-  const warmed = (value: IngestReadiness) => {
-    readiness = value
-  }
-
-  return { start, retry, discard, sweep, runtime, warmed, progressOf: (batchId: bigint) => progress.get(batchId) ?? null, settled: () => Promise.all(running) }
+  return { start, retry, discard, sweep, runtime, warm, progressOf: (batchId: bigint) => progress.get(batchId) ?? null, settled: () => Promise.all([...running, warming]) }
 }
 
 export type ImportUploads = ReturnType<typeof importUploads>

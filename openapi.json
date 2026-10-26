@@ -3154,11 +3154,15 @@
                 "type": "null"
               }
             ]
+          },
+          "warming": {
+            "type": "boolean"
           }
         },
         "required": [
           "ready",
-          "cause"
+          "cause",
+          "warming"
         ],
         "additionalProperties": false
       },

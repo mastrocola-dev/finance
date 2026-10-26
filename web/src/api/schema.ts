@@ -861,6 +861,7 @@ export type components = {
         ImportRuntime: {
             ready: boolean;
             cause: ("missing" | "timeout" | "failed") | null;
+            warming: boolean;
         };
         ApiError: {
             error: string;
