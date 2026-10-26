@@ -1,0 +1,124 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<title>Decisões conjuntas</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&amp;family=Geist+Mono:wght@400;500&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+a{color:inherit;text-decoration:none}
+button{font:inherit;cursor:pointer}
+</style>
+</helmet>
+<div style="width: 390px; height: 844px; box-sizing: border-box; background: {{t.bg}}; color: {{t.text}}; font-family: Geist, system-ui, sans-serif; font-size: 14px; display: flex; flex-direction: column; overflow: hidden">
+  <div style="flex: 1; min-height: 0; overflow-y: auto; padding: 20px 16px 16px; display: flex; flex-direction: column; gap: 16px">
+    <header style="display: flex; flex-direction: column; gap: 4px">
+      <h1 style="margin: 0; font-size: 22px; font-weight: 600; letter-spacing: -0.02em">Decisões</h1>
+      <span style="font-size: 13px; color: {{t.muted}}">Valem só quando os dois confirmam</span>
+    </header>
+
+    <sc-for list="{{pending}}" as="d" hint-placeholder-count="2">
+      <article style="background: {{t.surface}}; border: 1px solid {{t.border}}; border-radius: 16px; padding: 16px; display: flex; flex-direction: column; gap: 12px">
+        <div style="display: flex; flex-wrap: wrap; gap: 6px">
+          <span style="font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: 999px; background: {{t.pendSoft}}; color: {{t.pend}}">Proposta</span>
+          <sc-if value="{{d.viaClaude}}" hint-placeholder-val="{{ false }}"><span style="font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: 999px; background: {{t.claudeSoft}}; color: {{t.claude}}">via Claude</span></sc-if>
+        </div>
+        <div style="display: flex; flex-direction: column; gap: 4px">
+          <h2 style="margin: 0; font-size: 16px; font-weight: 600">{{d.title}}</h2>
+          <span style="font-family: 'Geist Mono', ui-monospace, monospace; font-size: 15px">{{d.amount}}</span>
+          <p style="margin: 4px 0 0; font-size: 13px; line-height: 1.45; color: {{t.muted}}">{{d.body}}</p>
+        </div>
+        <div style="display: flex; flex-direction: column; gap: 6px; padding: 10px 12px; border-radius: 10px; background: {{t.sunken}}">
+          <sc-for list="{{d.people}}" as="p" hint-placeholder-count="2">
+            <div style="display: flex; align-items: center; gap: 10px; font-size: 13px">
+              <span style="width: 24px; height: 24px; border-radius: 999px; background: {{p.dotBg}}; color: {{p.dotFg}}; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 700" aria-hidden="true">{{p.initial}}</span>
+              <span>{{p.name}}</span>
+              <span style="margin-left: auto; color: {{p.stateColor}}">{{p.state}}</span>
+            </div>
+          </sc-for>
+        </div>
+        <div style="display: flex; gap: 8px">
+          <button style="flex: 1; min-height: 44px; border-radius: 10px; border: 0; background: {{t.accent}}; color: {{t.accentText}}; font-weight: 600">Confirmar</button>
+          <button style="flex: 1; min-height: 44px; border-radius: 10px; border: 1px solid {{t.border}}; background: transparent; color: {{t.text}}">Rejeitar</button>
+        </div>
+        <span style="font-size: 12px; color: {{t.muted}}">{{d.meta}}</span>
+      </article>
+    </sc-for>
+
+    <section aria-labelledby="hist" style="display: flex; flex-direction: column; gap: 8px">
+      <h2 id="hist" style="margin: 0; font-size: 13px; font-weight: 600; color: {{t.muted}}; text-transform: uppercase; letter-spacing: 0.06em">Histórico</h2>
+      <sc-for list="{{history}}" as="h" hint-placeholder-count="2">
+        <div style="display: flex; align-items: center; gap: 10px; padding: 10px 0; border-bottom: 1px solid {{t.border}}">
+          <span style="font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: 999px; background: {{h.bg}}; color: {{h.fg}}">{{h.status}}</span>
+          <span style="flex: 1; min-width: 0; font-size: 13px">{{h.title}}</span>
+          <span style="font-size: 12px; color: {{t.muted}}">{{h.date}}</span>
+        </div>
+      </sc-for>
+    </section>
+  </div>
+
+  <nav aria-label="Principal" style="flex: none; display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); align-items: center; padding: 8px 8px 20px; background: {{t.surface}}; border-top: 1px solid {{t.border}}">
+    <a href="MobileOverview.dc.html" style="min-height: 48px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; font-size: 11px; color: {{t.muted}}">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 11 12 4l9 7"></path><path d="M5 10v10h14V10"></path></svg>
+      <span>Início</span>
+    </a>
+    <a href="MobileBills.dc.html" style="min-height: 48px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; font-size: 11px; color: {{t.muted}}">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="3" width="16" height="18" rx="2"></rect><path d="m8 12 3 3 5-6"></path></svg>
+      <span>Contas</span>
+    </a>
+    <a href="Entries.dc.html" aria-label="Novo lançamento" style="min-height: 48px; display: flex; align-items: center; justify-content: center">
+      <span style="width: 52px; height: 52px; border-radius: 16px; background: {{t.accent}}; color: {{t.accentText}}; display: flex; align-items: center; justify-content: center">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"></path></svg>
+      </span>
+    </a>
+    <a href="MobileDecisions.dc.html" style="min-height: 48px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; font-size: 11px; color: {{t.accent}}; font-weight: 600">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v18M5 7h14M7 7l-3 7h6zM17 7l-3 7h6z"></path></svg>
+      <span>Decisões</span>
+    </a>
+    <a href="MobileDebts.dc.html" style="min-height: 48px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; font-size: 11px; color: {{t.muted}}">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="8"></circle><path d="M12 8v8M9.5 10.5c0-1 1-1.5 2.5-1.5s2.5.6 2.5 1.6c0 2.4-5 1.2-5 3.6 0 1 1 1.8 2.5 1.8s2.5-.6 2.5-1.6"></path></svg>
+      <span>Reservas</span>
+    </a>
+  </nav>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"dark":{"editor":"boolean","default":true},"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const light = { bg: '#F6F6F3', surface: '#FFFFFF', sunken: '#F0F0EC', border: '#E3E3DD', text: '#15171C', muted: '#5B606B', accent: '#2B54D9', accentText: '#FFFFFF', ok: '#1F6F4A', okSoft: '#E3F1E9', late: '#9A3A0B', lateSoft: '#FBE9DF', claude: '#5B3FC4', claudeSoft: '#EEEAFB', pend: '#3D4250', pendSoft: '#ECECE7' };
+    const dark = { bg: '#0E1014', surface: '#161920', sunken: '#1E222A', border: '#2A2E37', text: '#ECEDEF', muted: '#A0A6B1', accent: '#8BA6FF', accentText: '#0E1014', ok: '#73D3A2', okSoft: '#16302A', late: '#F5A574', lateSoft: '#3A2216', claude: '#BDAEFF', claudeSoft: '#2A2448', pend: '#D2D5DB', pendSoft: '#262A33' };
+    const t = this.props.dark ?? true ? dark : light;
+    const person = (name, done) => ({
+      name, initial: name[0], state: done ? 'Confirmou' : 'Aguardando',
+      stateColor: done ? t.ok : t.muted, dotBg: done ? t.ok : 'transparent', dotFg: done ? t.surface : t.muted,
+    });
+    const pending = [
+      {
+        title: 'Antecipar 6 parcelas do financiamento', amount: 'R$ 8.400,00', viaClaude: true,
+        body: 'Usar parte da reserva acima da meta para quitar as parcelas 43 a 48 e economizar cerca de R$ 1.150,00 em juros.',
+        people: [person('Marcio', false), person('Gabriela', false)],
+        meta: 'Proposta por Marcio via Claude · ontem, 21:02',
+      },
+      {
+        title: 'Trocar plano de internet para 1 Gb', amount: '+ R$ 40,00/mês', viaClaude: false,
+        body: 'Mesma operadora, sem fidelidade. Começa na fatura de novembro.',
+        people: [person('Marcio', false), person('Gabriela', true)],
+        meta: 'Proposta por Gabriela · 17/10',
+      },
+    ];
+    const history = [
+      { status: 'Confirmada', title: 'Aporte mensal da reserva em R$ 1.500,00', date: '12/10', bg: t.okSoft, fg: t.ok },
+      { status: 'Rejeitada', title: 'Assinar mais um streaming', date: '03/10', bg: t.lateSoft, fg: t.late },
+    ];
+    return { t, pending, history };
+  }
+}
+</script>
+</body>
+</html>

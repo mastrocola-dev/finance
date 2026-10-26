@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import { after, before, describe, test } from 'node:test'
 import type { Client } from 'pg'
-import { type Actor, write } from '../../src/db/write.ts'
+import { type Actor, setClock, write } from '../../src/db/write.ts'
 import { testDatabase } from './database.ts'
 
 const system: Actor = { author: 'system' }
@@ -27,12 +27,12 @@ describe('audited writes', () => {
     db = await testDatabase()
     client = db.client
     ;[marcio, gabriela] = await write(client, system, async (ledger) => [(await ledger.create('member', { name: 'Marcio' })).id as bigint, (await ledger.create('member', { name: 'Gabriela' })).id as bigint])
-    category = (await write(client, system, (ledger) => ledger.create('category', { name: 'Housing', kind: 'expense' }))).id as bigint
+    category = (await write(client, system, (ledger) => ledger.create('category', { name: 'Moradia', kind: 'expense' }))).id as bigint
   })
 
   after(() => db.drop())
 
-  const rent = { competence: '2026-10-01', due_on: '2026-10-10', description: 'Rent', direction: 'expense', amount_cents: 150000n, origin: 'claude' }
+  const rent = { competence: '2026-10-01', due_on: '2026-10-10', description: 'Aluguel', direction: 'expense', amount_cents: 150000n, origin: 'claude' }
 
   test('parses bigint as BigInt and dates as plain strings', async () => {
     const entry = await write(client, { author: 'claude', memberId: marcio }, (ledger) => ledger.create('entry', { ...rent, category_id: category }))
@@ -112,6 +112,23 @@ describe('audited writes', () => {
     )
     assert.equal(await count('entry'), entries)
     assert.equal(await count('audit_log'), audits)
+  })
+
+  test('the ledger clock dates rows and their audit until it is cleared', async () => {
+    const stamp = '2025-11-05T09:30:00-03:00'
+    await setClock(client, stamp)
+    try {
+      const entry = await write(client, system, (ledger) => ledger.create('entry', { ...rent, category_id: category }))
+      await write(client, system, (ledger) => ledger.close('entry', entry.id as bigint))
+      const { rows } = await client.query<{ created_at: Date; closed_at: Date }>('select created_at, closed_at from entry where id = $1', [entry.id])
+      assert.deepEqual(rows, [{ created_at: new Date(stamp), closed_at: new Date(stamp) }])
+      const audit = await client.query<{ at: Date }>("select at from audit_log where entity = 'entry' and entity_id = $1", [entry.id])
+      assert.deepEqual(audit.rows, [{ at: new Date(stamp) }, { at: new Date(stamp) }])
+    } finally {
+      await setClock(client, null)
+    }
+    const latest = await write(client, system, (ledger) => ledger.create('entry', { ...rent, category_id: category }))
+    assert.ok(Date.now() - (latest.created_at as Date).getTime() < 60_000)
   })
 
   test('identity and lifecycle columns are not writable', async () => {

@@ -1,0 +1,235 @@
+[
+  {
+    "source": "Nov-26!A1:A1",
+    "offset": 0,
+    "output": {
+      "candidates": [],
+      "questions": [],
+      "totals": []
+    },
+    "usage": {
+      "inputTokens": 1500,
+      "outputTokens": 60,
+      "costUsdMicros": 5400
+    }
+  },
+  {
+    "source": "Nov-26!A3:C7",
+    "offset": 0,
+    "output": {
+      "candidates": [
+        {
+          "kind": "entry",
+          "source": "Nov-26!A5:C5",
+          "confidence": 0.92,
+          "payload": {
+            "date": "2026-11-05",
+            "description": "Salário Marcio",
+            "direction": "income",
+            "amountCents": 680000,
+            "category": "Salário",
+            "member": "Marcio",
+            "paid": false
+          }
+        },
+        {
+          "kind": "entry",
+          "source": "Nov-26!A6:C6",
+          "confidence": 0.92,
+          "payload": {
+            "date": "2026-11-05",
+            "description": "Salário Gabriela",
+            "direction": "income",
+            "amountCents": 590000,
+            "category": "Salário",
+            "member": "Gabriela",
+            "paid": false
+          }
+        }
+      ],
+      "questions": [],
+      "totals": [
+        {
+          "source": "Nov-26!A7:C7",
+          "month": "2026-11-01",
+          "direction": "income",
+          "amountCents": 1270000
+        }
+      ]
+    },
+    "usage": {
+      "inputTokens": 2200,
+      "outputTokens": 420,
+      "costUsdMicros": 12900
+    }
+  },
+  {
+    "source": "Nov-26!E3:G9",
+    "offset": 0,
+    "output": {
+      "candidates": [
+        {
+          "kind": "entry",
+          "source": "Nov-26!E5:G5",
+          "confidence": 0.9,
+          "payload": {
+            "date": "2026-11-10",
+            "description": "Aluguel",
+            "direction": "expense",
+            "amountCents": 220000,
+            "category": "Moradia",
+            "member": "joint",
+            "paid": false
+          }
+        },
+        {
+          "kind": "entry",
+          "source": "Nov-26!E6:G6",
+          "confidence": 0.9,
+          "payload": {
+            "date": "2026-11-10",
+            "description": "Condomínio",
+            "direction": "expense",
+            "amountCents": 65000,
+            "category": "Moradia",
+            "member": "joint",
+            "paid": false
+          }
+        },
+        {
+          "kind": "entry",
+          "source": "Nov-26!E7:G7",
+          "confidence": 0.9,
+          "payload": {
+            "date": "2026-11-15",
+            "description": "Internet",
+            "direction": "expense",
+            "amountCents": 12000,
+            "category": "Contas da casa",
+            "member": "joint",
+            "paid": false
+          }
+        },
+        {
+          "kind": "recurring_expense",
+          "source": "Nov-26!E8:G8",
+          "confidence": 0.7,
+          "payload": {
+            "description": "Luz",
+            "amountCents": 21000,
+            "dayOfMonth": 18,
+            "startsOn": "2026-11-01",
+            "category": "Contas da casa",
+            "member": "joint"
+          }
+        }
+      ],
+      "questions": [],
+      "totals": []
+    },
+    "usage": {
+      "inputTokens": 2500,
+      "outputTokens": 760,
+      "costUsdMicros": 18900
+    }
+  },
+  {
+    "source": "Nov-26!I3:K9",
+    "offset": 0,
+    "output": {
+      "candidates": [
+        {
+          "kind": "entry",
+          "source": "Nov-26!I5:K5",
+          "confidence": 0.85,
+          "payload": {
+            "date": "2026-11-01",
+            "description": "Mercado",
+            "direction": "expense",
+            "amountCents": 140000,
+            "category": "Alimentação",
+            "member": "joint",
+            "paid": false
+          }
+        },
+        {
+          "kind": "entry",
+          "source": "Nov-26!I6:K6",
+          "confidence": 0.85,
+          "payload": {
+            "date": "2026-11-01",
+            "description": "Farmácia",
+            "direction": "expense",
+            "amountCents": 15000,
+            "category": "Saúde",
+            "member": "joint",
+            "paid": false
+          }
+        },
+        {
+          "kind": "entry",
+          "source": "Nov-26!I7:K7",
+          "confidence": 0.85,
+          "payload": {
+            "date": "2026-11-01",
+            "description": "Lazer",
+            "direction": "expense",
+            "amountCents": 30000,
+            "category": "Lazer",
+            "member": "joint",
+            "paid": false
+          }
+        },
+        {
+          "kind": "entry",
+          "source": "Nov-26!I8:K8",
+          "confidence": 0.8,
+          "payload": {
+            "date": "2026-11-01",
+            "description": "Presentes",
+            "direction": "expense",
+            "amountCents": 20000,
+            "category": "Lazer",
+            "member": "Gabi",
+            "paid": false
+          }
+        }
+      ],
+      "questions": [
+        {
+          "question": "Gabi é a Gabriela?",
+          "options": ["Gabriela", "Marcio", "Conjunto"],
+          "source": "Nov-26!J8:J8",
+          "candidate": 3
+        }
+      ],
+      "totals": []
+    },
+    "usage": {
+      "inputTokens": 2500,
+      "outputTokens": 760,
+      "costUsdMicros": 18900
+    }
+  },
+  {
+    "source": "Nov-26!A12:C12",
+    "offset": 0,
+    "output": {
+      "candidates": [],
+      "questions": [],
+      "totals": [
+        {
+          "source": "Nov-26!A12:C12",
+          "month": "2026-11-01",
+          "direction": "net",
+          "amountCents": 747000
+        }
+      ]
+    },
+    "usage": {
+      "inputTokens": 1600,
+      "outputTokens": 90,
+      "costUsdMicros": 6150
+    }
+  }
+]

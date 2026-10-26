@@ -32,7 +32,7 @@ test('stdio adapter serves the read tools', async () => {
 })
 
 test('stdio adapter writes as FINANCE_MEMBER and refuses writes without it', async () => {
-  const entry = { month: '2026-10', due_on: '2026-10-29', description: 'Bakery', direction: 'expense', amount_cents: 1800, category: 'groceries', member: 'joint', today: seedToday }
+  const entry = { month: '2026-10', due_on: '2026-10-29', description: 'Bakery', direction: 'expense', amount_cents: 1800, category: 'alimentação', member: 'joint', today: seedToday }
   const anonymous = await connectAs()
   assert.equal((await anonymous.callTool({ name: 'create_entry', arguments: entry })).isError, true)
   await anonymous.close()

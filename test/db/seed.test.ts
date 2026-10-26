@@ -81,6 +81,20 @@ describe('fictional seed', () => {
     assert.equal(audit.other, 0)
   })
 
+  test('audit times follow the seeded dates in insertion order', async () => {
+    const { rows } = await client.query<{ day: string; entity: string; due_on: string | null; competence: string | null }>("select to_char(at at time zone 'America/Sao_Paulo', 'YYYY-MM-DD') as day, entity, after->>'due_on' as due_on, after->>'competence' as competence from audit_log order by id")
+    const expected = rows.map(({ entity, due_on, competence }) => (entity !== 'entry' ? '2025-10-31' : due_on && due_on < seedToday ? due_on : competence))
+    assert.deepEqual(
+      rows.map((row) => row.day),
+      expected,
+    )
+    const order = await one('select count(*)::int as backwards from (select at < lag(at) over (order by id) as earlier from audit_log) steps where earlier')
+    assert.equal(order.backwards, 0)
+    const created = await one("select count(*)::int as off from entry e join audit_log l on l.entity = 'entry' and l.entity_id = e.id where e.created_at <> l.at")
+    assert.equal(created.off, 0)
+    assert.equal((await one("select current_setting('finance.clock', true) as clock")).clock, '')
+  })
+
   test('refuses to seed twice', async () => {
     await assert.rejects(seed(client), /already has members/)
   })

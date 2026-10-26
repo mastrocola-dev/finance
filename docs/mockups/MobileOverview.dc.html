@@ -1,0 +1,122 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<title>Início no celular</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&amp;family=Geist+Mono:wght@400;500&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+a{color:inherit;text-decoration:none}
+button{font:inherit;cursor:pointer}
+</style>
+</helmet>
+<div style="width: 390px; height: 844px; box-sizing: border-box; background: {{t.bg}}; color: {{t.text}}; font-family: Geist, system-ui, sans-serif; font-size: 14px; display: flex; flex-direction: column; overflow: hidden">
+  <div style="flex: 1; min-height: 0; overflow: hidden; padding: 20px 16px 16px; display: flex; flex-direction: column; gap: 16px">
+    <header style="display: flex; align-items: center; gap: 8px">
+      <button aria-label="Mês anterior" style="width: 44px; height: 44px; border-radius: 10px; border: 1px solid {{t.border}}; background: {{t.surface}}; color: {{t.text}}">‹</button>
+      <h1 style="margin: 0 auto; font-size: 17px; font-weight: 600">Outubro de 2026</h1>
+      <button aria-label="Próximo mês" style="width: 44px; height: 44px; border-radius: 10px; border: 1px solid {{t.border}}; background: {{t.surface}}; color: {{t.text}}">›</button>
+    </header>
+
+    <section aria-label="Saldo previsto" style="background: {{t.surface}}; border: 1px solid {{t.border}}; border-radius: 16px; padding: 18px; display: flex; flex-direction: column; gap: 6px">
+      <span style="font-size: 13px; color: {{t.muted}}">Saldo previsto</span>
+      <span style="font-family: 'Geist Mono', ui-monospace, monospace; font-size: 32px; font-weight: 500; letter-spacing: -0.02em; font-variant-numeric: tabular-nums">R$ 6.326,60</span>
+      <div style="height: 8px; border-radius: 999px; background: {{t.sunken}}; overflow: hidden; display: flex; margin-top: 8px" role="img" aria-label="Despesas são 71% das receitas: 50% pagas, 18% pendentes, 3% atrasadas">
+        <div style="width: 50%; background: {{t.expense}}"></div>
+        <div style="width: 18%; background: {{t.pendBar}}"></div>
+        <div style="width: 3%; background: {{t.late}}"></div>
+      </div>
+      <div style="display: flex; gap: 12px; font-size: 12px; color: {{t.muted}}; flex-wrap: wrap">
+        <span>Pago 50%</span><span>Pendente 18%</span><span style="color: {{t.late}}">Atrasado 3%</span><span style="margin-left: auto">das receitas</span>
+      </div>
+    </section>
+
+    <div style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px">
+      <sc-for list="{{stats}}" as="s" hint-placeholder-count="3">
+        <div style="background: {{t.surface}}; border: 1px solid {{t.border}}; border-radius: 12px; padding: 12px; display: flex; flex-direction: column; gap: 4px">
+          <span style="font-size: 12px; color: {{t.muted}}">{{s.label}}</span>
+          <span style="font-family: 'Geist Mono', ui-monospace, monospace; font-size: 14px; font-variant-numeric: tabular-nums; color: {{s.color}}">{{s.value}}</span>
+        </div>
+      </sc-for>
+    </div>
+
+    <section aria-labelledby="m-due" style="display: flex; flex-direction: column; gap: 8px">
+      <div style="display: flex; align-items: baseline">
+        <h2 id="m-due" style="margin: 0; font-size: 15px; font-weight: 600">Para pagar</h2>
+        <a href="MobileBills.dc.html" style="margin-left: auto; font-size: 13px; color: {{t.accent}}">Ver todas</a>
+      </div>
+      <sc-for list="{{due}}" as="d" hint-placeholder-count="2">
+        <div style="display: flex; align-items: center; gap: 12px; background: {{t.surface}}; border: 1px solid {{t.border}}; border-radius: 12px; padding: 12px 14px">
+          <div style="display: flex; flex-direction: column; gap: 2px; min-width: 0">
+            <span style="font-weight: 500">{{d.name}}</span>
+            <span style="font-size: 12px; color: {{d.metaColor}}">{{d.meta}}</span>
+          </div>
+          <span style="margin-left: auto; font-family: 'Geist Mono', ui-monospace, monospace; font-variant-numeric: tabular-nums">{{d.amount}}</span>
+        </div>
+      </sc-for>
+    </section>
+
+    <section aria-labelledby="m-cat" style="display: flex; flex-direction: column; gap: 10px">
+      <h2 id="m-cat" style="margin: 0; font-size: 15px; font-weight: 600">Onde foi o dinheiro</h2>
+      <sc-for list="{{cats}}" as="c" hint-placeholder-count="4">
+        <div style="display: flex; flex-direction: column; gap: 6px">
+          <div style="display: flex; font-size: 13px"><span>{{c.name}}</span><span style="margin-left: auto; font-family: 'Geist Mono', ui-monospace, monospace; font-variant-numeric: tabular-nums">{{c.amount}}</span></div>
+          <div style="height: 6px; border-radius: 999px; background: {{t.sunken}}; overflow: hidden"><div style="width: {{c.w}}; height: 100%; background: {{t.expense}}"></div></div>
+        </div>
+      </sc-for>
+    </section>
+  </div>
+
+  <nav aria-label="Principal" style="flex: none; display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); align-items: center; padding: 8px 8px 20px; background: {{t.surface}}; border-top: 1px solid {{t.border}}">
+    <a href="MobileOverview.dc.html" style="min-height: 48px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; font-size: 11px; color: {{t.accent}}; font-weight: 600">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 11 12 4l9 7"></path><path d="M5 10v10h14V10"></path></svg>
+      <span>Início</span>
+    </a>
+    <a href="MobileBills.dc.html" style="min-height: 48px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; font-size: 11px; color: {{t.muted}}">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="3" width="16" height="18" rx="2"></rect><path d="m8 12 3 3 5-6"></path></svg>
+      <span>Contas</span>
+    </a>
+    <a href="Entries.dc.html" aria-label="Novo lançamento" style="min-height: 48px; display: flex; align-items: center; justify-content: center">
+      <span style="width: 52px; height: 52px; border-radius: 16px; background: {{t.accent}}; color: {{t.accentText}}; display: flex; align-items: center; justify-content: center">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"></path></svg>
+      </span>
+    </a>
+    <a href="MobileDecisions.dc.html" style="min-height: 48px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; font-size: 11px; color: {{t.muted}}">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v18M5 7h14M7 7l-3 7h6zM17 7l-3 7h6z"></path></svg>
+      <span>Decisões</span>
+    </a>
+    <a href="MobileDebts.dc.html" style="min-height: 48px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; font-size: 11px; color: {{t.muted}}">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="8"></circle><path d="M12 8v8M9.5 10.5c0-1 1-1.5 2.5-1.5s2.5.6 2.5 1.6c0 2.4-5 1.2-5 3.6 0 1 1 1.8 2.5 1.8s2.5-.6 2.5-1.6"></path></svg>
+      <span>Reservas</span>
+    </a>
+  </nav>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"dark":{"editor":"boolean","default":true},"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const light = { bg: '#F6F6F3', surface: '#FFFFFF', sunken: '#ECECE7', border: '#E3E3DD', text: '#15171C', muted: '#5B606B', accent: '#2B54D9', accentText: '#FFFFFF', income: '#2B54D9', expense: '#B4440E', pendBar: '#E7B89A', late: '#9A3A0B' };
+    const dark = { bg: '#0E1014', surface: '#161920', sunken: '#232731', border: '#2A2E37', text: '#ECEDEF', muted: '#A0A6B1', accent: '#8BA6FF', accentText: '#0E1014', income: '#8BA6FF', expense: '#F08A4B', pendBar: '#7A4A2E', late: '#F5A574' };
+    const t = this.props.dark ?? true ? dark : light;
+    const stats = [
+      { label: 'Recebido', value: '22.200,00', color: t.income },
+      { label: 'Pago', value: '11.204,90', color: t.text },
+      { label: 'Em aberto', value: '4.668,50', color: t.late },
+    ];
+    const due = [
+      { name: 'Plano de saúde', meta: 'Atrasada · venceu 15/10', amount: 'R$ 750,00', metaColor: t.late },
+      { name: 'Fatura Nubank', meta: 'Vence em 5 dias · 25/10', amount: 'R$ 2.418,50', metaColor: t.muted },
+    ];
+    const cats = [['Moradia', 'R$ 5.200,00', '100%'], ['Alimentação', 'R$ 2.986,40', '57%'], ['Dívidas', 'R$ 2.000,00', '38%'], ['Educação', 'R$ 1.650,00', '32%']].map(([name, amount, w]) => ({ name, amount, w }));
+    return { t, stats, due, cats };
+  }
+}
+</script>
+</body>
+</html>

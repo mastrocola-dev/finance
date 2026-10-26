@@ -7,8 +7,9 @@ import { findDecision } from '../ledger/decisions.ts'
 import { findEntry } from '../ledger/entries.ts'
 import { forecastMonth } from '../ledger/forecast.ts'
 import type { Member } from '../ledger/members.ts'
-import { confirmDecision, createEntry, markPaid, proposeDecision, rejectDecision, updateReserve, withdrawDecision } from '../ledger/record.ts'
+import { cancelEntry, confirmDecision, correctEntry, createEntry, markPaid, type NewEntry, proposeDecision, rejectDecision, updateReserve, withdrawDecision } from '../ledger/record.ts'
 import { findReserve } from '../ledger/reserves.ts'
+import { closeRecord, listSetup, registerRecord, setupKinds } from '../ledger/setup.ts'
 import { result } from './json.ts'
 import { registerReads } from './read.ts'
 import { date, id, month, today, writes } from './schema.ts'
@@ -27,41 +28,92 @@ export const createServer = (client: Database, member?: Member) => {
     }
   }
 
+  const entryFields = {
+    month,
+    due_on: date,
+    description: z.string().trim().min(1),
+    direction: z.enum(['income', 'expense']),
+    amount_cents: z.int().positive().describe('Amount in cents of BRL'),
+    category: z.string(),
+    account: z.string().optional().describe('Account nickname'),
+    member: z.string().describe('Member name or "joint"'),
+    paid_on: date.optional(),
+  }
+
+  const entryOf = (input: z.output<z.ZodObject<typeof entryFields>>): NewEntry => ({
+    month: input.month,
+    dueOn: input.due_on,
+    description: input.description,
+    direction: input.direction,
+    amount: BigInt(input.amount_cents),
+    category: input.category,
+    account: input.account,
+    member: input.member,
+    paidOn: input.paid_on,
+  })
+
   server.registerTool(
     'create_entry',
     {
       title: 'Create entry',
       description: 'Record a planned (or already paid, with paid_on) income or expense in a month on behalf of the calling member. Category must match the direction; member is a member name or "joint". Never executes a payment.',
-      inputSchema: z.object({
-        month,
-        due_on: date,
-        description: z.string().trim().min(1),
-        direction: z.enum(['income', 'expense']),
-        amount_cents: z.int().positive().describe('Amount in cents of BRL'),
-        category: z.string(),
-        account: z.string().optional().describe('Account nickname'),
-        member: z.string().describe('Member name or "joint"'),
-        paid_on: date.optional(),
-        today,
-      }),
+      inputSchema: z.object({ ...entryFields, today }),
       annotations: writes,
     },
     async (input) => {
-      const created = await writing((connection, actor) =>
-        createEntry(connection, actor, {
-          month: input.month,
-          dueOn: input.due_on,
-          description: input.description,
-          direction: input.direction,
-          amount: BigInt(input.amount_cents),
-          category: input.category,
-          account: input.account,
-          member: input.member,
-          paidOn: input.paid_on,
-        }),
-      )
+      const created = await writing((connection, actor) => createEntry(connection, actor, entryOf(input)))
       return result(await findEntry(client, created, input.today))
     },
+  )
+
+  server.registerTool(
+    'correct_entry',
+    {
+      title: 'Correct entry',
+      description: 'Correct an open entry with the full set of new values; the old one is closed and points to its replacement. Confirm the change with the member first.',
+      inputSchema: z.object({ id, ...entryFields, today }),
+      annotations: writes,
+    },
+    async (input) => {
+      const replaced = await writing((connection, actor) => correctEntry(connection, actor, BigInt(input.id), entryOf(input)))
+      return result(await findEntry(client, replaced, input.today))
+    },
+  )
+
+  server.registerTool(
+    'cancel_entry',
+    {
+      title: 'Cancel entry',
+      description: 'Cancel an open entry that should not exist (typo, duplicate, plan that will not happen). It is closed, never deleted, and the forecast does not plan it again. Confirm with the member first.',
+      inputSchema: z.object({ id }),
+      annotations: writes,
+    },
+    async (input) => result({ id: String(await writing((connection, actor) => cancelEntry(connection, actor, BigInt(input.id)))) }),
+  )
+
+  server.registerTool(
+    'register_record',
+    {
+      title: 'Register record',
+      description: 'Register a category, account, reserve, income, recurring expense, debt or goal. The payload is camelCase and follows the import candidate schema of its kind (amounts in integer cents; accounts keep institution, nickname and last four digits only).',
+      inputSchema: z.object({ kind: z.enum(setupKinds), payload: z.record(z.string(), z.unknown()) }),
+      annotations: writes,
+    },
+    async (input) => {
+      const created = String(await writing((connection, actor) => registerRecord(connection, actor, input.kind, input.payload)))
+      return result((await listSetup(client)).find((record) => record.kind === input.kind && record.id === created))
+    },
+  )
+
+  server.registerTool(
+    'close_record',
+    {
+      title: 'Close record',
+      description: 'Close a registered category, account, reserve, income, recurring expense, debt or goal; it stays in history and is no longer used for new entries or forecasts.',
+      inputSchema: z.object({ kind: z.enum(setupKinds), id }),
+      annotations: writes,
+    },
+    async (input) => result({ id: String(await writing((connection, actor) => closeRecord(connection, actor, input.kind, BigInt(input.id)))) }),
   )
 
   server.registerTool(

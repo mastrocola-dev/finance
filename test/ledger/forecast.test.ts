@@ -31,14 +31,14 @@ describe('forecast', () => {
     assert.deepEqual(
       entries.map(({ description, dueOn, amount, status, installmentNumber }) => [description, dueOn, amount, status, installmentNumber]),
       [
-        ['Gabriela salary', '2026-11-05', 820000n, 'planned', null],
-        ['Health plan', '2026-11-05', 98000n, 'planned', null],
-        ['Marcio salary', '2026-11-05', 950000n, 'planned', null],
-        ['Gym', '2026-11-07', 15000n, 'planned', null],
-        ['Condominium fee', '2026-11-10', 85000n, 'planned', null],
-        ['Rent', '2026-11-10', 320000n, 'planned', null],
-        ['Sofa', '2026-11-12', 45000n, 'planned', 10],
-        ['Electricity', '2026-11-15', 21000n, 'planned', null],
+        ['Plano de saúde', '2026-11-05', 98000n, 'planned', null],
+        ['Salário Gabriela', '2026-11-05', 820000n, 'planned', null],
+        ['Salário Marcio', '2026-11-05', 950000n, 'planned', null],
+        ['Academia', '2026-11-07', 15000n, 'planned', null],
+        ['Aluguel', '2026-11-10', 320000n, 'planned', null],
+        ['Condomínio', '2026-11-10', 85000n, 'planned', null],
+        ['Sofá', '2026-11-12', 45000n, 'planned', 10],
+        ['Energia', '2026-11-15', 21000n, 'planned', null],
         ['Internet', '2026-11-20', 12000n, 'planned', null],
       ],
     )
@@ -56,13 +56,13 @@ describe('forecast', () => {
     assert.equal(forecast.created.length, 8)
     const entries = await listEntries(client, { month: '2026-12' }, '2026-12-01')
     assert.equal(
-      entries.some(({ description }) => description === 'Sofa'),
+      entries.some(({ description }) => description === 'Sofá'),
       false,
     )
   })
 
   test('does not recreate an entry that was closed', async () => {
-    const [rent] = await listEntries(client, { month: '2026-12', category: 'housing' }, '2026-12-01')
+    const [rent] = await listEntries(client, { month: '2026-12', category: 'moradia' }, '2026-12-01')
     assert.ok(rent)
     await write(client, system, (ledger) => ledger.close('entry', rent.id))
     assert.deepEqual(await forecastMonth(client, system, '2026-12'), { month: '2026-12-01', created: [], skipped: 8 })
@@ -70,13 +70,13 @@ describe('forecast', () => {
 
   test('clamps the due day to the end of the month and ignores closed sources', async () => {
     await write(client, system, async (ledger) => {
-      const [{ id: category_id }] = (await client.query("select id from category where name = 'Leisure'")).rows
+      const [{ id: category_id }] = (await client.query("select id from category where name = 'Lazer'")).rows
       await ledger.create('recurring_expense', { description: 'Streaming', category_id, amount_cents: 5590n, day_of_month: 31, starts_on: '2027-01-01' })
       const closed = await ledger.create('recurring_expense', { description: 'Old magazine', category_id, amount_cents: 2990n, day_of_month: 3, starts_on: '2024-01-01' })
       await ledger.close('recurring_expense', closed.id as bigint)
     })
     await forecastMonth(client, system, '2027-02')
-    const entries = await listEntries(client, { month: '2027-02', category: 'leisure' }, '2027-02-01')
+    const entries = await listEntries(client, { month: '2027-02', category: 'lazer' }, '2027-02-01')
     assert.deepEqual(
       entries.map(({ description, dueOn, member }) => [description, dueOn, member]),
       [['Streaming', '2027-02-28', null]],

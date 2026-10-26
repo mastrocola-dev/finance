@@ -7,7 +7,7 @@ import { findMember, type Member } from '../../src/ledger/members.ts'
 import { createServer } from '../../src/mcp/server.ts'
 import { testDatabase } from '../db/database.ts'
 
-const groceries = { month: '2026-10', due_on: '2026-10-25', description: 'Farmers market', direction: 'expense', amount_cents: 12345, category: 'groceries', member: 'joint', today: seedToday }
+const groceries = { month: '2026-10', due_on: '2026-10-25', description: 'Farmers market', direction: 'expense', amount_cents: 12345, category: 'alimentação', member: 'joint', today: seedToday }
 
 describe('mcp write tools', () => {
   let db: Awaited<ReturnType<typeof testDatabase>>
@@ -63,7 +63,7 @@ describe('mcp write tools', () => {
     assert.notEqual(created.isError, true)
     const entry = created.json()
     assert.equal(entry.description, 'Farmers market')
-    assert.equal(entry.category, 'Groceries')
+    assert.equal(entry.category, 'Alimentação')
     assert.equal(entry.member, null)
     assert.equal(entry.status, 'planned')
     assert.equal(entry.state, 'pending')
@@ -87,7 +87,7 @@ describe('mcp write tools', () => {
   })
 
   test('create_entry rejects unknown names and a category of the other direction', async () => {
-    for (const changes of [{ category: 'salary' }, { category: 'nothing' }, { account: 'nowhere' }, { member: 'Mallory' }]) {
+    for (const changes of [{ category: 'salário' }, { category: 'nothing' }, { account: 'nowhere' }, { member: 'Mallory' }]) {
       const rejected = await call(member, 'create_entry', { ...groceries, description: 'Rejected', ...changes })
       assert.equal(rejected.isError, true, JSON.stringify(changes))
     }
@@ -121,13 +121,32 @@ describe('mcp write tools', () => {
     assert.equal(still.id, pending.id)
   })
 
+  test('correct_entry replaces an entry and cancel_entry closes it, both audited as claude', async () => {
+    const created = (await call(member, 'create_entry', { ...groceries, description: 'Feira' })).json()
+    const corrected = (await call(member, 'correct_entry', { ...groceries, id: created.id, description: 'Feira', amount_cents: 4321 })).json()
+    assert.notEqual(corrected.id, created.id)
+    assert.equal(corrected.amount.cents, '4321')
+    assert.deepEqual((await audit(created.id)).at(-1), { author: 'claude', member_id: marcio.id, action: 'close' })
+    assert.deepEqual((await call(member, 'cancel_entry', { id: corrected.id })).json(), { id: corrected.id })
+    assert.equal((await call(member, 'cancel_entry', { id: corrected.id })).isError, true)
+    assert.equal((await call(anonymous, 'cancel_entry', { id: created.id })).isError, true)
+  })
+
+  test('register_record and close_record manage the setup lists', async () => {
+    const pets = (await call(member, 'register_record', { kind: 'category', payload: { name: 'Pets', kind: 'expense' } })).json()
+    assert.equal(pets.name, 'Pets')
+    assert.ok((await call(member, 'list_setup', {})).json().some((record: { id: string; kind: string }) => record.kind === 'category' && record.id === pets.id))
+    assert.equal((await call(member, 'register_record', { kind: 'account', payload: { institution: 'Banco', nickname: 'Z', lastFour: '123456', kind: 'checking' } })).isError, true)
+    assert.deepEqual((await call(member, 'close_record', { kind: 'category', id: pets.id })).json(), { id: pets.id })
+  })
+
   test('forecast_month plans a month once, audited as claude for the member', async () => {
     assert.equal((await call(anonymous, 'forecast_month', { month: '2026-11' })).isError, true)
     const forecast = (await call(member, 'forecast_month', { month: '2026-11', today: seedToday })).json()
     assert.equal(forecast.month, '2026-11-01')
     assert.equal(forecast.skipped, 0)
     assert.equal(forecast.created.length, 9)
-    const sofa = forecast.created.find(({ description }: { description: string }) => description === 'Sofa')
+    const sofa = forecast.created.find(({ description }: { description: string }) => description === 'Sofá')
     assert.deepEqual([sofa.state, sofa.installmentNumber, sofa.amount.brl], ['pending', 10, 'R$ 450,00'])
     assert.deepEqual(await audit(sofa.id), [{ author: 'claude', member_id: marcio.id, action: 'create' }])
     const again = (await call(member, 'forecast_month', { month: '2026-11' })).json()

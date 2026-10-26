@@ -5,11 +5,23 @@ import { listDebts } from '../ledger/debts.ts'
 import { listDecisions, statuses } from '../ledger/decisions.ts'
 import { listEntries, states } from '../ledger/entries.ts'
 import { listReserves } from '../ledger/reserves.ts'
+import { listSetup } from '../ledger/setup.ts'
 import { compareMonths } from '../ledger/summary.ts'
 import { result } from './json.ts'
 import { month, readOnly, today } from './schema.ts'
 
 export const registerReads = (server: McpServer, client: Database) => {
+  server.registerTool(
+    'list_setup',
+    {
+      title: 'List registered records',
+      description: 'Open categories, accounts, reserves, incomes, recurring expenses, debts and goals with their ids, amounts and references.',
+      inputSchema: z.object({}),
+      annotations: readOnly,
+    },
+    async () => result(await listSetup(client)),
+  )
+
   server.registerTool(
     'month_summary',
     {

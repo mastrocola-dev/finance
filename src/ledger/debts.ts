@@ -14,13 +14,18 @@ export type Debt = {
   installmentsPaid: number
   installmentsRemaining: number | null
   startsOn: string
+  nextDueOn: string | null
 }
 
 const query = `
   select d.id, d.creditor, d.description, m.name as member, a.nickname as account,
     d.principal_cents as principal, d.balance_cents as balance, d.monthly_rate_percent::text as "monthlyRatePercent",
     d.installment_cents as installment, d.installments_total as "installmentsTotal", d.installments_paid as "installmentsPaid",
-    d.installments_total - d.installments_paid as "installmentsRemaining", d.starts_on::text as "startsOn"
+    d.installments_total - d.installments_paid as "installmentsRemaining", d.starts_on::text as "startsOn",
+    case when d.installments_total is null or d.installments_paid < d.installments_total then coalesce(
+      (select min(e.due_on) from entry e where e.debt_id = d.id and e.closed_at is null and e.status <> 'paid'),
+      (select (max(e.due_on) + interval '1 month')::date from entry e where e.debt_id = d.id and e.closed_at is null)
+    )::text end as "nextDueOn"
   from debt d
   left join member m on m.id = d.member_id
   left join account a on a.id = d.account_id

@@ -68,6 +68,15 @@ export const markPaid = (client: Client, actor: Actor, id: bigint, paidOn = loca
     return id
   })
 
+export const markUnpaid = (client: Client, actor: Actor, id: bigint) =>
+  write(client, actor, async (ledger) => {
+    const [current] = (await client.query<{ status: string }>('select status from entry where id = $1 and closed_at is null for update', [id])).rows
+    if (!current) throw new RuleError(`entry ${id} not found or closed`)
+    if (current.status !== 'paid') throw new RuleError(`entry ${id} is not paid`)
+    await ledger.update('entry', id, { status: 'planned', paid_on: null })
+    return id
+  })
+
 export type ReserveChanges = { balance?: bigint; target?: bigint }
 
 export const updateReserve = (client: Client, actor: Actor, name: string, changes: ReserveChanges) =>
@@ -136,5 +145,29 @@ export const withdrawDecision = (client: Client, actor: Actor, id: bigint) =>
     const { proposed_by } = await openDecision(client, id)
     if (proposed_by !== actingMember(actor)) throw new RuleError(`only the proposer can withdraw decision ${id}`)
     await ledger.close('decision', id, { status: 'withdrawn' })
+    return id
+  })
+
+const openEntry = async (client: Client, id: bigint) => {
+  const [row] = (
+    await client.query<{ origin: string; income_id: bigint | null; recurring_expense_id: bigint | null; debt_id: bigint | null; installment_number: number | null }>('select origin, income_id, recurring_expense_id, debt_id, installment_number from entry where id = $1 and closed_at is null for update', [id])
+  ).rows
+  if (!row) throw new RuleError(`entry ${id} not found or closed`)
+  return row
+}
+
+export const correctEntry = (client: Client, actor: Actor, id: bigint, entry: NewEntry) =>
+  write(client, actor, async (ledger) => {
+    const links = await openEntry(client, id)
+    const values = await entryValues(client, entry)
+    const row = await ledger.create('entry', { ...values, ...links, installment_number: entry.installment ?? links.installment_number })
+    await ledger.close('entry', id, { replaced_by: row.id })
+    return row.id as bigint
+  })
+
+export const cancelEntry = (client: Client, actor: Actor, id: bigint) =>
+  write(client, actor, async (ledger) => {
+    await openEntry(client, id)
+    await ledger.close('entry', id)
     return id
   })

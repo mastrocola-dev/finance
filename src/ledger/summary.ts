@@ -1,3 +1,4 @@
+import { clockNow } from '../db/clock.ts'
 import type { Queryable } from '../db/connection.ts'
 import { RuleError } from './rule.ts'
 
@@ -17,7 +18,7 @@ type Bucket = { direction: Direction; category: string; count: number; total: st
 
 const zone = 'America/Sao_Paulo'
 
-export const localToday = (now = new Date()) => new Intl.DateTimeFormat('en-CA', { timeZone: zone }).format(now)
+export const localToday = (now = clockNow()) => new Intl.DateTimeFormat('en-CA', { timeZone: zone }).format(now)
 
 export const competenceOf = (month: string) => {
   const match = /^(\d{4})-(0[1-9]|1[0-2])(?:-(?:0[1-9]|[12]\d|3[01]))?$/.exec(month)

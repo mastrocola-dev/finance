@@ -1,0 +1,162 @@
+[
+  {
+    "source": "$",
+    "offset": 0,
+    "output": {
+      "candidates": [
+        {
+          "kind": "account",
+          "source": "$.OFX.CREDITCARDMSGSRSV1.CCSTMTTRNRS.CCSTMTRS.CCACCTFROM.ACCTID",
+          "confidence": 0.7,
+          "payload": {
+            "institution": "Cartão de crédito",
+            "nickname": "Cartão final 8765",
+            "lastFour": "8765",
+            "kind": "credit_card"
+          }
+        }
+      ],
+      "questions": [
+        {
+          "question": "Qual é o banco deste cartão final 8765?",
+          "options": [],
+          "source": "$.OFX.CREDITCARDMSGSRSV1.CCSTMTTRNRS.CCSTMTRS.CCACCTFROM.ACCTID",
+          "candidate": 0
+        }
+      ],
+      "totals": []
+    },
+    "usage": {
+      "inputTokens": 1400,
+      "outputTokens": 150,
+      "costUsdMicros": 6450
+    }
+  },
+  {
+    "source": "$.OFX.CREDITCARDMSGSRSV1.CCSTMTTRNRS.CCSTMTRS.BANKTRANLIST.STMTTRN",
+    "offset": 0,
+    "output": {
+      "candidates": [
+        {
+          "kind": "entry",
+          "source": "$.OFX.CREDITCARDMSGSRSV1.CCSTMTTRNRS.CCSTMTRS.BANKTRANLIST.STMTTRN[0]",
+          "confidence": 0.6,
+          "payload": {
+            "date": "2026-10-01",
+            "description": "Pagamento recebido",
+            "direction": "income",
+            "amountCents": 153420,
+            "category": "Pagamento de fatura",
+            "account": "Cartão final 8765",
+            "paid": true
+          }
+        },
+        {
+          "kind": "entry",
+          "source": "$.OFX.CREDITCARDMSGSRSV1.CCSTMTTRNRS.CCSTMTRS.BANKTRANLIST.STMTTRN[1]",
+          "confidence": 0.95,
+          "payload": {
+            "date": "2026-10-02",
+            "description": "Farmácia Vida Fictícia",
+            "direction": "expense",
+            "amountCents": 8990,
+            "category": "Saúde",
+            "account": "Cartão final 8765",
+            "paid": false
+          }
+        },
+        {
+          "kind": "entry",
+          "source": "$.OFX.CREDITCARDMSGSRSV1.CCSTMTTRNRS.CCSTMTRS.BANKTRANLIST.STMTTRN[2]",
+          "confidence": 0.86,
+          "payload": {
+            "date": "2026-10-04",
+            "description": "Loja Móveis Sol",
+            "direction": "expense",
+            "amountCents": 21000,
+            "category": "Casa",
+            "account": "Cartão final 8765",
+            "paid": false
+          }
+        },
+        {
+          "kind": "entry",
+          "source": "$.OFX.CREDITCARDMSGSRSV1.CCSTMTTRNRS.CCSTMTRS.BANKTRANLIST.STMTTRN[3]",
+          "confidence": 0.93,
+          "payload": {
+            "date": "2026-10-09",
+            "description": "App transporte fictício",
+            "direction": "expense",
+            "amountCents": 5675,
+            "category": "Transporte",
+            "account": "Cartão final 8765",
+            "paid": false
+          }
+        },
+        {
+          "kind": "entry",
+          "source": "$.OFX.CREDITCARDMSGSRSV1.CCSTMTTRNRS.CCSTMTRS.BANKTRANLIST.STMTTRN[4]",
+          "confidence": 0.95,
+          "payload": {
+            "date": "2026-10-15",
+            "description": "Streaming de mentira",
+            "direction": "expense",
+            "amountCents": 3990,
+            "category": "Lazer",
+            "account": "Cartão final 8765",
+            "paid": false
+          }
+        },
+        {
+          "kind": "entry",
+          "source": "$.OFX.CREDITCARDMSGSRSV1.CCSTMTTRNRS.CCSTMTRS.BANKTRANLIST.STMTTRN[5]",
+          "confidence": 0.9,
+          "payload": {
+            "date": "2026-10-18",
+            "description": "Restaurante Boa Mesa",
+            "direction": "expense",
+            "amountCents": 14860,
+            "category": "Lazer",
+            "account": "Cartão final 8765",
+            "paid": false
+          }
+        },
+        {
+          "kind": "entry",
+          "source": "$.OFX.CREDITCARDMSGSRSV1.CCSTMTTRNRS.CCSTMTRS.BANKTRANLIST.STMTTRN[6]",
+          "confidence": 0.85,
+          "payload": {
+            "date": "2026-10-20",
+            "description": "Estorno app transporte",
+            "direction": "income",
+            "amountCents": 2000,
+            "category": "Transporte",
+            "account": "Cartão final 8765",
+            "paid": false
+          }
+        },
+        {
+          "kind": "entry",
+          "source": "$.OFX.CREDITCARDMSGSRSV1.CCSTMTTRNRS.CCSTMTRS.BANKTRANLIST.STMTTRN[7]",
+          "confidence": 0.9,
+          "payload": {
+            "date": "2026-10-22",
+            "description": "IOF compra internacional",
+            "direction": "expense",
+            "amountCents": 1290,
+            "category": "Tarifas",
+            "account": "Cartão final 8765",
+            "paid": false
+          }
+        }
+      ],
+      "questions": [],
+      "totals": []
+    },
+    "usage": {
+      "inputTokens": 3300,
+      "outputTokens": 1500,
+      "costUsdMicros": 32400
+    }
+  }
+]

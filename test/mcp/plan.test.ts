@@ -53,22 +53,22 @@ describe('mcp reserve and decision tools', () => {
   })
 
   test('update_reserve sets balance and target audited as claude', async () => {
-    const reserve = (await call(asMarcio, 'update_reserve', { reserve: 'emergency fund', balance_cents: 1950000, target_cents: 3600000 })).json()
-    assert.equal(reserve.name, 'Emergency fund')
+    const reserve = (await call(asMarcio, 'update_reserve', { reserve: 'reserva de emergência', balance_cents: 1950000, target_cents: 3600000 })).json()
+    assert.equal(reserve.name, 'Reserva de emergência')
     assert.deepEqual(reserve.balance, { cents: '1950000', brl: 'R$ 19.500,00' })
     assert.deepEqual(reserve.target, { cents: '3600000', brl: 'R$ 36.000,00' })
     assert.deepEqual(await audit('reserve'), [{ author: 'claude', member_id: marcio.id, action: 'update' }])
-    const zero = (await call(asMarcio, 'update_reserve', { reserve: 'Emergency fund', balance_cents: 0 })).json()
+    const zero = (await call(asMarcio, 'update_reserve', { reserve: 'Reserva de emergência', balance_cents: 0 })).json()
     assert.deepEqual(zero.balance, { cents: '0', brl: 'R$ 0,00' })
     assert.deepEqual(zero.target, { cents: '3600000', brl: 'R$ 36.000,00' })
   })
 
   test('update_reserve rejects negative balances, unknown reserves, empty changes and anonymous callers', async () => {
-    for (const args of [{ reserve: 'Emergency fund', balance_cents: -1 }, { reserve: 'Emergency fund', target_cents: 0 }, { reserve: 'Emergency fund' }, { reserve: 'Holidays', balance_cents: 100 }]) {
+    for (const args of [{ reserve: 'Reserva de emergência', balance_cents: -1 }, { reserve: 'Reserva de emergência', target_cents: 0 }, { reserve: 'Reserva de emergência' }, { reserve: 'Holidays', balance_cents: 100 }]) {
       assert.equal((await call(asMarcio, 'update_reserve', args)).isError, true, JSON.stringify(args))
     }
-    assert.equal((await call(anonymous, 'update_reserve', { reserve: 'Emergency fund', balance_cents: 100 })).isError, true)
-    const { rows } = await pool.query("select balance_cents from reserve where name = 'Emergency fund'")
+    assert.equal((await call(anonymous, 'update_reserve', { reserve: 'Reserva de emergência', balance_cents: 100 })).isError, true)
+    const { rows } = await pool.query("select balance_cents from reserve where name = 'Reserva de emergência'")
     assert.equal(rows[0].balance_cents, 0n)
   })
 

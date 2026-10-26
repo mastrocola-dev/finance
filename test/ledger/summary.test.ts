@@ -24,19 +24,19 @@ describe('month summary', () => {
     const { byCategory, ...expenses } = summary.expenses
     assert.equal(summary.month, '2026-10-01')
     assert.deepEqual(income, { count: 3, total: 2030000n, paid: 1770000n, pending: 260000n, late: 0n })
-    assert.deepEqual(expenses, { count: 13, total: 1023800n, paid: 818300n, pending: 183300n, late: 22200n })
-    assert.equal(summary.balance, 1006200n)
+    assert.deepEqual(expenses, { count: 14, total: 1037100n, paid: 831600n, pending: 183300n, late: 22200n })
+    assert.equal(summary.balance, 992900n)
     assert.deepEqual(
       incomeByCategory.map(({ category, total }) => [category, total]),
       [
-        ['Salary', 1770000n],
+        ['Salário', 1770000n],
         ['Freelance', 260000n],
       ],
     )
-    assert.deepEqual(byCategory[0], { category: 'Housing', count: 2, total: 405000n, paid: 405000n, pending: 0n, late: 0n })
+    assert.deepEqual(byCategory[0], { category: 'Moradia', count: 2, total: 405000n, paid: 405000n, pending: 0n, late: 0n })
     assert.deepEqual(
-      byCategory.find(({ category }) => category === 'Utilities'),
-      { category: 'Utilities', count: 2, total: 34200n, paid: 0n, pending: 12000n, late: 22200n },
+      byCategory.find(({ category }) => category === 'Contas da casa'),
+      { category: 'Contas da casa', count: 2, total: 34200n, paid: 0n, pending: 12000n, late: 22200n },
     )
   })
 
@@ -63,7 +63,7 @@ describe('month summary', () => {
 
   test('a past month is fully paid', async () => {
     const { income, expenses } = await monthSummary(client, '2026-09-01', seedToday)
-    assert.deepEqual([income.total, income.paid, expenses.total, expenses.paid], [1770000n, 1770000n, 1009500n, 1009500n])
+    assert.deepEqual([income.total, income.paid, expenses.total, expenses.paid], [1770000n, 1770000n, 1021500n, 1021500n])
   })
 
   test('a month without entries is all zeros', async () => {
@@ -75,8 +75,8 @@ describe('month summary', () => {
   test('compares with the previous month by default', async () => {
     const { other, difference } = await compareMonths(client, '2026-10', undefined, seedToday)
     assert.equal(other.month, '2026-09-01')
-    assert.deepEqual([difference.income, difference.expenses, difference.balance], [260000n, 14300n, 245700n])
-    assert.deepEqual(difference.expensesByCategory[0], { category: 'Groceries', month: 125400n, other: 118000n, difference: 7400n })
+    assert.deepEqual([difference.income, difference.expenses, difference.balance], [260000n, 15600n, 244400n])
+    assert.deepEqual(difference.expensesByCategory[0], { category: 'Alimentação', month: 125400n, other: 118000n, difference: 7400n })
     assert.equal(
       difference.expensesByCategory.reduce((sum, { difference }) => sum + difference, 0n),
       difference.expenses,
@@ -86,8 +86,8 @@ describe('month summary', () => {
   test('compares with any month, keeping categories present on one side only', async () => {
     const { other, difference } = await compareMonths(client, '2026-10', '2026-01', seedToday)
     assert.equal(other.month, '2026-01-01')
-    const home = difference.expensesByCategory.find(({ category }) => category === 'Home')
-    assert.deepEqual(home, { category: 'Home', month: 45000n, other: 0n, difference: 45000n })
+    const home = difference.expensesByCategory.find(({ category }) => category === 'Casa')
+    assert.deepEqual(home, { category: 'Casa', month: 45000n, other: 0n, difference: 45000n })
   })
 
   test('rejects malformed months and dates', async () => {
@@ -98,12 +98,12 @@ describe('month summary', () => {
   })
 
   test('closed entries are left out', async () => {
-    const { rows } = await client.query<{ id: bigint; amount_cents: bigint }>("select id, amount_cents from entry where competence = '2026-10-01' and description = 'Electricity'")
+    const { rows } = await client.query<{ id: bigint; amount_cents: bigint }>("select id, amount_cents from entry where competence = '2026-10-01' and description = 'Energia'")
     const [electricity] = rows
     assert.ok(electricity)
     await write(client, { author: 'system' }, (ledger) => ledger.close('entry', electricity.id))
     const { expenses } = await monthSummary(client, '2026-10', seedToday)
-    assert.deepEqual([expenses.count, expenses.total, expenses.late], [12, 1023800n - electricity.amount_cents, 0n])
+    assert.deepEqual([expenses.count, expenses.total, expenses.late], [13, 1037100n - electricity.amount_cents, 0n])
   })
 })
 

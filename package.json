@@ -2,6 +2,9 @@
   "name": "finance",
   "private": true,
   "type": "module",
+  "workspaces": [
+    "web"
+  ],
   "engines": {
     "node": ">=24"
   },
@@ -14,19 +17,29 @@
     "mcp:stdio": "node --env-file-if-exists=.env src/mcp/stdio.ts",
     "mcp:demo": "node --env-file-if-exists=.env src/mcp/demo.ts",
     "typecheck": "tsc",
-    "check": "biome ci && tsc",
+    "check": "biome ci && tsc && tsc -p web",
     "fix": "biome check --write",
-    "test": "node --env-file-if-exists=.env --test",
-    "test:coverage": "node --env-file-if-exists=.env --test --experimental-test-coverage --test-coverage-exclude='test/**' 'test/**/*.test.ts'"
+    "test": "node --env-file-if-exists=.env --test 'test/**/*.test.ts' && npm test -w web",
+    "test:coverage": "node --env-file-if-exists=.env --test --experimental-test-coverage --test-coverage-exclude='test/**' 'test/**/*.test.ts' && npm test -w web",
+    "ingest:test": "uv --directory ingest run pytest",
+    "ingest:check": "uv --directory ingest run ruff check . ../evals/tools && uv --directory ingest run ruff format --check . ../evals/tools",
+    "web:dev": "npm run dev -w web --",
+    "web:build": "npm run build -w web --",
+    "openapi": "node src/http/document.ts && node web/scripts/openapi-types.ts",
+    "agent:schema": "node src/import/schema.ts",
+    "web:screenshots": "npm run screenshots -w web --",
+    "import": "node --env-file-if-exists=.env src/import/cli.ts",
+    "eval": "node --env-file-if-exists=.env src/eval/run.ts",
+    "eval:fixtures": "uv run --project ingest --frozen python evals/tools/fixtures.py"
   },
   "devDependencies": {
     "@biomejs/biome": "2.5.14",
-    "@modelcontextprotocol/client": "^2.3.1",
     "@types/node": "^24.19.0",
     "@types/pg": "^8.23.1",
     "typescript": "^7.0.2"
   },
   "dependencies": {
+    "@modelcontextprotocol/client": "^2.3.1",
     "@modelcontextprotocol/server": "^2.3.1",
     "pg": "^8.23.1",
     "read-excel-file": "9.3.12",

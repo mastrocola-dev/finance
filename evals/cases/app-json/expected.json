@@ -1,0 +1,125 @@
+{
+  "file": "exportacao-cofrinho.json",
+  "candidates": [
+    {
+      "kind": "account",
+      "payload": {
+        "institution": "Banco Imaginário",
+        "nickname": "Conta Imaginária",
+        "lastFour": "1122",
+        "kind": "checking"
+      }
+    },
+    {
+      "kind": "account",
+      "payload": {
+        "institution": "Banco Imaginário",
+        "nickname": "Cartão Imaginário",
+        "lastFour": "7788",
+        "kind": "credit_card"
+      }
+    },
+    {
+      "kind": "category",
+      "payload": {
+        "name": "Mercado",
+        "kind": "expense"
+      }
+    },
+    {
+      "kind": "category",
+      "payload": {
+        "name": "Pets",
+        "kind": "expense"
+      }
+    },
+    {
+      "kind": "category",
+      "payload": {
+        "name": "Freela",
+        "kind": "income"
+      }
+    },
+    {
+      "kind": "entry",
+      "payload": {
+        "date": "2026-10-03",
+        "description": "Padaria",
+        "direction": "expense",
+        "amountCents": 4590,
+        "category": "Mercado",
+        "account": "Conta Imaginária",
+        "paid": true
+      }
+    },
+    {
+      "kind": "entry",
+      "payload": {
+        "date": "2026-10-05",
+        "description": "Ração e areia",
+        "direction": "expense",
+        "amountCents": 18900,
+        "category": "Pets",
+        "account": "Cartão Imaginário",
+        "paid": true
+      }
+    },
+    {
+      "kind": "entry",
+      "payload": {
+        "date": "2026-10-09",
+        "description": "Site da Dona Rosa",
+        "direction": "income",
+        "amountCents": 150000,
+        "category": "Freela",
+        "account": "Conta Imaginária",
+        "paid": true
+      }
+    },
+    {
+      "kind": "entry",
+      "payload": {
+        "date": "2026-10-12",
+        "description": "Feira do mês",
+        "direction": "expense",
+        "amountCents": 31245,
+        "category": "Mercado",
+        "account": "Cartão Imaginário",
+        "paid": true
+      }
+    },
+    {
+      "kind": "entry",
+      "payload": {
+        "date": "2026-10-15",
+        "description": "Banho e tosa",
+        "direction": "expense",
+        "amountCents": 8000,
+        "category": "Pets",
+        "account": "Cartão Imaginário",
+        "paid": false
+      }
+    },
+    {
+      "kind": "entry",
+      "payload": {
+        "date": "2026-10-22",
+        "description": "Padaria",
+        "direction": "expense",
+        "amountCents": 2750,
+        "category": "Mercado",
+        "account": "Conta Imaginária",
+        "paid": true
+      }
+    },
+    {
+      "kind": "goal",
+      "payload": {
+        "name": "Viagem para a praia",
+        "targetCents": 500000,
+        "savedCents": 125000,
+        "dueOn": "2027-01-31"
+      }
+    }
+  ]
+}

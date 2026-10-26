@@ -1,0 +1,115 @@
+@import "tailwindcss";
+@import "@fontsource-variable/geist";
+@import "@fontsource-variable/geist-mono";
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+:root {
+  color-scheme: light;
+  --bg: #f6f6f3;
+  --surface: #ffffff;
+  --sunken: #f0f0ec;
+  --border: #e3e3dd;
+  --text: #15171c;
+  --muted: #5b606b;
+  --accent: #2b54d9;
+  --accent-text: #ffffff;
+  --accent-soft: #e8edfc;
+  --income: #2b54d9;
+  --expense: #b4440e;
+  --late: #9a3a0b;
+  --late-soft: #fbe9df;
+  --ok: #1f6f4a;
+  --ok-soft: #e3f1e9;
+  --pending: #3d4250;
+  --pending-soft: #ecece7;
+  --claude: #5b3fc4;
+  --claude-soft: #eeeafb;
+}
+
+.dark {
+  color-scheme: dark;
+  --bg: #0e1014;
+  --surface: #161920;
+  --sunken: #1e222a;
+  --border: #2a2e37;
+  --text: #ecedef;
+  --muted: #a0a6b1;
+  --accent: #8ba6ff;
+  --accent-text: #0e1014;
+  --accent-soft: #1e2a4d;
+  --income: #8ba6ff;
+  --expense: #f08a4b;
+  --late: #f5a574;
+  --late-soft: #3a2216;
+  --ok: #73d3a2;
+  --ok-soft: #16302a;
+  --pending: #d2d5db;
+  --pending-soft: #262a33;
+  --claude: #bdaeff;
+  --claude-soft: #2a2448;
+}
+
+@theme inline {
+  --color-*: initial;
+  --shadow-*: initial;
+  --color-transparent: transparent;
+  --color-current: currentColor;
+  --color-bg: var(--bg);
+  --color-surface: var(--surface);
+  --color-sunken: var(--sunken);
+  --color-border: var(--border);
+  --color-text: var(--text);
+  --color-muted: var(--muted);
+  --color-accent: var(--accent);
+  --color-accent-text: var(--accent-text);
+  --color-accent-soft: var(--accent-soft);
+  --color-income: var(--income);
+  --color-expense: var(--expense);
+  --color-late: var(--late);
+  --color-late-soft: var(--late-soft);
+  --color-ok: var(--ok);
+  --color-ok-soft: var(--ok-soft);
+  --color-pending: var(--pending);
+  --color-pending-soft: var(--pending-soft);
+  --color-claude: var(--claude);
+  --color-claude-soft: var(--claude-soft);
+  --color-ring: var(--accent);
+  --font-sans: "Geist Variable", system-ui, sans-serif;
+  --font-mono: "Geist Mono Variable", ui-monospace, monospace;
+  --radius-control: 8px;
+  --radius-field: 10px;
+  --radius-card: 14px;
+  --radius-hero: 16px;
+  --text-meta: 13px;
+  --text-body: 14px;
+  --text-section: 15px;
+  --text-title-mobile: 22px;
+  --text-title: 26px;
+  --text-kpi: 26px;
+  --text-kpi-hero: 32px;
+}
+
+@layer base {
+  * {
+    border-color: var(--border);
+  }
+
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--font-sans);
+    font-size: 14px;
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+  }
+}
+
+@utility amount {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+}

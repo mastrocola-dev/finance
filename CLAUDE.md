@@ -25,6 +25,23 @@ Stop the schedule (`update_trigger` with `enabled: false` on this task) and say 
 - Money is `bigint` cents in BRL; display `R$ 1.234,56`. Dates `YYYY-MM-DD`; competence is the first day of the month; time zone America/Sao_Paulo
 - Dependencies only when they remove real code; prefer the standard library
 
+## Web app (`web/`)
+
+- React 19, Vite, TypeScript strict, TanStack Router and Query, Tailwind v4, shadcn/ui, Recharts, react-hook-form with zod, typed client from `openapi.json`. A build step is accepted here only (correction to ADR-004 approved 2026-10-20)
+- Same style as the API: no comments, no `;`, single quotes, Biome; components small, one per file, named exports
+- Follow `docs/design.md` and the mockups in `docs/mockups/` (layout, spacing, copy, palettes); do not invent new colors, fonts or shadows
+- Accessibility is part of done: real buttons and links, labels on inputs, `aria-label` on icon buttons, focus visible, contrast from the tokens
+- Every web item ends with Playwright screenshots of the screens it touched, at 390×844 and 1440×1000, light and dark, against the seeded API, saved to `web/screenshots/<route>-<width>-<theme>.png` and committed; look at them before committing and fix what looks wrong
+- Playwright: the browser is preinstalled; launch Chromium with `executablePath: '/opt/pw-browsers/chromium'` and never run `playwright install`
+- New dependencies only from this list unless an item needs one more (record why in MEMORY): `react`, `react-dom`, `@tanstack/react-router`, `@tanstack/react-query`, `tailwindcss`, `@tailwindcss/vite`, shadcn/ui and its Radix peers, `lucide-react`, `recharts`, `react-hook-form`, `@hookform/resolvers`, `zod`, `openapi-fetch`, `openapi-typescript`, `vite-plugin-pwa`, Geist font packages, `vitest`, `@testing-library/react`, `@testing-library/user-event`, `jsdom`, `@playwright/test`, `@axe-core/playwright`
+
+## Import and Python (`ingest/`, `agents/import/`, `evals/`)
+
+- Design in `docs/adr-009-ai-assisted-import.md`: converters read formats, the agent understands content, verification and a person guarantee correctness; the agent never writes to the ledger
+- Python 3.13 in a virtualenv (`python3 -m venv .venv`), dependencies pinned in `pyproject.toml`; allowed: `pandas`, `openpyxl`, `lxml`, `pdfplumber`, `ofxparse`, `mcp`, `pytest`, `ruff`; same style rules as TypeScript (minimal, no comments); `ruff check` and `pytest` join `npm run check` and `npm test`
+- No session of the build agent has an Anthropic key: tests and evaluations use recorded model responses; never call the model from tests; `--live` runs are for the author's machine
+- `service-agent` is a sibling checkout (`git clone https://github.com/mastrocola-dev/service-agent ../service-agent`); never commit to it; if a change there is needed, write it under **Needs author**
+
 ## Security and integrity rules (non-negotiable)
 
 - Fictional data only. Never ask for, fetch or commit real financial data; the seed is invented
@@ -41,7 +58,7 @@ Stop the schedule (`update_trigger` with `enabled: false` on this task) and say 
 Proposed by Claude, approved for the POC by the author on 2026-10-18; ADR-008 in `mastrocola-dev/docs` will record them.
 
 - PostgreSQL 16 locally and Azure Database for PostgreSQL later
-- One repository with API, MCP server and database
+- One repository with API, MCP server, database and web app: one repository per domain, not per layer (refines ADR-001, approved 2026-10-20). Split only when a second consumer of the API or an independent release cycle appears; the MCP server would be the first to leave
 - Monthly cycle is the calendar month until the author sets a closing day
 - Joint expenses split 50/50 by default, configurable per household
 - Identity is a `x-member` header in local mode; Entra ID comes with the Azure stage

@@ -4,7 +4,7 @@ import type { Client } from 'pg'
 import { migrate } from '../../src/db/migrate.ts'
 import { testDatabase } from './database.ts'
 
-const tables = ['account', 'audit_log', 'category', 'debt', 'decision', 'decision_confirmation', 'entry', 'goal', 'income', 'member', 'recurring_expense', 'reserve', 'schema_migration']
+const tables = ['account', 'audit_log', 'category', 'debt', 'decision', 'decision_confirmation', 'entry', 'goal', 'import_batch', 'import_candidate', 'import_question', 'income', 'member', 'recurring_expense', 'reserve', 'schema_migration']
 
 describe('migrations', () => {
   let db: Awaited<ReturnType<typeof testDatabase>>
@@ -23,12 +23,12 @@ describe('migrations', () => {
   }
 
   const categoryId = async () => {
-    const { rows } = await client.query<{ id: string }>("insert into category (name, kind) values ('Housing', 'expense') on conflict (name, kind) do update set name = excluded.name returning id")
+    const { rows } = await client.query<{ id: string }>("insert into category (name, kind) values ('Moradia', 'expense') on conflict (name, kind) do update set name = excluded.name returning id")
     return rows[0]?.id
   }
 
   test('applies every migration to an empty database', async () => {
-    assert.deepEqual(db.applied, ['001-ledger.sql'])
+    assert.deepEqual(db.applied, ['001-ledger.sql', '002-ledger-clock.sql', '003-import-staging.sql', '004-import-totals.sql', '005-import-retry.sql', '006-import-commit.sql'])
     const { rows } = await client.query<{ table_name: string }>("select table_name from information_schema.tables where table_schema = 'public' order by table_name")
     assert.deepEqual(
       rows.map((row) => row.table_name),
@@ -49,7 +49,7 @@ describe('migrations', () => {
   })
 
   test('accounts keep only the last four digits', async () => {
-    await client.query("insert into account (institution, nickname, last_four, kind) values ('Banco Ficticio', 'Joint checking', '1234', 'checking')")
+    await client.query("insert into account (institution, nickname, last_four, kind) values ('Banco Ficticio', 'Conta conjunta', '1234', 'checking')")
     const invalid = [
       ['Banco Ficticio', 'Card', '12345'],
       ['Banco Ficticio', 'Card', '12a4'],
@@ -63,7 +63,7 @@ describe('migrations', () => {
 
   test('entries require a competence on the first day and a payment date only when paid', async () => {
     const category = await categoryId()
-    const insert = (competence: string, status: string, paidOn: string | null) => client.query("insert into entry (competence, due_on, description, direction, amount_cents, category_id, status, paid_on, origin) values ($1, $1, 'Rent', 'expense', 150000, $2, $3, $4, 'manual')", [competence, category, status, paidOn])
+    const insert = (competence: string, status: string, paidOn: string | null) => client.query("insert into entry (competence, due_on, description, direction, amount_cents, category_id, status, paid_on, origin) values ($1, $1, 'Aluguel', 'expense', 150000, $2, $3, $4, 'manual')", [competence, category, status, paidOn])
     await insert('2026-10-01', 'planned', null)
     await insert('2026-10-01', 'paid', '2026-10-05')
     await assert.rejects(insert('2026-10-15', 'planned', null), /check constraint/)
@@ -96,5 +96,31 @@ describe('migrations', () => {
     const member = await memberId('Proposer')
     await client.query("insert into decision (title, proposed_by, origin) values ('Raise the reserve', $1, 'claude')", [member])
     await assert.rejects(client.query("insert into decision (title, proposed_by, origin, status) values ('Buy a car', $1, 'manual', 'confirmed')", [member]), /check constraint/)
+  })
+
+  test('import batches keep no identifying numbers in the file name', async () => {
+    const hash = 'a'.repeat(64)
+    const insert = (name: string) => client.query("insert into import_batch (file_name, format, file_hash) values ($1, 'csv', $2)", [name, hash])
+    await insert('extrato-20261001-20261031.csv')
+    await insert('conta •4321.csv')
+    for (const name of ['conta-12345.csv', '4111202610011111.csv', ' ']) await assert.rejects(insert(name), /check constraint/)
+    await assert.rejects(client.query("insert into import_batch (file_name, format, file_hash) values ('a.csv', 'csv', 'abc')"), /check constraint/)
+    await assert.rejects(client.query("insert into import_batch (file_name, format, file_hash, status) values ('a.csv', 'csv', $1, 'closed')", [hash]), /check constraint/)
+    await assert.rejects(client.query("delete from import_batch where file_name = 'conta •4321.csv'"), /never deleted/)
+    await assert.rejects(client.query('truncate import_question'), /never deleted/)
+  })
+
+  test('import candidates are objects with a source and a confidence', async () => {
+    const { rows } = await client.query<{ id: string }>("insert into import_batch (file_name, format, file_hash) values ('notas.txt', 'txt', $1) returning id", ['b'.repeat(64)])
+    const batch = rows[0]?.id
+    const insert = (kind: string, payload: string, source: string, confidence: number) => client.query('insert into import_candidate (batch_id, kind, payload, source, confidence) values ($1, $2, $3, $4, $5)', [batch, kind, payload, source, confidence])
+    await insert('entry', '{"description": "Aluguel"}', 'p1:L3', 0.9)
+    await assert.rejects(insert('transfer', '{}', 'p1:L3', 0.9), /check constraint/)
+    await assert.rejects(insert('entry', '[]', 'p1:L3', 0.9), /check constraint/)
+    await assert.rejects(insert('entry', '{}', '', 0.9), /check constraint/)
+    await assert.rejects(insert('entry', '{}', 'p1:L3', 1.5), /check constraint/)
+    await assert.rejects(client.query("insert into import_candidate (batch_id, kind, payload, source, confidence, status) values ($1, 'entry', '{}', 'p1:L3', 0.5, 'replaced')", [batch]), /check constraint/)
+    await assert.rejects(client.query("insert into import_candidate (batch_id, kind, payload, source, confidence, chunk) values ($1, 'entry', '{}', 'p1:L3', 0.5, ' ')", [batch]), /check constraint/)
+    await assert.rejects(client.query("update import_batch set failures = '{}' where id = $1", [batch]), /check constraint/)
   })
 })

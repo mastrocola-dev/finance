@@ -50,7 +50,26 @@ describe('streamable http adapter', () => {
   test('serves the read and write tools', async () => {
     const mcp = await connectClient('Marcio')
     const { tools } = await mcp.listTools()
-    assert.deepEqual(tools.map(({ name }) => name).sort(), ['confirm_decision', 'create_entry', 'forecast_month', 'list_debts', 'list_decisions', 'list_entries', 'list_reserves', 'mark_paid', 'month_summary', 'propose_decision', 'reject_decision', 'update_reserve', 'withdraw_decision'])
+    assert.deepEqual(tools.map(({ name }) => name).sort(), [
+      'cancel_entry',
+      'close_record',
+      'confirm_decision',
+      'correct_entry',
+      'create_entry',
+      'forecast_month',
+      'list_debts',
+      'list_decisions',
+      'list_entries',
+      'list_reserves',
+      'list_setup',
+      'mark_paid',
+      'month_summary',
+      'propose_decision',
+      'register_record',
+      'reject_decision',
+      'update_reserve',
+      'withdraw_decision',
+    ])
     const { content } = await mcp.callTool({ name: 'list_debts', arguments: {} })
     const [first] = content as { text: string }[]
     assert.equal(JSON.parse(first?.text ?? '[]').length, 2)
@@ -62,12 +81,12 @@ describe('streamable http adapter', () => {
     const calls = clients.flatMap((mcp) => ['2026-09', '2026-10'].map((month) => mcp.callTool({ name: 'month_summary', arguments: { month, today: seedToday } })))
     const results = await Promise.all(calls)
     const expenses = results.map(({ content }) => JSON.parse((content as { text: string }[])[0]?.text ?? '{}').month.expenses.total.cents)
-    assert.deepEqual(expenses, ['1009500', '1023800', '1009500', '1023800'])
+    assert.deepEqual(expenses, ['1021500', '1037100', '1021500', '1037100'])
     await Promise.all(clients.map((mcp) => mcp.close()))
   })
 
   test('writes on behalf of the x-member header and refuses without it', async () => {
-    const entry = { month: '2026-10', due_on: '2026-10-28', description: 'Pharmacy', direction: 'expense', amount_cents: 4590, category: 'health', member: 'Gabriela', today: seedToday }
+    const entry = { month: '2026-10', due_on: '2026-10-28', description: 'Farmácia', direction: 'expense', amount_cents: 4590, category: 'saúde', member: 'Gabriela', today: seedToday }
     const [gabriela, anonymous] = await Promise.all([connectClient(' gabriela '), connectClient()])
     const refused = await anonymous.callTool({ name: 'create_entry', arguments: entry })
     assert.equal(refused.isError, true)

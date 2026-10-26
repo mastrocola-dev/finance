@@ -1,0 +1,88 @@
+{
+  "file": "extrato-gabriela.pdf",
+  "candidates": [
+    {
+      "kind": "entry",
+      "payload": {
+        "date": "2026-10-05",
+        "description": "Salário",
+        "direction": "income",
+        "amountCents": 590000,
+        "member": "Gabriela",
+        "paid": true
+      }
+    },
+    {
+      "kind": "entry",
+      "payload": {
+        "date": "2026-10-07",
+        "description": "Academia",
+        "direction": "expense",
+        "amountCents": 12990,
+        "member": "Gabriela",
+        "paid": true
+      }
+    },
+    {
+      "kind": "entry",
+      "payload": {
+        "date": "2026-10-10",
+        "description": "Farmácia",
+        "direction": "expense",
+        "amountCents": 8640,
+        "category": "Saúde",
+        "member": "Gabriela",
+        "paid": true
+      }
+    },
+    {
+      "kind": "entry",
+      "payload": {
+        "date": "2026-10-15",
+        "description": "Curso de inglês",
+        "direction": "expense",
+        "amountCents": 35000,
+        "member": "Gabriela",
+        "paid": true
+      }
+    },
+    {
+      "kind": "entry",
+      "payload": {
+        "date": "2026-10-18",
+        "description": "Restaurante",
+        "direction": "expense",
+        "amountCents": 14270,
+        "member": "Gabriela",
+        "paid": true
+      }
+    },
+    {
+      "kind": "entry",
+      "payload": {
+        "date": "2026-10-22",
+        "description": "Notebook",
+        "direction": "expense",
+        "amountCents": 28900,
+        "member": "Gabriela",
+        "paid": true,
+        "installment": {
+          "number": 4,
+          "total": 10
+        }
+      }
+    },
+    {
+      "kind": "entry",
+      "payload": {
+        "date": "2026-10-25",
+        "description": "Transporte",
+        "direction": "expense",
+        "amountCents": 4780,
+        "category": "Transporte",
+        "member": "Gabriela",
+        "paid": true
+      }
+    }
+  ]
+}

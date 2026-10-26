@@ -1,0 +1,31 @@
+import { Pencil } from 'lucide-react'
+import { Button } from '../components/ui/button.tsx'
+import { formatDay } from '../lib/format.ts'
+import { recordProps } from '../lib/record.tsx'
+import { cn } from '../lib/utils.ts'
+import type { Entry } from '../overview/model.ts'
+import { OriginChip, StateChip } from './chips.tsx'
+import { installmentOf, signedAmount } from './model.ts'
+
+const meta = (entry: Entry) => [formatDay(entry.dueOn), entry.category, entry.member ?? 'Conjunto', installmentOf(entry)].filter(Boolean).join(' · ')
+
+export const EntriesList = ({ entries, fresh, hash, onEdit }: { entries: Entry[]; fresh: string | undefined; hash: string; onEdit: (entry: Entry) => void }) => (
+  <ul className="m-0 flex list-none flex-col p-0 md:hidden">
+    {entries.map((entry) => (
+      <li key={entry.id} {...recordProps(`entry-${entry.id}`, hash)} className={cn('flex items-center gap-3 border-b px-3.5 py-3', entry.id === fresh && 'bg-accent-soft', 'aria-[current=true]:bg-accent-soft')}>
+        <div className="flex min-w-0 flex-1 flex-col gap-1">
+          <span className="truncate font-medium">{entry.description}</span>
+          <span className="truncate text-xs text-muted">{meta(entry)}</span>
+          <span className="flex gap-1.5">
+            <OriginChip entry={entry} />
+            <StateChip entry={entry} />
+          </span>
+        </div>
+        <span className={cn('amount whitespace-nowrap', entry.direction === 'income' && 'text-income')}>{signedAmount(entry)}</span>
+        <Button variant="ghost" size="icon" aria-label={`Corrigir ${entry.description}`} onClick={() => onEdit(entry)}>
+          <Pencil size={14} aria-hidden="true" />
+        </Button>
+      </li>
+    ))}
+  </ul>
+)

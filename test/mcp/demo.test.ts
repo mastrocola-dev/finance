@@ -7,7 +7,7 @@ import { seed, seedToday } from '../../src/db/seed.ts'
 import { createDemoServer } from '../../src/mcp/demo.ts'
 import { testDatabase } from '../db/database.ts'
 
-const readTools = ['list_debts', 'list_decisions', 'list_entries', 'list_reserves', 'month_summary']
+const readTools = ['list_debts', 'list_decisions', 'list_entries', 'list_reserves', 'list_setup', 'month_summary']
 
 describe('demo mcp server', () => {
   let db: Awaited<ReturnType<typeof testDatabase>>
@@ -38,7 +38,7 @@ describe('demo mcp server', () => {
   test('answers reads over the seed', async () => {
     const { content } = await mcp.callTool({ name: 'month_summary', arguments: { month: '2026-10', today: seedToday } })
     const [first] = content as { text: string }[]
-    assert.equal(JSON.parse(first?.text ?? '{}').month.expenses.count, 13)
+    assert.equal(JSON.parse(first?.text ?? '{}').month.expenses.count, 14)
   })
 
   test('the connection itself refuses writes', async () => {

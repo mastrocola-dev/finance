@@ -23,3 +23,28 @@ test('answers 500 as JSON when the handler throws', async () => {
   assert.deepEqual(await response.json(), { error: 'internal error' })
   await server.close()
 })
+
+test('keeps serving after a client leaves before the answer', async () => {
+  const left = Promise.withResolvers<void>()
+  const server = await listen(
+    async (request) => {
+      if (new URL(request.url).pathname === '/slow') {
+        await new Promise((done) => request.signal.addEventListener('abort', done))
+        left.resolve()
+      }
+      return Response.json({ ok: true })
+    },
+    0,
+    '127.0.0.1',
+  )
+  const leaving = new AbortController()
+  const slow = fetch(`${server.url}/slow`, { signal: leaving.signal }).catch(() => undefined)
+  await new Promise((done) => setTimeout(done, 50))
+  leaving.abort()
+  await slow
+  await left.promise
+  await new Promise((done) => setTimeout(done, 50))
+  const response = await fetch(`${server.url}/fast`)
+  assert.deepEqual(await response.json(), { ok: true })
+  await server.close()
+})

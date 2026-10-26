@@ -30,6 +30,7 @@ export const nodeHandler = (handler: FetchHandler) => async (incoming: IncomingM
   const aborted = new AbortController()
   outgoing.on('close', () => aborted.abort())
   const response = await respond(handler, incoming, aborted.signal)
+  if (outgoing.destroyed) return response.body?.cancel()
   outgoing.writeHead(response.status, [...response.headers].flat())
   if (!response.body) return outgoing.end()
   pipeline(Readable.fromWeb(response.body as ReadableStream), outgoing, () => {})

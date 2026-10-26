@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<orcamento xmlns="urn:exemplo:financas" mes="2026-10">
+  <despesas>
+    <despesa categoria="Alimentação"><descricao>Feira</descricao><valor>210.50</valor></despesa>
+    <despesa categoria="Transporte"><descricao>Combustível</descricao><valor>300.00</valor></despesa>
+    <despesa categoria="Lazer"><descricao>Parque</descricao><valor>80.00</valor></despesa>
+  </despesas>
+  <observacao>Valores fictícios</observacao>
+</orcamento>
