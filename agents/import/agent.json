@@ -12,7 +12,8 @@
   "mcpServers": {
     "ingest": {
       "command": "uv",
-      "args": ["--directory", "ingest", "run", "python", "-m", "ingest", "serve", "${IMPORT_FOLDER}"]
+      "args": ["--directory", "ingest", "run", "--no-dev", "--exact", "--locked", "--quiet", "python", "-m", "ingest", "serve", "${IMPORT_FOLDER}"],
+      "env": { "UV_PROJECT_ENVIRONMENT": ".venv-runtime" }
     }
   },
   "tools": ["ingest.list_segments", "ingest.read_segment", "ingest.apply_mapping"]

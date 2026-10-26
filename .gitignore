@@ -4,6 +4,7 @@ web/dist/
 web/test-results/
 web/playwright-report/
 .venv/
+.venv-runtime/
 __pycache__/
 .pytest_cache/
 .ruff_cache/
