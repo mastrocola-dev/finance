@@ -73,7 +73,7 @@ const shown = (field: Field, value: unknown) => {
   return String(value)
 }
 
-export const toValues = ({ kind, payload }: Candidate): Values => {
+export const toValues = ({ kind, payload }: Pick<Candidate, 'kind' | 'payload'>): Values => {
   const installment = (payload.installment ?? {}) as Record<string, unknown>
   const flat: Record<string, unknown> = { ...payload, installmentNumber: installment.number, installmentTotal: installment.total }
   return Object.fromEntries(fieldsOf[kind].map((field) => [field.key, shown(field, flat[field.key])]))

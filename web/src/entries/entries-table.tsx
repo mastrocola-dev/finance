@@ -1,3 +1,5 @@
+import { Pencil } from 'lucide-react'
+import { Button } from '../components/ui/button.tsx'
 import { formatDay } from '../lib/format.ts'
 import { recordProps } from '../lib/record.tsx'
 import { cn } from '../lib/utils.ts'
@@ -9,7 +11,7 @@ const columns = ['Data', 'Descrição', 'Categoria', 'Conta', 'Quem', 'Origem', 
 
 const cell = 'border-b px-4 py-3'
 
-export const EntriesTable = ({ entries, fresh, hash }: { entries: Entry[]; fresh: string | undefined; hash: string }) => (
+export const EntriesTable = ({ entries, fresh, hash, onEdit }: { entries: Entry[]; fresh: string | undefined; hash: string; onEdit: (entry: Entry) => void }) => (
   <table className="hidden w-full min-w-[860px] border-collapse md:table">
     <thead>
       <tr className="text-left text-xs text-muted">
@@ -20,6 +22,9 @@ export const EntriesTable = ({ entries, fresh, hash }: { entries: Entry[]; fresh
         ))}
         <th scope="col" className={cn(cell, 'text-right font-medium')}>
           Valor
+        </th>
+        <th scope="col" className={cn(cell, 'w-12 px-2')}>
+          <span className="sr-only">Corrigir</span>
         </th>
       </tr>
     </thead>
@@ -41,6 +46,11 @@ export const EntriesTable = ({ entries, fresh, hash }: { entries: Entry[]; fresh
             <StateChip entry={entry} />
           </td>
           <td className={cn(cell, 'amount whitespace-nowrap text-right', entry.direction === 'income' && 'text-income')}>{signedAmount(entry)}</td>
+          <td className={cn(cell, 'px-2 py-1.5')}>
+            <Button variant="ghost" size="icon" aria-label={`Corrigir ${entry.description}`} onClick={() => onEdit(entry)}>
+              <Pencil size={14} aria-hidden="true" />
+            </Button>
+          </td>
         </tr>
       ))}
     </tbody>

@@ -15,7 +15,7 @@ const unique: CandidateKind[] = ['account', 'category', 'reserve', 'goal']
 
 const blocking = (kind: CandidateKind) => (check: Check) => check.code === 'invalid' || check.code.startsWith('unknown_') || (unique.includes(kind) && check.code.startsWith('duplicate_'))
 
-const resolver = (client: Client) => {
+export const resolver = (client: Client) => {
   const one = async (sql: string, values: unknown[], missing: string) => {
     const [row] = (await client.query<{ id: bigint }>(sql, values)).rows
     if (!row) throw new RuleError(missing)
@@ -31,7 +31,7 @@ const resolver = (client: Client) => {
   return { member, account, category, reserve }
 }
 
-const rowOf = async (resolve: ReturnType<typeof resolver>, kind: CandidateKind, payload: Record<string, unknown>): Promise<Row> => {
+export const rowOf = async (resolve: ReturnType<typeof resolver>, kind: CandidateKind, payload: Record<string, unknown>): Promise<Row> => {
   if (kind === 'category') {
     const item = payload as Payload<'category'>
     return { name: item.name, kind: item.kind }

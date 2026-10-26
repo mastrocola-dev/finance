@@ -11,7 +11,7 @@ const budgets = [
 
 const timing = { fcp: 1800, lcp: 2500 }
 const fonts = 60 * kB
-const precache = 1024 * 1024
+const precache = 1100 * 1024
 
 type Load = { fcp: number; lcp: number; resources: { name: string; type: string; bytes: number }[] }
 

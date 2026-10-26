@@ -1,4 +1,6 @@
 import * as z from 'zod'
+import { formatBrl } from '../lib/format.ts'
+import type { Entry } from '../overview/model.ts'
 
 const brl = /^(\d{1,3}(\.\d{3})+|\d+)(,\d{1,2})?$/
 const plain = /^\d+(\.\d{1,2})?$/
@@ -36,7 +38,7 @@ export const dueOnFor = (month: string, today: string) => (today.startsWith(mont
 
 export const paidByDefault = (date: string, today: string) => date <= today
 
-export const toNewEntry = (values: QuickEntry, month: string) => ({
+export const toNewEntry = (values: QuickEntry, month: string, paidOn?: string) => ({
   month,
   due_on: values.date,
   description: values.description.trim(),
@@ -45,5 +47,16 @@ export const toNewEntry = (values: QuickEntry, month: string) => ({
   category: values.category,
   account: values.account || undefined,
   member: values.member,
-  paid_on: values.paid ? values.date : undefined,
+  paid_on: values.paid ? (paidOn ?? values.date) : undefined,
+})
+
+export const fromEntry = (entry: Entry): QuickEntry => ({
+  direction: entry.direction,
+  description: entry.description,
+  amount: formatBrl(entry.amount.cents).replace('R$', '').trim(),
+  category: entry.category,
+  account: entry.account ?? '',
+  member: entry.member ?? 'joint',
+  date: entry.dueOn,
+  paid: entry.status === 'paid',
 })

@@ -16,7 +16,7 @@ import { PageHeader } from '../shell/page-header.tsx'
 import { EntriesList } from './entries-list.tsx'
 import { EntriesTable } from './entries-table.tsx'
 import { categoriesOf, type Filters, filterEntries, isFiltered, noFilters, totalsOf } from './model.ts'
-import { type NewEntry, useCreateEntry, useEntries } from './queries.ts'
+import { type NewEntry, useCancelEntry, useCorrectEntry, useCreateEntry, useEntries } from './queries.ts'
 import { QuickAddForm } from './quick-add-form.tsx'
 import { Toolbar } from './toolbar.tsx'
 
@@ -31,7 +31,10 @@ const plural = (count: number) => `${count} ${count === 1 ? 'lançamento' : 'lan
 
 const failure = (error: Error, entry: NewEntry) => (error instanceof ApiFailure && error.status === 401 ? 'Escolha quem você é para lançar.' : `Não foi possível lançar ${entry.description}. Tente de novo.`)
 
-const Entries = ({ entries, fresh }: { entries: Entry[]; fresh: string | undefined }) => {
+const editFailure = (error: Error, description: string) =>
+  error instanceof ApiFailure && error.status === 401 ? 'Escolha quem você é para corrigir.' : error instanceof ApiFailure && error.status === 422 ? `${description} já foi corrigido ou cancelado. A lista foi atualizada.` : `Não foi possível alterar ${description}. Tente de novo.`
+
+const Entries = ({ entries, fresh, onEdit }: { entries: Entry[]; fresh: string | undefined; onEdit: (entry: Entry) => void }) => {
   const [filters, setFilters] = useState<Filters>(noFilters)
   const hash = useRecordHash()
   const shown = filterEntries(entries, filters)
@@ -42,8 +45,8 @@ const Entries = ({ entries, fresh }: { entries: Entry[]; fresh: string | undefin
       <section aria-label="Lista de lançamentos" className="overflow-x-auto rounded-card border bg-surface">
         {shown.length > 0 ? (
           <>
-            <EntriesTable entries={shown} fresh={fresh} hash={hash} />
-            <EntriesList entries={shown} fresh={fresh} hash={hash} />
+            <EntriesTable entries={shown} fresh={fresh} hash={hash} onEdit={onEdit} />
+            <EntriesList entries={shown} fresh={fresh} hash={hash} onEdit={onEdit} />
             <RecordScroll />
           </>
         ) : (
@@ -74,6 +77,10 @@ export const EntriesPage = () => {
   const loadingMembers = useMembers().isPending
   const entries = useEntries(month, member, !loadingMembers)
   const create = useCreateEntry()
+  const correct = useCorrectEntry()
+  const cancel = useCancelEntry()
+  const [chosen, setEditing] = useState<Entry>()
+  const editing = chosen?.competence.startsWith(month) ? chosen : undefined
   const [fresh, setFresh] = useState<string>()
   const [notice, setNotice] = useState<Notice>()
   const close = useCallback(() => setNotice(undefined), [])
@@ -88,12 +95,44 @@ export const EntriesPage = () => {
       onError: (error) => setNotice({ tone: 'error', message: failure(error, entry) }),
     })
   }
+  const pending = create.isPending || correct.isPending || cancel.isPending
+  const save = (entry: Entry) => (body: NewEntry) =>
+    correct.mutate(
+      { id: entry.id, body },
+      {
+        onSuccess: (replaced) => {
+          setEditing(undefined)
+          setFresh(replaced.id)
+          setNotice({ message: `Corrigido: ${replaced.description}` })
+        },
+        onError: (error) => setNotice({ tone: 'error', message: editFailure(error, entry.description) }),
+      },
+    )
+  const drop = (entry: Entry) => () => {
+    if (!window.confirm(`Cancelar ${entry.description}? Ele sai da lista, mas fica no histórico.`)) return
+    cancel.mutate(entry.id, {
+      onSuccess: () => {
+        setEditing(undefined)
+        setNotice({ message: `Cancelado: ${entry.description}` })
+      },
+      onError: (error) => setNotice({ tone: 'error', message: editFailure(error, entry.description) }),
+    })
+  }
+  const edit = (entry: Entry) => {
+    setEditing(entry)
+    window.scrollTo?.({ top: 0 })
+  }
   return (
     <>
       <PageHeader screen={screenOf('/lancamentos')} />
-      {!loadingMembers && <QuickAddForm key={`${month}:${member ?? 'all'}`} month={month} member={member} pending={create.isPending} onSubmit={add} />}
+      {!loadingMembers &&
+        (editing ? (
+          <QuickAddForm key={`edit:${editing.id}`} month={month} member={member} pending={pending} editing={{ entry: editing, onCancelEntry: drop(editing), onClose: () => setEditing(undefined) }} onSubmit={save(editing)} />
+        ) : (
+          <QuickAddForm key={`${month}:${member ?? 'all'}`} month={month} member={member} pending={pending} onSubmit={add} />
+        ))}
       <QueryView query={entries} skeleton={<EntriesSkeleton />} isEmpty={(data) => data.length === 0} empty={<EmptyState title={`Nenhum lançamento em ${formatMonth(firstDay(month))}`}>Receitas e despesas do mês aparecem aqui assim que forem lançadas ou previstas.</EmptyState>}>
-        {(data) => <Entries key={`${month}:${member ?? 'all'}`} entries={data} fresh={fresh} />}
+        {(data) => <Entries key={`${month}:${member ?? 'all'}`} entries={data} fresh={fresh} onEdit={edit} />}
       </QueryView>
       <Toast notice={notice} onClose={close} />
     </>

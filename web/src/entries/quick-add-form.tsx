@@ -1,13 +1,14 @@
 import { zodResolver } from '@hookform/resolvers/zod'
-import { CornerDownLeft } from 'lucide-react'
+import { CornerDownLeft, X } from 'lucide-react'
 import type { KeyboardEvent, ReactNode } from 'react'
 import { useForm } from 'react-hook-form'
 import { Button } from '../components/ui/button.tsx'
 import { today } from '../lib/format.ts'
 import { cn } from '../lib/utils.ts'
+import type { Entry } from '../overview/model.ts'
 import { useMembers } from '../query/shell.ts'
 import { type NewEntry, useAccounts, useCategories } from './queries.ts'
-import { dueOnFor, lastDayOf, paidByDefault, type QuickEntry, quickEntry, toNewEntry } from './quick-add.ts'
+import { dueOnFor, fromEntry, lastDayOf, paidByDefault, type QuickEntry, quickEntry, toNewEntry } from './quick-add.ts'
 
 const field = 'min-h-11 w-full rounded-control border bg-bg px-3 text-body text-text focus-visible:border-accent focus-visible:outline-2 focus-visible:outline-accent-soft aria-invalid:border-late md:min-h-10'
 const errorsId = 'quick-add-errors'
@@ -27,9 +28,11 @@ const submitOnEnter = (event: KeyboardEvent<HTMLFormElement>) => {
   event.currentTarget.requestSubmit()
 }
 
-type Props = { month: string; member: string | undefined; pending: boolean; onSubmit: (entry: NewEntry, reset: () => void) => void }
+type Editing = { entry: Entry; onCancelEntry: () => void; onClose: () => void }
 
-export const QuickAddForm = ({ month, member, pending, onSubmit }: Props) => {
+type Props = { month: string; member: string | undefined; pending: boolean; editing?: Editing; onSubmit: (entry: NewEntry, reset: () => void) => void }
+
+export const QuickAddForm = ({ month, member, pending, editing, onSubmit }: Props) => {
   const categories = useCategories().data ?? []
   const accounts = useAccounts().data ?? []
   const members = useMembers().data ?? []
@@ -37,20 +40,28 @@ export const QuickAddForm = ({ month, member, pending, onSubmit }: Props) => {
   const date = dueOnFor(month, now)
   const { register, handleSubmit, watch, setValue, resetField, setFocus, formState } = useForm<QuickEntry>({
     resolver: zodResolver(quickEntry(month, now)),
-    defaultValues: { direction: 'expense', description: '', amount: '', category: '', account: '', member: member ?? 'joint', date, paid: paidByDefault(date, now) },
+    defaultValues: editing ? fromEntry(editing.entry) : { direction: 'expense', description: '', amount: '', category: '', account: '', member: member ?? 'joint', date, paid: paidByDefault(date, now) },
   })
   const direction = watch('direction')
   const errors = Object.values(formState.errors).map((error) => error?.message)
   const invalid = (name: keyof QuickEntry) => ({ 'aria-invalid': formState.errors[name] ? true : undefined, 'aria-describedby': formState.errors[name] ? errorsId : undefined })
   const submit = handleSubmit((values) =>
-    onSubmit(toNewEntry(values, month), () => {
+    onSubmit(toNewEntry(values, month, editing?.entry.paidOn ?? undefined), () => {
       resetField('description')
       resetField('amount')
       setFocus('description')
     }),
   )
   return (
-    <form aria-label="Lançamento rápido" noValidate onSubmit={submit} onKeyDown={submitOnEnter} className="flex flex-col gap-2 rounded-card border bg-surface p-4">
+    <form aria-label={editing ? `Corrigir ${editing.entry.description}` : 'Lançamento rápido'} noValidate onSubmit={submit} onKeyDown={submitOnEnter} className={cn('flex flex-col gap-2 rounded-card border bg-surface p-4', editing && 'border-accent')}>
+      {editing && (
+        <div className="flex items-center gap-2">
+          <h2 className="m-0 flex-1 text-body font-semibold">Corrigir lançamento</h2>
+          <Button type="button" variant="ghost" size="icon" aria-label="Fechar correção" onClick={editing.onClose}>
+            <X size={16} aria-hidden="true" />
+          </Button>
+        </div>
+      )}
       <div className="flex flex-wrap items-end gap-2">
         <Field id="quick-direction" label="Tipo" grow="flex-[0_1_140px] min-w-[7.5rem]">
           <select className={field} id="quick-direction" {...register('direction', { onChange: () => setValue('category', '') })}>
@@ -103,8 +114,13 @@ export const QuickAddForm = ({ month, member, pending, onSubmit }: Props) => {
           <input className="size-4 accent-accent" type="checkbox" id="quick-paid" {...register('paid')} {...invalid('paid')} />
           {direction === 'income' ? 'Já recebido' : 'Já pago'}
         </label>
-        <Button type="submit" disabled={pending} className="flex-[1_0_auto] md:ml-auto md:flex-none">
-          Lançar
+        {editing && (
+          <Button type="button" variant="outline" disabled={pending} onClick={editing.onCancelEntry} className="flex-[1_0_auto] text-late md:ml-auto md:flex-none">
+            Cancelar lançamento
+          </Button>
+        )}
+        <Button type="submit" disabled={pending} className={cn('flex-[1_0_auto] md:flex-none', !editing && 'md:ml-auto')}>
+          {editing ? 'Salvar correção' : 'Lançar'}
           <CornerDownLeft size={14} aria-hidden="true" className="opacity-75" />
         </Button>
       </div>

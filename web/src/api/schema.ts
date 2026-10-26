@@ -272,6 +272,75 @@ export type paths = {
         patch?: never;
         trace?: never;
     };
+    "/api/entries/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Correct an entry: it is closed and replaced by a new one with the given values */
+        put: operations["correctEntry"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/entries/{id}/cancel": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Cancel an entry; it is closed, never deleted */
+        post: operations["cancelEntry"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/setup": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Open categories, accounts, reserves, incomes, recurring expenses, debts and goals */
+        get: operations["listSetup"];
+        put?: never;
+        /** Register a category, account, reserve, income, recurring expense, debt or goal */
+        post: operations["registerRecord"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/setup/{kind}/{id}/close": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Close a registered record; history keeps it, new entries can no longer use it */
+        post: operations["closeRecord"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/reserves/{name}": {
         parameters: {
             query?: never;
@@ -717,6 +786,22 @@ export type components = {
             progressPercent: string;
             dueOn: string | null;
         };
+        SetupRecord: {
+            /** @enum {string} */
+            kind: "category" | "account" | "reserve" | "income" | "recurring_expense" | "debt" | "goal";
+            id: string;
+            name: string;
+            /** @description Category direction, account institution, kind and last four, recurring installments, debt description or goal reserve */
+            detail: string | null;
+            amount: components["schemas"]["Money"] | null;
+            day: number | null;
+            member: string | null;
+            category: string | null;
+            account: string | null;
+        };
+        Closed: {
+            id: string;
+        };
         AuditItem: {
             id: string;
             /** Format: date-time */
@@ -903,6 +988,15 @@ export type components = {
             /** @description Date as YYYY-MM-DD */
             paid_on?: string;
         };
+        ListSetupResponse: components["schemas"]["SetupRecord"][];
+        RegisterRecordBody: {
+            /** @enum {string} */
+            kind: "category" | "account" | "reserve" | "income" | "recurring_expense" | "debt" | "goal";
+            /** @description Payload in camelCase, checked against the schema of its kind (same as import candidates) */
+            payload: {
+                [key: string]: unknown;
+            };
+        };
         UpdateReserveBody: {
             balance_cents?: number;
             target_cents?: number;
@@ -952,6 +1046,8 @@ export type Member = components['schemas']['Member'];
 export type Category = components['schemas']['Category'];
 export type Account = components['schemas']['Account'];
 export type Goal = components['schemas']['Goal'];
+export type SetupRecord = components['schemas']['SetupRecord'];
+export type Closed = components['schemas']['Closed'];
 export type AuditItem = components['schemas']['AuditItem'];
 export type AuditPage = components['schemas']['AuditPage'];
 export type SplitPart = components['schemas']['SplitPart'];
@@ -974,6 +1070,8 @@ export type ListAccountsResponse = components['schemas']['ListAccountsResponse']
 export type ListGoalsResponse = components['schemas']['ListGoalsResponse'];
 export type CreateEntryBody = components['schemas']['CreateEntryBody'];
 export type MarkPaidBody = components['schemas']['MarkPaidBody'];
+export type ListSetupResponse = components['schemas']['ListSetupResponse'];
+export type RegisterRecordBody = components['schemas']['RegisterRecordBody'];
 export type UpdateReserveBody = components['schemas']['UpdateReserveBody'];
 export type ProposeDecisionBody = components['schemas']['ProposeDecisionBody'];
 export type ListImportsResponse = components['schemas']['ListImportsResponse'];
@@ -1529,6 +1627,169 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["Entry"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+        };
+    };
+    correctEntry: {
+        parameters: {
+            query?: {
+                /** @description Reference date YYYY-MM-DD for pending and late; defaults to today in America/Sao_Paulo */
+                today?: string;
+            };
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateEntryBody"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Entry"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+        };
+    };
+    cancelEntry: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Closed"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+        };
+    };
+    listSetup: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ListSetupResponse"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+        };
+    };
+    registerRecord: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RegisterRecordBody"];
+            };
+        };
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SetupRecord"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+        };
+    };
+    closeRecord: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                kind: "category" | "account" | "reserve" | "income" | "recurring_expense" | "debt" | "goal";
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Closed"];
                 };
             };
             /** @description Error */

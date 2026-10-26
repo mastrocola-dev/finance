@@ -7,7 +7,7 @@ import { seed, seedToday } from '../../src/db/seed.ts'
 import { createDemoServer } from '../../src/mcp/demo.ts'
 import { testDatabase } from '../db/database.ts'
 
-const readTools = ['list_debts', 'list_decisions', 'list_entries', 'list_reserves', 'month_summary']
+const readTools = ['list_debts', 'list_decisions', 'list_entries', 'list_reserves', 'list_setup', 'month_summary']
 
 describe('demo mcp server', () => {
   let db: Awaited<ReturnType<typeof testDatabase>>

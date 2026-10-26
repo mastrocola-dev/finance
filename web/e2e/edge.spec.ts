@@ -10,6 +10,7 @@ const routes = [
   { path: '/decisoes', heading: 'Decisões' },
   { path: '/atividade', heading: 'Atividade' },
   { path: '/importar', heading: 'Importar' },
+  { path: '/cadastros', heading: 'Cadastros' },
 ]
 
 const gutter = 16

@@ -52,9 +52,9 @@ const Control = ({ id, field, value, error, onChange }: FieldProps) => {
   return <input id={id} className={cn(input, ['money', 'balance'].includes(field.type) && 'amount')} autoComplete="off" list={field.names ? `${id}-names` : undefined} value={value} onChange={(event) => onChange(event.target.value)} {...kind} {...described} />
 }
 
-type Props = { candidate: Candidate; title: string; names: Record<Names, string[]>; busy: boolean; serverErrors?: Errors; onSave: (payload: Record<string, unknown>) => void; onCancel: () => void }
+type Props = { candidate: Pick<Candidate, 'id' | 'kind' | 'payload'>; title: string; label?: string; saveLabel?: string; names: Record<Names, string[]>; busy: boolean; serverErrors?: Errors; onSave: (payload: Record<string, unknown>) => void; onCancel: () => void }
 
-export const CandidateForm = ({ candidate, title, names, busy, serverErrors = {}, onSave, onCancel }: Props) => {
+export const CandidateForm = ({ candidate, title, label = `Editar ${title}`, saveLabel = 'Salvar', names, busy, serverErrors = {}, onSave, onCancel }: Props) => {
   const [values, setValues] = useState<Values>(() => toValues(candidate))
   const [errors, setErrors] = useState<Errors>({})
   const shown = { ...serverErrors, ...errors }
@@ -66,7 +66,7 @@ export const CandidateForm = ({ candidate, title, names, busy, serverErrors = {}
   }
   const prefix = `edit-${candidate.id}`
   return (
-    <form aria-label={`Editar ${title}`} noValidate onSubmit={submit} className="flex flex-col gap-3 rounded-control bg-sunken p-3">
+    <form aria-label={label} noValidate onSubmit={submit} className="flex flex-col gap-3 rounded-control bg-sunken p-3">
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
         {fieldsOf[candidate.kind].map((field) => {
           const id = `${prefix}-${field.key}`
@@ -114,7 +114,7 @@ export const CandidateForm = ({ candidate, title, names, busy, serverErrors = {}
           Cancelar
         </Button>
         <Button type="submit" disabled={busy}>
-          Salvar
+          {saveLabel}
         </Button>
       </div>
     </form>

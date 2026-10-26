@@ -10,6 +10,7 @@ const routes = [
   { name: 'decisions', path: '/decisoes', heading: 'Decisões' },
   { name: 'activity', path: '/atividade', heading: 'Atividade' },
   { name: 'imports', path: '/importar', heading: 'Importar' },
+  { name: 'setup', path: '/cadastros', heading: 'Cadastros' },
 ]
 
 const viewports = [

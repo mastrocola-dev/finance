@@ -107,6 +107,11 @@ describe('openapi', () => {
       createEntry: { path: `/entries?${today}`, body: { month: '2026-10', due_on: '2026-10-26', description: 'Bakery', direction: 'expense', amount_cents: 1800, category: 'alimentação', member: 'joint' } },
       markPaid: { path: `/entries/ENTRY/paid?${today}`, body: {} },
       markUnpaid: { path: `/entries/ENTRY/unpaid?${today}` },
+      correctEntry: { path: `/entries/ENTRY?${today}`, body: { month: '2026-10', due_on: '2026-10-26', description: 'Bakery', direction: 'expense', amount_cents: 2100, category: 'alimentação', member: 'joint' } },
+      cancelEntry: { path: '/entries/ENTRY/cancel' },
+      listSetup: { path: '/setup' },
+      registerRecord: { path: '/setup', body: { kind: 'category', payload: { name: 'Pets', kind: 'expense' } } },
+      closeRecord: { path: '/setup/category/RECORD/close' },
       updateReserve: { path: '/reserves/Reserva%20de%20emerg%C3%AAncia', body: { target_cents: 3000000 } },
       proposeDecision: { path: '/decisions', body: { title: 'Bike', description: 'Commuting' } },
       confirmDecision: { path: `/decisions/${proposed.body.id}/confirm` },
@@ -129,11 +134,13 @@ describe('openapi', () => {
     }
     let entry = ''
     let batch = ''
+    let record = ''
     const staged: Record<string, string> = {}
     const fill = (text: string) =>
       text
         .replace('ENTRY', entry)
         .replace('IMPORT', batch)
+        .replace('RECORD', record)
         .replace(/QUESTION|FIRST|SECOND/g, (key) => staged[key] ?? key)
     for (const route of routes) {
       const sample = samples[route.operationId]
@@ -149,7 +156,8 @@ describe('openapi', () => {
       assert.equal(response.status, route.status ?? 200, `${route.operationId}: ${JSON.stringify(body)}`)
       const parsed = route.response.safeParse(body)
       assert.ok(parsed.success, `${route.operationId}: ${parsed.error?.message}`)
-      if (route.operationId === 'createEntry') entry = body.id
+      if (route.operationId === 'createEntry' || route.operationId === 'correctEntry') entry = body.id
+      if (route.operationId === 'registerRecord') record = body.id
       if (route.operationId === 'uploadImport') batch = body.id
       if (route.operationId === 'uploadImport' || route.operationId === 'retryImport') {
         await uploads.settled()

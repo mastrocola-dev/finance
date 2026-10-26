@@ -5,6 +5,7 @@ import { runtimeCauses } from '../import/ingest.ts'
 import { authors } from '../ledger/audit.ts'
 import { statuses } from '../ledger/decisions.ts'
 import { origins, states } from '../ledger/entries.ts'
+import { setupKinds } from '../ledger/setup.ts'
 import { date, id, month, today } from '../mcp/schema.ts'
 
 export const memberHeader = 'x-member'
@@ -48,6 +49,11 @@ export const questionPath = z.object({ id, question: id })
 export const candidatePath = z.object({ id, candidate: id })
 export const answerBody = z.object({ answer: z.string().describe('One of the options or free text; naming an existing member, account, category or reserve resolves every candidate carrying the asked name') })
 export const candidateEdit = z.object({ payload: z.record(z.string(), z.unknown()).describe('Full candidate payload in camelCase, checked against the schema of its kind') })
+const setupKind = z.enum(setupKinds)
+
+export const setupPath = z.object({ kind: setupKind, id })
+export const newRecord = z.object({ kind: setupKind, payload: z.record(z.string(), z.unknown()).describe('Payload in camelCase, checked against the schema of its kind (same as import candidates)') })
+
 export const candidateIds = z.object({ ids: z.array(id).min(1).max(500) })
 
 export const uploadQuery = z.object({ consent: z.literal('true').describe('Confirms the member agreed that the file content is sent to the model for extraction') })
@@ -168,6 +174,20 @@ const category = z.strictObject({ id, name: z.string(), direction })
 
 const account = z.strictObject({ id, nickname: z.string(), lastFour: z.string().describe('Last four digits only'), member: z.string().nullable().describe('Owner; null means joint') })
 
+const setupRecord = z.strictObject({
+  kind: setupKind,
+  id,
+  name: z.string(),
+  detail: z.string().nullable().describe('Category direction, account institution, kind and last four, recurring installments, debt description or goal reserve'),
+  amount: money.nullable(),
+  day: z.int().nullable(),
+  member: z.string().nullable(),
+  category: z.string().nullable(),
+  account: z.string().nullable(),
+})
+
+const closed = z.strictObject({ id })
+
 const goal = z.strictObject({
   id,
   name: z.string(),
@@ -281,6 +301,8 @@ export const schemas = {
   Category: category,
   Account: account,
   Goal: goal,
+  SetupRecord: setupRecord,
+  Closed: closed,
   AuditItem: auditItem,
   AuditPage: auditPage,
   SplitPart: part,

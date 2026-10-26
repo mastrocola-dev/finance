@@ -876,6 +876,251 @@
         }
       }
     },
+    "/api/entries/{id}": {
+      "put": {
+        "operationId": "correctEntry",
+        "summary": "Correct an entry: it is closed and replaced by a new one with the given values",
+        "security": [
+          {
+            "member": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^\\d+$"
+            }
+          },
+          {
+            "name": "today",
+            "in": "query",
+            "required": false,
+            "description": "Reference date YYYY-MM-DD for pending and late; defaults to today in America/Sao_Paulo",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateEntryBody"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Entry"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/entries/{id}/cancel": {
+      "post": {
+        "operationId": "cancelEntry",
+        "summary": "Cancel an entry; it is closed, never deleted",
+        "security": [
+          {
+            "member": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^\\d+$"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Closed"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/setup": {
+      "get": {
+        "operationId": "listSetup",
+        "summary": "Open categories, accounts, reserves, incomes, recurring expenses, debts and goals",
+        "security": [
+          {},
+          {
+            "member": []
+          }
+        ],
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ListSetupResponse"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "operationId": "registerRecord",
+        "summary": "Register a category, account, reserve, income, recurring expense, debt or goal",
+        "security": [
+          {
+            "member": []
+          }
+        ],
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RegisterRecordBody"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SetupRecord"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/setup/{kind}/{id}/close": {
+      "post": {
+        "operationId": "closeRecord",
+        "summary": "Close a registered record; history keeps it, new entries can no longer use it",
+        "security": [
+          {
+            "member": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "kind",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "category",
+                "account",
+                "reserve",
+                "income",
+                "recurring_expense",
+                "debt",
+                "goal"
+              ]
+            }
+          },
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^\\d+$"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Closed"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/reserves/{name}": {
       "patch": {
         "operationId": "updateReserve",
@@ -2491,6 +2736,102 @@
         ],
         "additionalProperties": false
       },
+      "SetupRecord": {
+        "type": "object",
+        "properties": {
+          "kind": {
+            "type": "string",
+            "enum": [
+              "category",
+              "account",
+              "reserve",
+              "income",
+              "recurring_expense",
+              "debt",
+              "goal"
+            ]
+          },
+          "id": {
+            "type": "string",
+            "pattern": "^\\d+$"
+          },
+          "name": {
+            "type": "string"
+          },
+          "detail": {
+            "description": "Category direction, account institution, kind and last four, recurring installments, debt description or goal reserve",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "amount": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Money"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "day": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": -9007199254740991,
+                "maximum": 9007199254740991
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "member": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "category": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "account": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "kind",
+          "id",
+          "name",
+          "detail",
+          "amount",
+          "day",
+          "member",
+          "category",
+          "account"
+        ],
+        "additionalProperties": false
+      },
+      "Closed": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^\\d+$"
+          }
+        },
+        "required": [
+          "id"
+        ],
+        "additionalProperties": false
+      },
       "AuditItem": {
         "type": "object",
         "properties": {
@@ -3317,6 +3658,41 @@
             "description": "Date as YYYY-MM-DD"
           }
         }
+      },
+      "ListSetupResponse": {
+        "type": "array",
+        "items": {
+          "$ref": "#/components/schemas/SetupRecord"
+        }
+      },
+      "RegisterRecordBody": {
+        "type": "object",
+        "properties": {
+          "kind": {
+            "type": "string",
+            "enum": [
+              "category",
+              "account",
+              "reserve",
+              "income",
+              "recurring_expense",
+              "debt",
+              "goal"
+            ]
+          },
+          "payload": {
+            "type": "object",
+            "propertyNames": {
+              "type": "string"
+            },
+            "additionalProperties": {},
+            "description": "Payload in camelCase, checked against the schema of its kind (same as import candidates)"
+          }
+        },
+        "required": [
+          "kind",
+          "payload"
+        ]
       },
       "UpdateReserveBody": {
         "type": "object",

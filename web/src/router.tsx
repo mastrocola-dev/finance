@@ -19,6 +19,7 @@ const pages: Record<Path, ReturnType<typeof lazyRouteComponent>> = {
   '/decisoes': lazyRouteComponent(() => import('./decisions/decisions-page.tsx'), 'DecisionsPage'),
   '/atividade': lazyRouteComponent(() => import('./activity/activity-page.tsx'), 'ActivityPage'),
   '/importar': lazyRouteComponent(() => import('./imports/imports-page.tsx'), 'ImportsPage'),
+  '/cadastros': lazyRouteComponent(() => import('./setup/setup-page.tsx'), 'SetupPage'),
 }
 
 const reviewRoute = createRoute({ getParentRoute: () => rootRoute, path: '/importar/$id', component: lazyRouteComponent(() => import('./imports/review-page.tsx'), 'ReviewPage') })

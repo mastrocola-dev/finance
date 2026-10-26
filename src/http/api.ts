@@ -17,9 +17,10 @@ import { findEntry, listEntries } from '../ledger/entries.ts'
 import { forecastMonth } from '../ledger/forecast.ts'
 import { listGoals } from '../ledger/goals.ts'
 import { findMember, listMembers, type Member } from '../ledger/members.ts'
-import { confirmDecision, createEntry, markPaid, markUnpaid, proposeDecision, rejectDecision, updateReserve, withdrawDecision } from '../ledger/record.ts'
+import { cancelEntry, confirmDecision, correctEntry, createEntry, markPaid, markUnpaid, type NewEntry, proposeDecision, rejectDecision, updateReserve, withdrawDecision } from '../ledger/record.ts'
 import { findReserve, listReserves } from '../ledger/reserves.ts'
 import { RuleError } from '../ledger/rule.ts'
+import { closeRecord, listSetup, registerRecord } from '../ledger/setup.ts'
 import { monthSplit } from '../ledger/split.ts'
 import { compareMonths } from '../ledger/summary.ts'
 import { netWorth } from '../ledger/worth.ts'
@@ -41,11 +42,13 @@ import {
   namePath,
   newDecision,
   newEntry,
+  newRecord,
   payment,
   questionPath,
   referenceQuery,
   reserveChanges,
   schemas,
+  setupPath,
   summaryQuery,
   uploadHeaders,
   uploadQuery,
@@ -72,6 +75,18 @@ const writing = async <T>({ client, member }: { client: Database; member?: Membe
 }
 
 const route = <S extends Spec>(spec: S, handle: (input: Input<S>) => Promise<unknown>): Route => ({ ...spec, pattern: new URLPattern({ pathname: `${apiPrefix}${spec.path}` }), handle: handle as Route['handle'] })
+
+const entryOf = (body: z.output<typeof newEntry>): NewEntry => ({
+  month: body.month,
+  dueOn: body.due_on,
+  description: body.description,
+  direction: body.direction,
+  amount: BigInt(body.amount_cents),
+  category: body.category,
+  account: body.account,
+  member: body.member,
+  paidOn: body.paid_on,
+})
 
 const cents = (value: number | undefined) => (value === undefined ? undefined : BigInt(value))
 
@@ -127,19 +142,7 @@ export const routes: Route[] = [
   route({ method: 'GET', path: '/audit', operationId: 'listAudit', summary: 'Audit log, newest first, with counts per author', query: auditQuery, response: schemas.AuditPage }, ({ client, query: { before, ...filter } }) => listAudit(client, { ...filter, before: before === undefined ? undefined : BigInt(before) })),
   route({ method: 'POST', path: '/entries', operationId: 'createEntry', summary: 'Record an entry', query: referenceQuery, body: newEntry, response: schemas.Entry, status: 201 }, async (input) => {
     const { body } = input
-    const created = await writing(input, (connection, actor) =>
-      createEntry(connection, actor, {
-        month: body.month,
-        dueOn: body.due_on,
-        description: body.description,
-        direction: body.direction,
-        amount: BigInt(body.amount_cents),
-        category: body.category,
-        account: body.account,
-        member: body.member,
-        paidOn: body.paid_on,
-      }),
-    )
+    const created = await writing(input, (connection, actor) => createEntry(connection, actor, entryOf(body)))
     return findEntry(input.client, created, input.query.today)
   }),
   route({ method: 'POST', path: '/entries/:id/paid', operationId: 'markPaid', summary: 'Mark an entry as paid', params: idPath, query: referenceQuery, body: payment, response: schemas.Entry }, async (input) => {
@@ -149,6 +152,23 @@ export const routes: Route[] = [
   route({ method: 'POST', path: '/entries/:id/unpaid', operationId: 'markUnpaid', summary: 'Undo a payment mark, back to planned', params: idPath, query: referenceQuery, response: schemas.Entry }, async (input) => {
     const reopened = await writing(input, (connection, actor) => markUnpaid(connection, actor, BigInt(input.params.id)))
     return findEntry(input.client, reopened, input.query.today)
+  }),
+  route({ method: 'PUT', path: '/entries/:id', operationId: 'correctEntry', summary: 'Correct an entry: it is closed and replaced by a new one with the given values', params: idPath, query: referenceQuery, body: newEntry, response: schemas.Entry }, async (input) => {
+    const replaced = await writing(input, (connection, actor) => correctEntry(connection, actor, BigInt(input.params.id), entryOf(input.body)))
+    return findEntry(input.client, replaced, input.query.today)
+  }),
+  route({ method: 'POST', path: '/entries/:id/cancel', operationId: 'cancelEntry', summary: 'Cancel an entry; it is closed, never deleted', params: idPath, response: schemas.Closed }, async (input) => {
+    const cancelled = await writing(input, (connection, actor) => cancelEntry(connection, actor, BigInt(input.params.id)))
+    return { id: String(cancelled) }
+  }),
+  route({ method: 'GET', path: '/setup', operationId: 'listSetup', summary: 'Open categories, accounts, reserves, incomes, recurring expenses, debts and goals', response: z.array(schemas.SetupRecord) }, ({ client }) => listSetup(client)),
+  route({ method: 'POST', path: '/setup', operationId: 'registerRecord', summary: 'Register a category, account, reserve, income, recurring expense, debt or goal', body: newRecord, response: schemas.SetupRecord, status: 201 }, async (input) => {
+    const created = String(await writing(input, (connection, actor) => registerRecord(connection, actor, input.body.kind, input.body.payload)))
+    return (await listSetup(input.client)).find((record) => record.kind === input.body.kind && record.id === created)
+  }),
+  route({ method: 'POST', path: '/setup/:kind/:id/close', operationId: 'closeRecord', summary: 'Close a registered record; history keeps it, new entries can no longer use it', params: setupPath, response: schemas.Closed }, async (input) => {
+    const closedId = await writing(input, (connection, actor) => closeRecord(connection, actor, input.params.kind, BigInt(input.params.id)))
+    return { id: String(closedId) }
   }),
   route({ method: 'PATCH', path: '/reserves/:name', operationId: 'updateReserve', summary: 'Change the balance or target of a reserve', params: namePath, body: reserveChanges, response: schemas.Reserve }, async (input) => {
     const name = decodeURIComponent(input.params.name)
