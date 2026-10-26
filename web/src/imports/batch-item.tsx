@@ -3,9 +3,9 @@ import { useState } from 'react'
 import { Button, buttonVariants } from '../components/ui/button.tsx'
 import { chip } from '../decisions/decision-card.tsx'
 import { cn } from '../lib/utils.ts'
-import { type Batch, canRetry, closeAction, formatStamp, formatTokens, formatUsd, phaseLabels, phaseOf, phaseTones, plural, progressText, retryText, summary } from './model.ts'
+import { type Batch, canRetry, closeAction, formatStamp, formatTokens, formatUsd, phaseLabels, phaseOf, phaseTones, plural, progressText, retryText, summary, unavailableId } from './model.ts'
 
-type Props = { batch: Batch; busy: boolean; onClose: () => void; onRetry: () => void }
+type Props = { batch: Batch; busy: boolean; unavailable: boolean; onClose: () => void; onRetry: () => void }
 
 const Progress = ({ batch, progress }: { batch: Batch; progress: NonNullable<Batch['progress']> }) => (
   <div className="flex flex-col gap-1.5">
@@ -30,7 +30,7 @@ const Failures = ({ batch }: { batch: Batch }) => (
   </details>
 )
 
-export const BatchItem = ({ batch, busy, onClose, onRetry }: Props) => {
+export const BatchItem = ({ batch, busy, unavailable, onClose, onRetry }: Props) => {
   const [confirming, setConfirming] = useState(false)
   const phase = phaseOf(batch)
   const action = closeAction(batch)
@@ -56,7 +56,7 @@ export const BatchItem = ({ batch, busy, onClose, onRetry }: Props) => {
         {(phase === 'verified' || action || retry) && (
           <span className="ml-auto flex flex-wrap justify-end gap-2">
             {retry && !confirming && (
-              <Button variant="outline" disabled={busy} aria-label={`Ler de novo ${batch.fileName}`} onClick={onRetry}>
+              <Button variant="outline" disabled={busy || unavailable} aria-label={`Ler de novo ${batch.fileName}`} aria-describedby={unavailable ? unavailableId : undefined} onClick={onRetry}>
                 Ler de novo
               </Button>
             )}

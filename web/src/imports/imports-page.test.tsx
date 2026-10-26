@@ -234,6 +234,18 @@ test('disables the upload and says why while the ingest runtime is not ready', a
   expect(notice.textContent).not.toMatch(/\/|uv --directory/)
 })
 
+test('disables Ler de novo with the runtime notice while the ingest runtime is not ready', async () => {
+  runtime = { ready: false, cause: 'failed', warming: false }
+  start()
+  const form = await screen.findByRole('form', { name: 'Enviar arquivo' })
+  const notice = await within(form).findByRole('status')
+  const button = within(await item('planilha-casa.xlsx')).getByRole('button', { name: 'Ler de novo planilha-casa.xlsx' }) as HTMLButtonElement
+  expect(button.disabled).toBe(true)
+  expect(button.getAttribute('aria-describedby')).toBe(notice.id)
+  await userEvent.click(button)
+  expect(retries).toEqual([])
+})
+
 test('says the reading is being prepared and opens the upload once the runtime is ready', async () => {
   runtime = { ready: false, cause: 'failed', warming: true }
   start()

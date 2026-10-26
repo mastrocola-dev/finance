@@ -26,6 +26,7 @@ export const ImportsPage = () => {
   const { member } = useIdentity()
   const imports = useImports()
   const runtime = useRuntime()
+  const unavailable = unavailableText(runtime.data)
   const upload = useUpload()
   const close = useClose()
   const retry = useRetry()
@@ -43,7 +44,7 @@ export const ImportsPage = () => {
         <UploadForm
           member={member}
           pending={upload.isPending}
-          unavailable={unavailableText(runtime.data)}
+          unavailable={unavailable}
           onSubmit={(file, reset) =>
             upload.mutate(file, {
               onSuccess: (batch) => {
@@ -66,6 +67,7 @@ export const ImportsPage = () => {
                     key={batch.id}
                     batch={batch}
                     busy={busy.includes(batch.id)}
+                    unavailable={Boolean(unavailable)}
                     onRetry={() =>
                       retry.mutate(batch, {
                         onSuccess: () => setNotice({ message: `Lendo de novo: ${batch.fileName}` }),

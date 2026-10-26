@@ -15,11 +15,12 @@ import { useLedger, useNames } from './candidate-form.tsx'
 import { CandidateRow, type EditForm } from './candidate-row.tsx'
 import { CommitCard, CommittedCard } from './commit-card.tsx'
 import { type Names, serverErrors } from './edit-model.ts'
-import { type Batch, canRetry, closeFailure, formatStamp, phaseLabels, phaseOf, phaseTones, plural, progressText, retryFailure, retryText } from './model.ts'
-import { useClose, useRetry } from './queries.ts'
+import { type Batch, canRetry, closeFailure, formatStamp, phaseLabels, phaseOf, phaseTones, plural, progressText, retryFailure, retryText, unavailableText } from './model.ts'
+import { useClose, useRetry, useRuntime } from './queries.ts'
 import { QuestionCard } from './question-card.tsx'
 import { acceptable, type Candidate, checkText, commitFailure, commitPlan, type Decision, type Group, groupCandidates, type Question, reviewCounts, reviewFailure, titleOf } from './review-model.ts'
 import { useAnswer, useBatch, useCandidates, useCommit, useDecide, useEdit, useQuestions } from './review-queries.ts'
+import { UnavailableNotice } from './unavailable-notice.tsx'
 
 const card = 'flex min-w-0 flex-col gap-2 rounded-card border bg-surface px-4 py-3 md:px-6 md:py-4'
 
@@ -174,12 +175,15 @@ const Review = ({ batch, notify, onCommit }: { batch: Batch; notify: (notice: No
   )
 }
 
-const RetryCard = ({ batch, busy, onRetry }: { batch: Batch; busy: boolean; onRetry: () => void }) => (
+const retryUnavailableId = 'retry-unavailable'
+
+const RetryCard = ({ batch, busy, unavailable, onRetry }: { batch: Batch; busy: boolean; unavailable: string | undefined; onRetry: () => void }) => (
   <section aria-label="Ler de novo" className={cn(card, 'max-w-4xl flex-row flex-wrap items-center gap-3')}>
     <span className="min-w-0 flex-1 text-meta">{retryText(batch)}</span>
-    <Button variant="outline" disabled={busy} onClick={onRetry}>
+    <Button variant="outline" disabled={busy || Boolean(unavailable)} aria-describedby={unavailable ? retryUnavailableId : undefined} onClick={onRetry}>
       Ler de novo
     </Button>
+    {unavailable && <UnavailableNotice id={retryUnavailableId} text={unavailable} />}
   </section>
 )
 
@@ -187,6 +191,7 @@ export const ReviewPage = () => {
   const { id } = useParams({ from: '/importar/$id' })
   const batch = useBatch(id)
   const retry = useRetry()
+  const runtime = useRuntime()
   const commit = useCommit(id)
   const close = useClose()
   const [notice, setNotice] = useState<Notice>()
@@ -203,7 +208,9 @@ export const ReviewPage = () => {
           return (
             <>
               <BatchHeader batch={data} />
-              {canRetry(data) && <RetryCard batch={data} busy={retry.isPending} onRetry={() => retry.mutate(data, { onSuccess: () => setNotice({ message: `Lendo de novo: ${data.fileName}` }), onError: (error) => setNotice({ tone: 'error', message: retryFailure(error) }) })} />}
+              {canRetry(data) && (
+                <RetryCard batch={data} busy={retry.isPending} unavailable={unavailableText(runtime.data)} onRetry={() => retry.mutate(data, { onSuccess: () => setNotice({ message: `Lendo de novo: ${data.fileName}` }), onError: (error) => setNotice({ tone: 'error', message: retryFailure(error) }) })} />
+              )}
               {phase === 'verified' && <Review batch={data} notify={setNotice} onCommit={() => commit.mutate(undefined, { onSuccess: (done) => setNotice({ message: `Gravado no livro: ${plural(done.committed, 'item', 'itens')}` }), onError: (error) => setNotice({ tone: 'error', message: commitFailure(error) }) })} />}
               {phase === 'committed' && <CommittedCard batch={data} busy={close.isPending} onClose={() => close.mutate(data, { onSuccess: () => setNotice({ message: `Importação encerrada: ${data.fileName}` }), onError: (error) => setNotice({ tone: 'error', message: closeFailure(error) }) })} />}
               {phase !== 'verified' && phase !== 'committed' && <EmptyState title={phase === 'extracting' ? 'O Claude está lendo o arquivo' : 'Nada para revisar'}>{phase === 'extracting' ? 'A revisão abre aqui assim que a leitura terminar.' : waiting[phase]}</EmptyState>}

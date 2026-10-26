@@ -20,6 +20,8 @@ export const unavailableText = (runtime: Runtime | undefined) => {
 
 export const runtimePollMs = 5000
 
+export const unavailableId = 'upload-unavailable'
+
 const offline = 'A leitura de arquivos não está disponível agora. Veja o aviso acima.'
 
 export const formats = ['xlsx', 'csv', 'json', 'xml', 'txt', 'ofx', 'pdf']

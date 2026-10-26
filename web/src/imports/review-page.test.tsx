@@ -53,6 +53,7 @@ let candidates = seedCandidates()
 let questions = seedQuestions()
 let calls: { path: string; body: unknown; member: string | null }[] = []
 let refusal: string | undefined
+let runtime = { ready: true, cause: null as 'missing' | 'timeout' | 'failed' | null, warming: false }
 
 const fetch = vi.fn(async (input: Request) => {
   const url = new URL(input.url)
@@ -62,6 +63,7 @@ const fetch = vi.fn(async (input: Request) => {
       { id: '2', name: 'Gabriela', sharePercent: 50 },
     ])
   if (url.pathname === '/api/decisions') return Response.json([])
+  if (url.pathname === '/api/imports/runtime') return Response.json(runtime)
   if (url.pathname === '/api/categories') return Response.json([{ id: '1', name: 'Saúde', direction: 'expense' }])
   if (['/api/accounts', '/api/reserves', '/api/goals'].includes(url.pathname)) return Response.json([])
   if (input.method === 'PATCH') {
@@ -113,6 +115,7 @@ afterEach(() => {
   questions = seedQuestions()
   calls = []
   refusal = undefined
+  runtime = { ready: true, cause: null, warming: false }
 })
 
 const start = () => render(<App history={createMemoryHistory({ initialEntries: ['/importar/7'] })} fetch={fetch} />)
@@ -248,6 +251,23 @@ test('explains a retry the API refuses', async () => {
   expect(await screen.findByText('O arquivo não está mais guardado. Descarte a importação e envie o arquivo de novo.')).toBeTruthy()
   expect(screen.getByText('Farmácia')).toBeTruthy()
 })
+
+test('keeps Ler de novo disabled and says why while the ingest runtime is not ready', async () => {
+  current = batch({ retryable: 1 })
+  runtime = { ready: false, cause: 'timeout', warming: false }
+  start()
+  const retry = await screen.findByRole('region', { name: 'Ler de novo' })
+  const notice = await within(retry).findByRole('status')
+  expect(notice.textContent).toBe('Leitura indisponível. A preparação da leitura de arquivos demorou demais. A API tenta de novo em instantes.')
+  const button = within(retry).getByRole('button', { name: 'Ler de novo' }) as HTMLButtonElement
+  expect(button.disabled).toBe(true)
+  expect(button.getAttribute('aria-describedby')).toBe(notice.id)
+  runtime = { ready: true, cause: null, warming: false }
+  await waitFor(() => expect(within(retry).queryByRole('status')).toBeNull(), { timeout: 8000 })
+  expect(button.disabled).toBe(false)
+  expect(button.getAttribute('aria-describedby')).toBeNull()
+  expect(calls).toEqual([])
+}, 10000)
 
 test('commit explains the blocking checks of accepted items and stays disabled', async () => {
   candidates = candidates.map((item) => ({ ...item, status: item.id === '3' ? 'rejected' : 'accepted' }))
