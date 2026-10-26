@@ -3,6 +3,18 @@ import { ApiFailure } from '../query/client.ts'
 
 export type Batch = components['schemas']['ImportBatch']
 
+export type Runtime = components['schemas']['ImportRuntime']
+
+export const runtimeTexts: Record<NonNullable<Runtime['cause']>, string> = {
+  missing: 'A leitura de arquivos não está instalada neste computador. Instale o uv e reinicie a API.',
+  timeout: 'A preparação da leitura de arquivos demorou demais. Reinicie a API para tentar de novo.',
+  failed: 'Não foi possível preparar a leitura de arquivos. Veja o log da API e reinicie.',
+}
+
+export const unavailableText = (runtime: Runtime | undefined) => (runtime?.cause ? runtimeTexts[runtime.cause] : undefined)
+
+const offline = 'A leitura de arquivos não está disponível agora. Veja o aviso acima.'
+
 export const formats = ['xlsx', 'csv', 'json', 'xml', 'txt', 'ofx', 'pdf']
 
 export const accept = formats.map((format) => `.${format}`).join(',')
@@ -83,6 +95,7 @@ export const uploadFailure = (error: Error) => {
   if (!(error instanceof ApiFailure)) return 'Não foi possível enviar o arquivo. Tente de novo.'
   if (error.status === 401) return 'Escolha quem você é para importar.'
   if (error.status === 413) return 'O arquivo passa de 20 MB.'
+  if (error.status === 503) return offline
   if (/already in import batch/.test(error.message)) return 'Este arquivo já foi enviado. Veja o histórico.'
   if (/unsupported format/.test(error.message)) return `Formato não aceito. Use ${formats.join(', ')}.`
   if (/service-agent/.test(error.message)) return 'A leitura pelo Claude não está disponível neste ambiente.'
@@ -100,6 +113,7 @@ export const retryFailure = (error: Error) => {
   if (!(error instanceof ApiFailure)) return 'Não foi possível ler de novo. Tente de novo.'
   if (error.status === 401) return 'Escolha quem você é para ler de novo.'
   if (error.status === 409) return 'A importação ainda está sendo lida. Espere terminar.'
+  if (error.status === 503) return offline
   if (/no longer kept/.test(error.message)) return 'O arquivo não está mais guardado. Descarte a importação e envie o arquivo de novo.'
   if (/nothing to retry/.test(error.message)) return 'Não há trechos para ler de novo. A lista foi atualizada.'
   if (/not open for a retry/.test(error.message)) return 'Esta importação já foi gravada ou encerrada. A lista foi atualizada.'

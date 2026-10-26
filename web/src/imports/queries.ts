@@ -14,6 +14,11 @@ export const useImports = () => {
   })
 }
 
+export const useRuntime = () => {
+  const { api } = useIdentity()
+  return useQuery({ queryKey: ['imports', 'runtime'], queryFn: async () => unwrap(await api.GET('/api/imports/runtime')) })
+}
+
 const refresh = (queryClient: ReturnType<typeof useQueryClient>) => Promise.all(['imports', 'audit'].map((key) => queryClient.invalidateQueries({ queryKey: [key] })))
 
 export const useUpload = () => {

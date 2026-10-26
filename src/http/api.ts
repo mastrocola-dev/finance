@@ -9,7 +9,7 @@ import { closeBatch } from '../import/close.ts'
 import { commitBatch } from '../import/commit.ts'
 import { warmIngest } from '../import/ingest.ts'
 import { answerQuestion, editCandidate, reviewCandidates } from '../import/review.ts'
-import { Busy, type ImportUploads, importUploads } from '../import/uploads.ts'
+import { Busy, type ImportUploads, importUploads, Unavailable } from '../import/uploads.ts'
 import { listAudit } from '../ledger/audit.ts'
 import { listAccounts, listCategories } from '../ledger/catalog.ts'
 import { listDebts } from '../ledger/debts.ts'
@@ -94,6 +94,12 @@ const reviewableBatch = async ({ client, imports }: { client: Database; imports:
   return batchId
 }
 
+const refused = (caught: unknown): never => {
+  if (caught instanceof Busy) throw new HttpError(409, caught.message)
+  if (caught instanceof Unavailable) throw new HttpError(503, caught.message)
+  throw caught
+}
+
 const removeUpload = (imports: ImportUploads, batchId: bigint) => imports.discard(batchId).catch(() => [])
 
 const reviewSummaries = { accept: 'Accept open candidates of a verified import batch', reject: 'Reject open candidates of a verified import batch' } as const
@@ -170,21 +176,20 @@ export const routes: Route[] = [
     if (!input.member) throw new HttpError(401, `writes need the ${memberHeader} header`)
     if (input.request.headers.get('content-type') !== 'application/octet-stream') throw new HttpError(415, 'content-type must be application/octet-stream')
     const bytes = await readBytes(input.request, maxBytes)
-    const id = await input.imports.start({ author: 'import', memberId: input.member.id }, input.headers['x-file-name'], bytes)
+    const id = await input.imports.start({ author: 'import', memberId: input.member.id }, input.headers['x-file-name'], bytes).catch(refused)
     return batchView(input, id)
   }),
   route({ method: 'GET', path: '/imports', operationId: 'listImports', summary: 'Import batches, newest first', query: importQuery, response: z.array(schemas.ImportBatch) }, async ({ client, imports, query }) =>
     (await listBatches(client, query.status)).map((batch) => ({ ...batch, progress: imports.progressOf(BigInt(batch.id)) })),
   ),
+  route({ method: 'GET', path: '/imports/runtime', operationId: 'getImportRuntime', summary: 'Whether the ingest runtime can read uploads, and why not', response: schemas.ImportRuntime }, async ({ imports }) => imports.runtime()),
   route({ method: 'GET', path: '/imports/:id', operationId: 'getImport', summary: 'One import batch with its extraction progress', params: idPath, response: schemas.ImportBatch }, (input) => batchView(input, BigInt(input.params.id))),
   route({ method: 'GET', path: '/imports/:id/candidates', operationId: 'listImportCandidates', summary: 'Open candidates of an import batch', params: idPath, response: z.array(schemas.ImportCandidate) }, async ({ client, params }) => listCandidates(client, await existingBatch(client, params.id))),
   route({ method: 'GET', path: '/imports/:id/questions', operationId: 'listImportQuestions', summary: 'Open questions of an import batch', params: idPath, response: z.array(schemas.ImportQuestion) }, async ({ client, params }) => listQuestions(client, await existingBatch(client, params.id))),
   route({ method: 'POST', path: '/imports/:id/retry', operationId: 'retryImport', summary: 'Extract the failed and low-confidence chunks of a draft or verified batch again from its kept upload, in the background', params: idPath, response: schemas.ImportBatch, status: 202 }, async (input) => {
     if (!input.member) throw new HttpError(401, `writes need the ${memberHeader} header`)
     const batchId = await existingBatch(input.client, input.params.id)
-    await input.imports.retry({ author: 'import', memberId: input.member.id }, batchId).catch((caught) => {
-      throw caught instanceof Busy ? new HttpError(409, caught.message) : caught
-    })
+    await input.imports.retry({ author: 'import', memberId: input.member.id }, batchId).catch(refused)
     return batchView(input, batchId)
   }),
   route({ method: 'POST', path: '/imports/:id/questions/:question/answer', operationId: 'answerImportQuestion', summary: 'Answer an open question of a verified import batch', params: questionPath, body: answerBody, response: schemas.ImportQuestion }, async (input) => {
@@ -269,6 +274,7 @@ if (import.meta.main) {
   const imports = importUploads(pool)
   await imports.sweep()
   const readiness = await warmIngest()
+  imports.warmed(readiness)
   if (!readiness.ready) console.error(`ingest runtime not ready (${readiness.reason}): uploads will fail until uv can sync ingest/.venv-runtime`)
   const server = await serveApi(pool, undefined, undefined, imports)
   console.error(`finance api on ${server.url}${apiPrefix}`)

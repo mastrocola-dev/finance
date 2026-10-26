@@ -1230,6 +1230,41 @@
         }
       }
     },
+    "/api/imports/runtime": {
+      "get": {
+        "operationId": "getImportRuntime",
+        "summary": "Whether the ingest runtime can read uploads, and why not",
+        "security": [
+          {},
+          {
+            "member": []
+          }
+        ],
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ImportRuntime"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/imports/{id}": {
       "get": {
         "operationId": "getImport",
@@ -3096,6 +3131,34 @@
           "source",
           "chunk",
           "answer"
+        ],
+        "additionalProperties": false
+      },
+      "ImportRuntime": {
+        "type": "object",
+        "properties": {
+          "ready": {
+            "type": "boolean"
+          },
+          "cause": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "missing",
+                  "timeout",
+                  "failed"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "ready",
+          "cause"
         ],
         "additionalProperties": false
       },

@@ -115,6 +115,7 @@ describe('openapi', () => {
       forecastMonth: { path: `/months/2026-12/forecast?${today}` },
       uploadImport: { path: '/imports?consent=true', file: 'notas.txt' },
       listImports: { path: '/imports' },
+      getImportRuntime: { path: '/imports/runtime' },
       getImport: { path: '/imports/IMPORT' },
       listImportCandidates: { path: '/imports/IMPORT/candidates' },
       listImportQuestions: { path: '/imports/IMPORT/questions' },

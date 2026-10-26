@@ -230,4 +230,21 @@ describe('import api', () => {
     assert.equal((await retry('999999')).status, 404)
     assert.equal((await fetch(`${server.url}/api/imports/${batch}/retry`, { method: 'POST' })).status, 401)
   })
+  test('refuses uploads and retries with 503 while the ingest runtime is not ready, without leaking the reason', async () => {
+    assert.deepEqual((await get('/imports/runtime')).body, { ready: true, cause: null })
+    const [batch] = (await get('/imports')).body
+    uploads.warmed({ ready: false, cause: 'failed', reason: 'Command failed: uv --directory /home/someone/finance/ingest run' })
+    try {
+      assert.deepEqual(await get('/imports/runtime'), { status: 200, body: { ready: false, cause: 'failed' } })
+      const before = await readdir(folder)
+      assert.deepEqual(await upload('novo.txt', 'novo\n'), { status: 503, body: { error: 'the ingest runtime is not ready (failed)' } })
+      assert.deepEqual(await readdir(folder), before)
+      const retried = await fetch(`${server.url}/api/imports/${batch.id}/retry`, { method: 'POST', headers: { 'x-member': 'Marcio' } })
+      assert.deepEqual([retried.status, await retried.json()], [503, { error: 'the ingest runtime is not ready (failed)' }])
+      assert.equal((await get(`/imports/${batch.id}`)).body.progress?.state ?? null, batch.progress?.state ?? null)
+    } finally {
+      uploads.warmed({ ready: true })
+    }
+    assert.deepEqual((await get('/imports/runtime')).body, { ready: true, cause: null })
+  })
 })

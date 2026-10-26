@@ -21,19 +21,23 @@ export const ingestRuntime = (command: string[]) => ({
   env: { ...getDefaultEnvironment(), ...Object.fromEntries(passed()), UV_PROJECT_ENVIRONMENT: runtimeEnvironment },
 })
 
-export type IngestReadiness = { ready: true } | { ready: false; reason: string }
+export const runtimeCauses = ['missing', 'timeout', 'failed'] as const
+
+export type RuntimeCause = (typeof runtimeCauses)[number]
+
+export type IngestReadiness = { ready: true } | { ready: false; cause: RuntimeCause; reason: string }
 
 const warmTimeout = 300000
 
 const notReady = (caught: unknown): IngestReadiness => {
   const error = caught as { code?: unknown; killed?: boolean; stderr?: string; message?: string }
-  if (error.code === 'ENOENT') return { ready: false, reason: 'uv is not installed' }
-  if (error.killed) return { ready: false, reason: `uv did not finish in ${warmTimeout / 1000} s` }
+  if (error.code === 'ENOENT') return { ready: false, cause: 'missing', reason: 'uv is not installed' }
+  if (error.killed) return { ready: false, cause: 'timeout', reason: `uv did not finish in ${warmTimeout / 1000} s` }
   const line = `${error.stderr ?? ''}\n${error.message ?? ''}`
     .split('\n')
     .map((text) => text.trim())
     .find(Boolean)
-  return { ready: false, reason: (line ?? 'uv failed').slice(0, 200) }
+  return { ready: false, cause: 'failed', reason: (line ?? 'uv failed').slice(0, 200) }
 }
 
 export const warmIngest = async (runtime: ReturnType<typeof ingestRuntime> = ingestRuntime(['python', '-c', ''])): Promise<IngestReadiness> => {

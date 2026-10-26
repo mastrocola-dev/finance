@@ -38,6 +38,7 @@ let uploads: { name: string | null; consent: string | null; type: string | null;
 let closes: string[] = []
 let retries: { id: string; member: string | null }[] = []
 let failing: { status: number; error: string } | undefined
+let runtime: { ready: boolean; cause: 'missing' | 'timeout' | 'failed' | null } | undefined = { ready: true, cause: null }
 
 const fetch = vi.fn(async (input: Request) => {
   const url = new URL(input.url)
@@ -47,6 +48,7 @@ const fetch = vi.fn(async (input: Request) => {
       { id: '2', name: 'Gabriela', sharePercent: 50 },
     ])
   if (url.pathname === '/api/decisions') return Response.json([])
+  if (url.pathname === '/api/imports/runtime') return runtime ? Response.json(runtime) : Response.json({ error: 'internal error' }, { status: 500 })
   if (input.method === 'POST' && url.pathname === '/api/imports') {
     const bytes = await input.arrayBuffer()
     uploads.push({ name: input.headers.get('x-file-name'), consent: url.searchParams.get('consent'), type: input.headers.get('content-type'), size: bytes.byteLength, member: input.headers.get('x-member') })
@@ -85,6 +87,7 @@ afterEach(() => {
   closes = []
   retries = []
   failing = undefined
+  runtime = { ready: true, cause: null }
 })
 
 const start = () => render(<App history={createMemoryHistory({ initialEntries: ['/importar'] })} fetch={fetch} />)
@@ -217,4 +220,39 @@ test('explains a retry with nothing left to read', async () => {
   const sheet = await item('planilha-casa.xlsx')
   await userEvent.click(within(sheet).getByRole('button', { name: 'Ler de novo planilha-casa.xlsx' }))
   expect(await screen.findByText('Não há trechos para ler de novo. A lista foi atualizada.')).toBeTruthy()
+})
+
+test('disables the upload and says why while the ingest runtime is not ready', async () => {
+  runtime = { ready: false, cause: 'missing' }
+  start()
+  const form = await screen.findByRole('form', { name: 'Enviar arquivo' })
+  const notice = await within(form).findByRole('status')
+  expect(notice.textContent).toBe('Leitura indisponível. A leitura de arquivos não está instalada neste computador. Instale o uv e reinicie a API.')
+  const button = within(form).getByRole('button', { name: 'Enviar para leitura' }) as HTMLButtonElement
+  expect(button.disabled).toBe(true)
+  expect(button.getAttribute('aria-describedby')).toBe(notice.id)
+  expect(notice.textContent).not.toMatch(/\/|uv --directory/)
+})
+
+test('keeps the upload open when the runtime check itself fails', async () => {
+  runtime = undefined
+  start()
+  const form = await screen.findByRole('form', { name: 'Enviar arquivo' })
+  await item('notas.txt')
+  await waitFor(() => expect(vi.mocked(fetch).mock.calls.some(([request]) => new URL((request as Request).url).pathname === '/api/imports/runtime')).toBe(true))
+  expect(within(form).queryByRole('status')).toBeNull()
+  expect((within(form).getByRole('button', { name: 'Enviar para leitura' }) as HTMLButtonElement).disabled).toBe(false)
+})
+
+test('explains a 503 from the upload and shows the notice it refreshes', async () => {
+  start()
+  const form = await screen.findByRole('form', { name: 'Enviar arquivo' })
+  await userEvent.upload(within(form).getByLabelText('Arquivo'), csv())
+  await userEvent.click(within(form).getByRole('checkbox'))
+  failing = { status: 503, error: 'the ingest runtime is not ready (failed)' }
+  runtime = { ready: false, cause: 'failed' }
+  await userEvent.click(within(form).getByRole('button', { name: 'Enviar para leitura' }))
+  expect(await screen.findByText('A leitura de arquivos não está disponível agora. Veja o aviso acima.')).toBeTruthy()
+  expect((await within(form).findByRole('status')).textContent).toContain('Veja o log da API e reinicie.')
+  expect((within(form).getByRole('button', { name: 'Enviar para leitura' }) as HTMLButtonElement).disabled).toBe(true)
 })

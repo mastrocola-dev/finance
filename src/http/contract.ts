@@ -1,6 +1,7 @@
 import * as z from 'zod'
 import { batchStatuses } from '../import/batches.ts'
 import { kinds } from '../import/candidate.ts'
+import { runtimeCauses } from '../import/ingest.ts'
 import { authors } from '../ledger/audit.ts'
 import { statuses } from '../ledger/decisions.ts'
 import { origins, states } from '../ledger/entries.ts'
@@ -258,6 +259,8 @@ const importQuestion = z.strictObject({
   answer: z.string().nullable(),
 })
 
+const importRuntime = z.strictObject({ ready: z.boolean(), cause: z.enum(runtimeCauses).nullable() })
+
 const error = z.strictObject({ error: z.string(), issues: z.array(z.strictObject({ path: z.string(), message: z.string() })).optional() })
 
 const document = z.looseObject({ openapi: z.string() })
@@ -287,6 +290,7 @@ export const schemas = {
   ImportBatch: importBatch,
   ImportCandidate: importCandidate,
   ImportQuestion: importQuestion,
+  ImportRuntime: importRuntime,
   ApiError: error,
   OpenApiDocument: document,
 }

@@ -4,9 +4,11 @@ import { accept, fileIssue, formats } from './model.ts'
 
 const errorId = 'upload-error'
 
-type Props = { member: string | undefined; pending: boolean; onSubmit: (file: File, reset: () => void) => void }
+const unavailableId = 'upload-unavailable'
 
-export const UploadForm = ({ member, pending, onSubmit }: Props) => {
+type Props = { member: string | undefined; pending: boolean; unavailable: string | undefined; onSubmit: (file: File, reset: () => void) => void }
+
+export const UploadForm = ({ member, pending, unavailable, onSubmit }: Props) => {
   const input = useRef<HTMLInputElement>(null)
   const [file, setFile] = useState<File>()
   const [consent, setConsent] = useState(false)
@@ -33,6 +35,11 @@ export const UploadForm = ({ member, pending, onSubmit }: Props) => {
         </h2>
         <p className="m-0 text-meta text-muted">Planilha, extrato ou exportação de outro app. O Claude lê o conteúdo e propõe lançamentos para vocês revisarem.</p>
       </div>
+      {unavailable && (
+        <p id={unavailableId} role="status" className="m-0 rounded-control border bg-pending-soft px-3 py-2 text-meta text-text">
+          <span className="font-semibold text-pending">Leitura indisponível.</span> {unavailable}
+        </p>
+      )}
       <div className="flex flex-col gap-1.5">
         <label htmlFor="upload-file" className="text-xs text-muted">
           Arquivo
@@ -71,7 +78,7 @@ export const UploadForm = ({ member, pending, onSubmit }: Props) => {
           {issue}
         </p>
       )}
-      <Button type="submit" disabled={pending || !member}>
+      <Button type="submit" disabled={pending || !member || Boolean(unavailable)} aria-describedby={unavailable ? unavailableId : undefined}>
         {pending ? 'Enviando…' : 'Enviar para leitura'}
       </Button>
       {!member && <p className="m-0 text-meta text-muted">Escolha quem você é para importar.</p>}

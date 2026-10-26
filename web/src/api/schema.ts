@@ -375,6 +375,23 @@ export type paths = {
         patch?: never;
         trace?: never;
     };
+    "/api/imports/runtime": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Whether the ingest runtime can read uploads, and why not */
+        get: operations["getImportRuntime"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/imports/{id}": {
         parameters: {
             query?: never;
@@ -841,6 +858,10 @@ export type components = {
             chunk: string | null;
             answer: string | null;
         };
+        ImportRuntime: {
+            ready: boolean;
+            cause: ("missing" | "timeout" | "failed") | null;
+        };
         ApiError: {
             error: string;
             issues?: {
@@ -939,6 +960,7 @@ export type NetWorth = components['schemas']['NetWorth'];
 export type ImportBatch = components['schemas']['ImportBatch'];
 export type ImportCandidate = components['schemas']['ImportCandidate'];
 export type ImportQuestion = components['schemas']['ImportQuestion'];
+export type ImportRuntime = components['schemas']['ImportRuntime'];
 export type ApiError = components['schemas']['ApiError'];
 export type OpenApiDocument = components['schemas']['OpenApiDocument'];
 export type ListEntriesResponse = components['schemas']['ListEntriesResponse'];
@@ -1740,6 +1762,35 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ImportBatch"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+        };
+    };
+    getImportRuntime: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ImportRuntime"];
                 };
             };
             /** @description Error */

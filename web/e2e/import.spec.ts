@@ -152,6 +152,24 @@ const shoot = (name: string, prepare: (page: Page) => Promise<void>) => {
       })
 }
 
+const unavailable = async (page: Page) => {
+  await page.route('**/api/imports/runtime', (route) => route.fulfill({ json: { ready: false, cause: 'failed' } }))
+  await page.goto('/importar')
+  await expect(page.getByRole('form', { name: 'Enviar arquivo' }).getByRole('status')).toContainText('Leitura indisponível')
+}
+
+shoot('imports-unavailable', unavailable)
+
+test('import form says why it cannot read files and stays accessible', async ({ browser }) => {
+  const context = await openContext(browser, { viewport: viewports[0] })
+  await context.addInitScript(() => localStorage.setItem('finance.member', 'Marcio'))
+  const page = await context.newPage()
+  await unavailable(page)
+  await expect(page.getByRole('button', { name: 'Enviar para leitura' })).toBeDisabled()
+  expect((await new AxeBuilder({ page }).analyze()).violations).toEqual([])
+  await context.close()
+})
+
 const batchId = async (page: Page) => {
   const batches: { id: string; fileName: string }[] = await (await page.request.get('/api/imports', { headers: { 'x-member': 'Marcio' } })).json()
   return batches.find((batch) => batch.fileName === statement.name)?.id

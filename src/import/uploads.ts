@@ -6,6 +6,7 @@ import type { Database } from '../db/connection.ts'
 import type { Actor } from '../db/write.ts'
 import { RuleError } from '../ledger/rule.ts'
 import { type FileImport, finishImport, finishRetry, openImport, openRetry } from './cli.ts'
+import type { IngestReadiness } from './ingest.ts'
 import { batchOfFile, maskDigits } from './staging.ts'
 
 export type Progress = { state: 'extracting' | 'done' | 'failed'; done: number; total: number; error: string | null }
@@ -21,6 +22,8 @@ export const fileNameIssue = (name: string) => {
 }
 
 export class Busy extends Error {}
+
+export class Unavailable extends Error {}
 
 const hashName = /^[0-9a-f]{64}$/
 
@@ -44,6 +47,13 @@ const folders = async (folder: string) => {
 export const importUploads = (pool: Database, { folder = uploadsFolder(), ...options }: Uploads = {}) => {
   const progress = new Map<bigint, Progress>()
   const running = new Set<Promise<void>>()
+  let readiness: IngestReadiness = { ready: true }
+
+  const runtime = () => (readiness.ready ? { ready: true, cause: null } : { ready: false, cause: readiness.cause })
+
+  const available = () => {
+    if (!readiness.ready) throw new Unavailable(`the ingest runtime is not ready (${readiness.cause})`)
+  }
 
   const extract = async (connection: PoolClient, batchId: bigint, finish: (onProgress: NonNullable<FileImport['onProgress']>) => Promise<unknown>) => {
     const state = progress.get(batchId) as Progress
@@ -63,6 +73,7 @@ export const importUploads = (pool: Database, { folder = uploadsFolder(), ...opt
   }
 
   const start = async (actor: Actor, name: string, bytes: Uint8Array) => {
+    available()
     const issue = fileNameIssue(name)
     if (issue) throw new RuleError(issue)
     const hash = createHash('sha256').update(bytes).digest('hex')
@@ -88,6 +99,7 @@ export const importUploads = (pool: Database, { folder = uploadsFolder(), ...opt
   const retry = async (actor: Actor, batchId: bigint) => {
     const previous = progress.get(batchId)
     if (previous?.state === 'extracting') throw new Busy(`import batch ${batchId} is still extracting`)
+    available()
     progress.set(batchId, { state: 'extracting', done: 0, total: 0, error: null })
     let connection: PoolClient | undefined
     try {
@@ -123,7 +135,11 @@ export const importUploads = (pool: Database, { folder = uploadsFolder(), ...opt
 
   const sweep = async () => prune(await folders(folder))
 
-  return { start, retry, discard, sweep, progressOf: (batchId: bigint) => progress.get(batchId) ?? null, settled: () => Promise.all(running) }
+  const warmed = (value: IngestReadiness) => {
+    readiness = value
+  }
+
+  return { start, retry, discard, sweep, runtime, warmed, progressOf: (batchId: bigint) => progress.get(batchId) ?? null, settled: () => Promise.all(running) }
 }
 
 export type ImportUploads = ReturnType<typeof importUploads>
