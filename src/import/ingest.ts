@@ -21,12 +21,27 @@ export const ingestRuntime = (command: string[]) => ({
   env: { ...getDefaultEnvironment(), ...Object.fromEntries(passed()), UV_PROJECT_ENVIRONMENT: runtimeEnvironment },
 })
 
-export const warmIngest = async (runtime: ReturnType<typeof ingestRuntime> = ingestRuntime(['python', '-c', ''])) => {
+export type IngestReadiness = { ready: true } | { ready: false; reason: string }
+
+const warmTimeout = 300000
+
+const notReady = (caught: unknown): IngestReadiness => {
+  const error = caught as { code?: unknown; killed?: boolean; stderr?: string; message?: string }
+  if (error.code === 'ENOENT') return { ready: false, reason: 'uv is not installed' }
+  if (error.killed) return { ready: false, reason: `uv did not finish in ${warmTimeout / 1000} s` }
+  const line = `${error.stderr ?? ''}\n${error.message ?? ''}`
+    .split('\n')
+    .map((text) => text.trim())
+    .find(Boolean)
+  return { ready: false, reason: (line ?? 'uv failed').slice(0, 200) }
+}
+
+export const warmIngest = async (runtime: ReturnType<typeof ingestRuntime> = ingestRuntime(['python', '-c', ''])): Promise<IngestReadiness> => {
   try {
-    await promisify(execFile)(runtime.command, runtime.args, { env: runtime.env, timeout: 300000 })
-    return true
-  } catch {
-    return false
+    await promisify(execFile)(runtime.command, runtime.args, { env: runtime.env, timeout: warmTimeout })
+    return { ready: true }
+  } catch (caught) {
+    return notReady(caught)
   }
 }
 

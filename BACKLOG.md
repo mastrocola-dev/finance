@@ -4,7 +4,8 @@ Ordered. The agent takes the first unblocked item under **Next**. Items marked *
 
 ## Next
 
-- **L165 Say why the ingest runtime is not ready**: `warmIngest` returns false and the API logs a generic warning; with `--quiet` uv still writes errors to stderr, so the warning could carry the first line of it (offline without a cache, a lock out of date, uv missing) and the import screen could show the same reason instead of a failed upload
+- **L165b Show why imports cannot run**: keep the `warmIngest()` result in the API (`importUploads` or a `readiness` passed to `api()`), expose it as `GET /api/imports/runtime` (`{ ready, reason }`), refuse `POST /api/imports` with 503 and the reason while not ready, and show a notice on `/importar` with the upload disabled; the reason must not leak absolute paths or the uv command line (the empty-stderr fallback is `Command failed: uv --directory /…`), so map it to a short Portuguese text there and keep the raw line for the log
+- **L165c Retry the warm-up**: a runtime that failed at start (offline without a cache) stays failed until the API restarts; once L165b keeps the readiness, warm again in the background on the next upload attempt or on a timer
 
 ## Later
 
@@ -195,6 +196,7 @@ Ordered. The agent takes the first unblocked item under **Next**. Items marked *
 
 ## Done
 
+- **L165a Say why the ingest runtime is not ready** (2026-10-26): `warmIngest()` returns `IngestReadiness` (`{ ready: true }` or `{ ready: false, reason }`): `uv is not installed` on ENOENT, `uv did not finish in 300 s` on timeout, else the first non-empty line of stderr (then of the error message), at most 200 chars; `npm run api:http` logs `ingest runtime not ready (<reason>)`; two new tests drive a fake command with stderr and with an empty stderr. Split: the screen and the API route are L165b, re-warming is L165c
 - **L164 Jump from a name to the item that creates it** (2026-10-26): each reference in Nomes não aceitos is a `Link to="."` with `hash` `candidate-<id>` (`candidateRecord`) of the creating candidate (the pending one first, else a rejected one; `Missing.creator`), `resetScroll={false}` and `activeOptions.includeHash`; candidate rows spread `recordProps` and tint `aria-[current=true]:bg-accent-soft`; the review mounts one `RecordScroll`; a second click on the same link scrolls again through the new `scrollToRecord`. Vitest checks the creator ids, the href and the marked row; `import.spec.ts` clicks the link, asserts Aceitar Pets comes into view on the marked row and runs axe; `imports-unstaged-*` PNGs show the underlined link
 - **L163 Warm the ingest runtime at start** (2026-10-26): `warmIngest()` in `src/import/ingest.ts` runs `ingestRuntime(['python', '-c', ''])` (same `uv run --no-dev --exact --locked`, so it syncs `ingest/.venv-runtime`) and returns false instead of throwing; `npm run api:http` awaits it after the sweep and before listening, logging a warning when it fails; README says so. Checked by hand: with the runtime removed the API created it before printing its URL. 248 node (2 new), 157 web, 63 pytest
 - **L154 Screenshot of names only an unaccepted item creates** (2026-10-26): `e2e/import.spec.ts` edits Farmácia to category Pets (staged by the pending Pets item), asserts the Nomes não aceitos list and the disabled Gravar 3 itens, shoots `imports-unstaged-*` (README row added), then accepts Pets and commits 4 items, so the e2e now also writes an entry whose category is created in the same commit; commit and committed PNGs changed to 4 items

@@ -41,11 +41,22 @@ describe('ingest runtime', () => {
   })
 
   test('warms the runtime environment before the first upload', { skip: !hasUv && 'uv is not installed' }, async () => {
-    assert.equal(await warmIngest(), true)
+    assert.deepEqual(await warmIngest(), { ready: true })
     await access(join(runtimeEnvironment, 'pyvenv.cfg'))
   })
 
   test('reports a runtime that cannot start instead of throwing', async () => {
-    assert.equal(await warmIngest({ command: 'finance-missing-uv', args: [], env: {} }), false)
+    assert.deepEqual(await warmIngest({ command: 'finance-missing-uv', args: [], env: {} }), { ready: false, reason: 'uv is not installed' })
+  })
+
+  test('says why with the first line uv wrote to stderr', async () => {
+    const script = "process.stderr.write('\\n  error: The lockfile needs to be updated\\nhint: run uv lock\\n'); process.exit(2)"
+    assert.deepEqual(await warmIngest({ command: process.execPath, args: ['-e', script], env: {} }), { ready: false, reason: 'error: The lockfile needs to be updated' })
+  })
+
+  test('falls back to the exit message when stderr is empty', async () => {
+    const readiness = await warmIngest({ command: process.execPath, args: ['-e', 'process.exit(3)'], env: {} })
+    assert.equal(readiness.ready, false)
+    assert.match(readiness.ready ? '' : readiness.reason, /^Command failed: /)
   })
 })

@@ -268,7 +268,8 @@ if (import.meta.main) {
   const pool = connectPool()
   const imports = importUploads(pool)
   await imports.sweep()
-  if (!(await warmIngest())) console.error('ingest runtime not ready: uploads will fail until uv can sync ingest/.venv-runtime')
+  const readiness = await warmIngest()
+  if (!readiness.ready) console.error(`ingest runtime not ready (${readiness.reason}): uploads will fail until uv can sync ingest/.venv-runtime`)
   const server = await serveApi(pool, undefined, undefined, imports)
   console.error(`finance api on ${server.url}${apiPrefix}`)
   const stop = async () => {
