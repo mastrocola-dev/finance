@@ -152,23 +152,31 @@ const shoot = (name: string, prepare: (page: Page) => Promise<void>) => {
       })
 }
 
-const unavailable = async (page: Page) => {
-  await page.route('**/api/imports/runtime', (route) => route.fulfill({ json: { ready: false, cause: 'failed', warming: false } }))
+const runtimeDown = (warming: boolean, title: string) => async (page: Page) => {
+  await page.route('**/api/imports/runtime', (route) => route.fulfill({ json: { ready: false, cause: 'failed', warming } }))
   await page.goto('/importar')
-  await expect(page.getByRole('form', { name: 'Enviar arquivo' }).getByRole('status')).toContainText('Leitura indisponível')
+  await expect(page.getByRole('form', { name: 'Enviar arquivo' }).getByRole('status')).toContainText(title)
 }
 
-shoot('imports-unavailable', unavailable)
+const unavailable = runtimeDown(false, 'Leitura indisponível')
+const warming = runtimeDown(true, 'Preparando a leitura')
 
-test('import form says why it cannot read files and stays accessible', async ({ browser }) => {
-  const context = await openContext(browser, { viewport: viewports[0] })
-  await context.addInitScript(() => localStorage.setItem('finance.member', 'Marcio'))
-  const page = await context.newPage()
-  await unavailable(page)
-  await expect(page.getByRole('button', { name: 'Enviar para leitura' })).toBeDisabled()
-  expect((await new AxeBuilder({ page }).analyze()).violations).toEqual([])
-  await context.close()
-})
+shoot('imports-unavailable', unavailable)
+shoot('imports-warming', warming)
+
+for (const [state, prepare] of [
+  ['unavailable', unavailable],
+  ['warming', warming],
+] as const)
+  test(`import form says why it cannot read files and stays accessible while ${state}`, async ({ browser }) => {
+    const context = await openContext(browser, { viewport: viewports[0] })
+    await context.addInitScript(() => localStorage.setItem('finance.member', 'Marcio'))
+    const page = await context.newPage()
+    await prepare(page)
+    await expect(page.getByRole('button', { name: 'Enviar para leitura' })).toBeDisabled()
+    expect((await new AxeBuilder({ page }).analyze()).violations).toEqual([])
+    await context.close()
+  })
 
 const batchId = async (page: Page) => {
   const batches: { id: string; fileName: string }[] = await (await page.request.get('/api/imports', { headers: { 'x-member': 'Marcio' } })).json()

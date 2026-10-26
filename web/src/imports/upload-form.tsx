@@ -1,11 +1,11 @@
 import { type FormEvent, useRef, useState } from 'react'
 import { Button } from '../components/ui/button.tsx'
-import { accept, fileIssue, formats, unavailableId } from './model.ts'
+import { accept, fileIssue, formats, type Unavailable, unavailableId } from './model.ts'
 import { UnavailableNotice } from './unavailable-notice.tsx'
 
 const errorId = 'upload-error'
 
-type Props = { member: string | undefined; pending: boolean; unavailable: string | undefined; onSubmit: (file: File, reset: () => void) => void }
+type Props = { member: string | undefined; pending: boolean; unavailable: Unavailable | undefined; onSubmit: (file: File, reset: () => void) => void }
 
 export const UploadForm = ({ member, pending, unavailable, onSubmit }: Props) => {
   const input = useRef<HTMLInputElement>(null)
@@ -34,7 +34,7 @@ export const UploadForm = ({ member, pending, unavailable, onSubmit }: Props) =>
         </h2>
         <p className="m-0 text-meta text-muted">Planilha, extrato ou exportação de outro app. O Claude lê o conteúdo e propõe lançamentos para vocês revisarem.</p>
       </div>
-      {unavailable && <UnavailableNotice id={unavailableId} text={unavailable} />}
+      {unavailable && <UnavailableNotice id={unavailableId} notice={unavailable} />}
       <div className="flex flex-col gap-1.5">
         <label htmlFor="upload-file" className="text-xs text-muted">
           Arquivo

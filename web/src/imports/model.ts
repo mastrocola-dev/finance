@@ -11,11 +11,14 @@ export const runtimeTexts: Record<NonNullable<Runtime['cause']>, string> = {
   failed: 'Não foi possível preparar a leitura de arquivos. Veja o log da API; ela tenta de novo em instantes.',
 }
 
-export const warmingText = 'Preparando a leitura de arquivos. O envio volta assim que ela estiver pronta.'
+export type Unavailable = { title: string; text: string }
 
-export const unavailableText = (runtime: Runtime | undefined) => {
+const warming: Unavailable = { title: 'Preparando a leitura.', text: 'Isso leva alguns instantes; a tela atualiza sozinha.' }
+
+export const unavailableNotice = (runtime: Runtime | undefined): Unavailable | undefined => {
   if (!runtime || runtime.ready) return undefined
-  return runtime.warming ? warmingText : runtime.cause ? runtimeTexts[runtime.cause] : undefined
+  if (runtime.warming) return warming
+  return runtime.cause ? { title: 'Leitura indisponível.', text: runtimeTexts[runtime.cause] } : undefined
 }
 
 export const runtimePollMs = 5000

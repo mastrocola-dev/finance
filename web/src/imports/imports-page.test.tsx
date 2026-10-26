@@ -250,7 +250,7 @@ test('says the reading is being prepared and opens the upload once the runtime i
   runtime = { ready: false, cause: 'failed', warming: true }
   start()
   const form = await screen.findByRole('form', { name: 'Enviar arquivo' })
-  expect((await within(form).findByRole('status')).textContent).toBe('Leitura indisponível. Preparando a leitura de arquivos. O envio volta assim que ela estiver pronta.')
+  expect((await within(form).findByRole('status')).textContent).toBe('Preparando a leitura. Isso leva alguns instantes; a tela atualiza sozinha.')
   runtime = { ready: true, cause: null, warming: false }
   await waitFor(() => expect(within(form).queryByRole('status')).toBeNull(), { timeout: 8000 })
   await userEvent.upload(within(form).getByLabelText('Arquivo'), csv())

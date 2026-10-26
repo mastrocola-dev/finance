@@ -8,7 +8,7 @@ import { useIdentity } from '../identity/identity-provider.tsx'
 import { screenOf } from '../shell/nav.ts'
 import { PageHeader } from '../shell/page-header.tsx'
 import { BatchItem } from './batch-item.tsx'
-import { type Batch, closeFailure, retryFailure, unavailableText, uploadFailure } from './model.ts'
+import { type Batch, closeFailure, retryFailure, unavailableNotice, uploadFailure } from './model.ts'
 import { useClose, useImports, useRetry, useRuntime, useUpload } from './queries.ts'
 import { UploadForm } from './upload-form.tsx'
 
@@ -26,7 +26,7 @@ export const ImportsPage = () => {
   const { member } = useIdentity()
   const imports = useImports()
   const runtime = useRuntime()
-  const unavailable = unavailableText(runtime.data)
+  const unavailable = unavailableNotice(runtime.data)
   const upload = useUpload()
   const close = useClose()
   const retry = useRetry()

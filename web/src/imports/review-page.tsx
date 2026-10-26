@@ -15,7 +15,7 @@ import { useLedger, useNames } from './candidate-form.tsx'
 import { CandidateRow, type EditForm } from './candidate-row.tsx'
 import { CommitCard, CommittedCard } from './commit-card.tsx'
 import { type Names, serverErrors } from './edit-model.ts'
-import { type Batch, canRetry, closeFailure, formatStamp, phaseLabels, phaseOf, phaseTones, plural, progressText, retryFailure, retryText, unavailableText } from './model.ts'
+import { type Batch, canRetry, closeFailure, formatStamp, phaseLabels, phaseOf, phaseTones, plural, progressText, retryFailure, retryText, type Unavailable, unavailableNotice } from './model.ts'
 import { useClose, useRetry, useRuntime } from './queries.ts'
 import { QuestionCard } from './question-card.tsx'
 import { acceptable, type Candidate, checkText, commitFailure, commitPlan, type Decision, type Group, groupCandidates, type Question, reviewCounts, reviewFailure, titleOf } from './review-model.ts'
@@ -177,13 +177,13 @@ const Review = ({ batch, notify, onCommit }: { batch: Batch; notify: (notice: No
 
 const retryUnavailableId = 'retry-unavailable'
 
-const RetryCard = ({ batch, busy, unavailable, onRetry }: { batch: Batch; busy: boolean; unavailable: string | undefined; onRetry: () => void }) => (
+const RetryCard = ({ batch, busy, unavailable, onRetry }: { batch: Batch; busy: boolean; unavailable: Unavailable | undefined; onRetry: () => void }) => (
   <section aria-label="Ler de novo" className={cn(card, 'max-w-4xl flex-row flex-wrap items-center gap-3')}>
     <span className="min-w-0 flex-1 text-meta">{retryText(batch)}</span>
     <Button variant="outline" disabled={busy || Boolean(unavailable)} aria-describedby={unavailable ? retryUnavailableId : undefined} onClick={onRetry}>
       Ler de novo
     </Button>
-    {unavailable && <UnavailableNotice id={retryUnavailableId} text={unavailable} />}
+    {unavailable && <UnavailableNotice id={retryUnavailableId} notice={unavailable} />}
   </section>
 )
 
@@ -209,7 +209,7 @@ export const ReviewPage = () => {
             <>
               <BatchHeader batch={data} />
               {canRetry(data) && (
-                <RetryCard batch={data} busy={retry.isPending} unavailable={unavailableText(runtime.data)} onRetry={() => retry.mutate(data, { onSuccess: () => setNotice({ message: `Lendo de novo: ${data.fileName}` }), onError: (error) => setNotice({ tone: 'error', message: retryFailure(error) }) })} />
+                <RetryCard batch={data} busy={retry.isPending} unavailable={unavailableNotice(runtime.data)} onRetry={() => retry.mutate(data, { onSuccess: () => setNotice({ message: `Lendo de novo: ${data.fileName}` }), onError: (error) => setNotice({ tone: 'error', message: retryFailure(error) }) })} />
               )}
               {phase === 'verified' && <Review batch={data} notify={setNotice} onCommit={() => commit.mutate(undefined, { onSuccess: (done) => setNotice({ message: `Gravado no livro: ${plural(done.committed, 'item', 'itens')}` }), onError: (error) => setNotice({ tone: 'error', message: commitFailure(error) }) })} />}
               {phase === 'committed' && <CommittedCard batch={data} busy={close.isPending} onClose={() => close.mutate(data, { onSuccess: () => setNotice({ message: `Importação encerrada: ${data.fileName}` }), onError: (error) => setNotice({ tone: 'error', message: closeFailure(error) }) })} />}
