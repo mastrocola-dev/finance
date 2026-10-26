@@ -1,5 +1,7 @@
+import { execFile } from 'node:child_process'
 import { join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { promisify } from 'node:util'
 import { Client } from '@modelcontextprotocol/client'
 import { getDefaultEnvironment, StdioClientTransport, type StdioServerParameters } from '@modelcontextprotocol/client/stdio'
 import * as z from 'zod'
@@ -18,6 +20,15 @@ export const ingestRuntime = (command: string[]) => ({
   args: ['--directory', ingestDirectory, 'run', '--no-dev', '--exact', '--locked', '--quiet', ...command],
   env: { ...getDefaultEnvironment(), ...Object.fromEntries(passed()), UV_PROJECT_ENVIRONMENT: runtimeEnvironment },
 })
+
+export const warmIngest = async (runtime: ReturnType<typeof ingestRuntime> = ingestRuntime(['python', '-c', ''])) => {
+  try {
+    await promisify(execFile)(runtime.command, runtime.args, { env: runtime.env, timeout: 300000 })
+    return true
+  } catch {
+    return false
+  }
+}
 
 export const ingestServer = (folder: string): StdioServerParameters => ({ ...ingestRuntime(['python', '-m', 'ingest', 'serve', resolve(folder)]), stderr: 'ignore' })
 

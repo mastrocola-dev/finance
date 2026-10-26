@@ -118,7 +118,7 @@ cd ingest && uv run --no-dev python -m ingest inspect tests/fixtures/extrato.ofx
 cd ingest && uv run --no-dev python -m ingest serve tests/fixtures
 ```
 
-The API and the import command run ingest in their own environment, `ingest/.venv-runtime`, synced exactly from the lock without the dev group, so the fixture tools (lxml, fpdf2, pytest, ruff) never reach the reading path and openpyxl parses workbooks with the standard library.
+The API and the import command run ingest in their own environment, `ingest/.venv-runtime`, synced exactly from the lock without the dev group, so the fixture tools (lxml, fpdf2, pytest, ruff) never reach the reading path and openpyxl parses workbooks with the standard library. `npm run api:http` syncs that environment before it listens, so the first upload does not wait for it; without uv it logs a warning and uploads fail until uv can sync.
 
 `serve` starts a read-only stdio MCP server over one folder with three tools: `list_segments`, `read_segment` (a segment id, cell range, path or lines, in size-bounded windows) and `apply_mapping` (column letters or relative paths applied to every row or item, each result with its source address). Runs of five or more digits are masked to their last four in every result, except dates (`20261005`) and amounts with cents (`12345,67`).
 

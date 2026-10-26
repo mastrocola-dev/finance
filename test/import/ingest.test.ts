@@ -1,9 +1,9 @@
 import assert from 'node:assert/strict'
 import { execFileSync } from 'node:child_process'
-import { readFile } from 'node:fs/promises'
-import { resolve } from 'node:path'
+import { access, readFile } from 'node:fs/promises'
+import { join, resolve } from 'node:path'
 import { describe, test } from 'node:test'
-import { ingestRuntime, ingestServer, runtimeEnvironment } from '../../src/import/ingest.ts'
+import { ingestRuntime, ingestServer, runtimeEnvironment, warmIngest } from '../../src/import/ingest.ts'
 
 const hasUv = (() => {
   try {
@@ -38,5 +38,14 @@ describe('ingest runtime', () => {
     const { command, args, env } = ingestRuntime(['python', '-c', probe])
     const found = JSON.parse(execFileSync(command, args, { env, encoding: 'utf8', timeout: 120000 }))
     assert.deepEqual(found, { openpyxl: true, pdfplumber: true, mcp: true, lxml: false, fpdf: false, pytest: false, ruff: false })
+  })
+
+  test('warms the runtime environment before the first upload', { skip: !hasUv && 'uv is not installed' }, async () => {
+    assert.equal(await warmIngest(), true)
+    await access(join(runtimeEnvironment, 'pyvenv.cfg'))
+  })
+
+  test('reports a runtime that cannot start instead of throwing', async () => {
+    assert.equal(await warmIngest({ command: 'finance-missing-uv', args: [], env: {} }), false)
   })
 })
