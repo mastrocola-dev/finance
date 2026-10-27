@@ -1,0 +1,80 @@
+name: ci
+
+on:
+  push:
+    branches: [poc]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 40
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_PASSWORD: local
+          POSTGRES_DB: finance
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      CI: 'true'
+      DATABASE_URL: postgres://postgres:local@localhost:5432/finance
+      IMPORT_TOKEN_CAP: '400000'
+      IMPORT_UPLOADS: .imports
+      AUTH_MODE: local
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24
+          cache: npm
+      - uses: astral-sh/setup-uv@v7
+        with:
+          enable-cache: true
+      - name: Install
+        run: |
+          set -euo pipefail
+          npm ci
+          npm exec -w web -- playwright install --with-deps chromium
+      - name: Check
+        run: |
+          set -euo pipefail
+          npm run check
+      - name: Ingest check
+        run: |
+          set -euo pipefail
+          npm run ingest:check
+      - name: Ingest tests
+        run: |
+          set -euo pipefail
+          npm run ingest:test
+      - name: Tests
+        run: |
+          set -euo pipefail
+          npm test
+      - name: Web build
+        run: |
+          set -euo pipefail
+          npm run web:build
+      - name: Budget
+        working-directory: web
+        run: |
+          set -euo pipefail
+          npx playwright test -g budget

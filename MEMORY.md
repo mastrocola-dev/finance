@@ -6,14 +6,14 @@
 - `pg_ctlcluster 16 main start`; `su postgres -c "psql -c \"alter user postgres password 'local'\""`; `cp .env.example .env`; `npm ci`; `npm run db:reset`; `npm run db:seed` (189 entries, 4 decisions)
 - `export UV_SYSTEM_CERTS=1; unset UV_NATIVE_TLS` then `uv sync` in `ingest/` before any test (else ingest tests fail with `SdkError: Connection closed`)
 - `npm test` takes about 3 minutes: `timeout 590` with a 600000 ms Bash timeout, output to a log file, read exit codes from the log, never through `| tail`. Single file: `node --env-file=.env --test test/x.test.ts`; web: `cd web && npx vitest run src/setup`
-- Playwright: `cd web && timeout 590 npx playwright test` (about 3 min, builds, starts API and preview, reseeds the dev DB in flow/import specs). Only the screens you touched should change PNGs: they are byte-stable (fixed clock, `--disable-partial-raster`); a changed PNG is a real change. Read a few before committing
+- Playwright: `cd web && timeout 590 npx playwright test` (about 4 min; resets and seeds its own `finance_e2e`, API on 3290, preview on 4273, never the dev DB; reuses servers on those ports outside CI, so stop a stale e2e API after changing server code). Only the screens you touched should change PNGs: they are byte-stable (fixed clock, `--disable-partial-raster`); a changed PNG is a real change. Read a few before committing
 - Use `./node_modules/.bin/biome` (`check --write <paths>` fixes format and imports), never `npx biome`. `curl` to local servers needs `--noproxy '*'`; stop servers by pid, never `pkill -f`
 - `npm run openapi` after any route change (regenerates `openapi.json` and `web/src/api/schema.ts`)
 
 ## Sprint S1–S5 (author approved 2026-10-26)
 
-- S1 and S2 done 2026-10-27. Next run: S3, then S4, S5. When S5 is done, Next is empty: stop the schedule (`list_triggers`, task "finance build agent", `update_trigger enabled false`). Never promote Later items: the author parks them until review
-- S3 notes: CI must run the same commands as local, including `npm run ingest:check`, `ingest:test`, `web:build` and the budget spec; e2e should get its own database name (flow/import specs reseed through `npm run db:reset && db:seed` with `cwd: '..'`)
+- S1, S2, S3 done 2026-10-27. Next run: S4 (Terraform), then S5. When S5 is done, Next is empty: stop the schedule (`list_triggers`, task "finance build agent", `update_trigger enabled false`). Never promote Later items: the author parks them until review
+- S3: `.github/workflows/ci.yml` mirrors the local commands; action majors are a guess (Needs author). S5's acceptance/Dockerfile must not break the workflow; any new check script goes into the workflow too
 - S4/S5: Terraform, Docker and registries cannot run in a Claude session; say so in the report. The API still accepts only localhost Host/Origin (Later L177): S4/S5 must flag it in Needs author or the Container App answers 403
 
 ## Architecture facts the code does not make obvious
@@ -43,5 +43,5 @@
 
 ## Status
 
-- Tests after S2: 275 node, 173 web, 135 Playwright, 63 pytest; `npm run check` green; failing-test run streak 0
-- Needs author items stand as written in BACKLOG; none blocks S3
+- Tests after S3: 275 node, 173 web, 131 Playwright, 63 pytest; `npm run check` green. S2 had left the readme test red (missing `activity-guest-*` row; always run the full `npm test` before committing); failing-test run streak 0 after S3
+- Needs author items stand as written in BACKLOG; none blocks S4

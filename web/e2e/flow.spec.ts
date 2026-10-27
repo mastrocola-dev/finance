@@ -1,8 +1,5 @@
-import { execSync } from 'node:child_process'
 import { type Browser, expect, test } from '@playwright/test'
-import { openContext } from './context.ts'
-
-const reseed = () => execSync('npm run db:reset && npm run db:seed', { cwd: '..', stdio: 'ignore' })
+import { openContext, reseed } from './context.ts'
 
 const open = async (browser: Browser, viewport = { width: 1440, height: 1000 }, colorScheme: 'light' | 'dark' = 'light') => {
   const context = await openContext(browser, { viewport, colorScheme })

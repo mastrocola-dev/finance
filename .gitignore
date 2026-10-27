@@ -9,3 +9,4 @@ __pycache__/
 .pytest_cache/
 .ruff_cache/
 .imports/
+.imports-e2e/

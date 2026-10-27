@@ -1,10 +1,7 @@
-import { execSync } from 'node:child_process'
 import AxeBuilder from '@axe-core/playwright'
 import { expect, type Page, test } from '@playwright/test'
-import { openContext } from './context.ts'
+import { openContext, reseed } from './context.ts'
 import { fullShot } from './shot.ts'
-
-const reseed = () => execSync('npm run db:reset && npm run db:seed', { cwd: '..', stdio: 'ignore' })
 
 const statement = { name: 'extrato-outubro.csv', mimeType: 'text/csv', buffer: Buffer.from('data,descricao,valor\n2026-10-03,Padaria do bairro,-18.50\n2026-10-05,Salario,4200.00\n') }
 
