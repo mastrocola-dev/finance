@@ -1,0 +1,12 @@
+*
+!package.json
+!package-lock.json
+!web/package.json
+!openapi.json
+!db/
+!src/
+!agents/
+!ingest/pyproject.toml
+!ingest/uv.lock
+!ingest/ingest/
+**/__pycache__

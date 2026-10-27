@@ -79,6 +79,52 @@ jobs:
           set -euo pipefail
           npx playwright test -g budget
 
+  images:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_PASSWORD: local
+          POSTGRES_DB: finance
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      DATABASE_URL: postgres://postgres:local@localhost:5432/finance
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v6
+      - name: Build
+        run: |
+          set -euo pipefail
+          docker build --target api -t finance-api .
+          docker build --target mcp -t finance-mcp .
+      - name: Smoke
+        run: |
+          set -euo pipefail
+          test "$(docker run --rm finance-api id -u)" != 0
+          test "$(docker run --rm finance-mcp id -u)" != 0
+          docker run --rm --network host -e DATABASE_URL finance-api node src/db/migrate.ts
+          docker run -d --name api --network host -e DATABASE_URL -e API_HOST=127.0.0.1 finance-api
+          docker run -d --name mcp --network host -e DATABASE_URL -e MCP_HOST=127.0.0.1 finance-mcp
+          for _ in $(seq 60); do curl -sf http://localhost:3200/api/imports/runtime > runtime.json && break; sleep 1; done
+          grep -q '"ready":true' runtime.json
+          curl -sf http://localhost:3200/api/openapi.json > /dev/null
+          curl -sf -X POST http://localhost:3100/mcp -H 'content-type: application/json' -H 'accept: application/json, text/event-stream' -d '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-06-18","capabilities":{},"clientInfo":{"name":"ci","version":"0"}}}' | grep -q serverInfo
+      - name: Logs
+        if: failure()
+        run: |
+          docker logs api || true
+          docker logs mcp || true
+
   infra:
     runs-on: ubuntu-24.04
     timeout-minutes: 10

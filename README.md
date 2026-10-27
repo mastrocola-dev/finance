@@ -118,6 +118,21 @@ Copy `.env.example` to `.env` and adjust it; every script loads `.env` when pres
 
 A second job checks the Azure configuration in `infra/` with Terraform 1.16.4: `terraform fmt -check -recursive`, `terraform init -backend=false` and `terraform validate`. What it creates, the apply order and the rollback are in [infra/README.md](infra/README.md).
 
+A third job builds the container images and smoke-tests them against a PostgreSQL service: both run as a non-root user, the API answers with the ingest runtime ready and the MCP server answers `initialize`.
+
+### Containers
+
+One `Dockerfile` with two targets on Node 24 slim, production dependencies only, user `node`:
+
+```sh
+docker build --target api -t finance-api .
+docker build --target mcp -t finance-mcp .
+docker run --rm --network host --env-file .env finance-api
+docker run --rm --network host --env-file .env finance-mcp
+```
+
+`api` (port 3200) also carries uv and Python 3.13 with `ingest/.venv-runtime` built from the lock, so the start-up check runs offline in seconds; uploads go to `/app/.imports`. The import agent (`SERVICE_AGENT_CLI`) is not in the image yet. `mcp` listens on port 3100. Hosting on Azure is proposed in [ADR-010](docs/adr-010-azure-hosting.md); the author's walkthrough before calling the POC done is [docs/acceptance.md](docs/acceptance.md).
+
 The Playwright suite never touches the dev ledger: it resets and seeds its own database (`finance_e2e` on the server of `DATABASE_URL`, or `E2E_DATABASE_URL`), starts its API on port 3290 (`E2E_API_PORT`) with uploads under `.imports-e2e/`, and serves the build on port 4273. Outside CI it reuses servers already running on those ports; with `CI` set it starts its own and uses the Chromium installed by `playwright install`.
 
 ### Import converters (Python)
