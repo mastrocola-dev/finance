@@ -1,8 +1,8 @@
 import { Link } from '@tanstack/react-router'
 import { useProposedDecisions } from '../query/shell.ts'
 import { ThemeSwitch } from '../theme/theme-switch.tsx'
+import { Account } from './account.tsx'
 import { Brand } from './brand.tsx'
-import { IdentityPicker } from './identity-picker.tsx'
 import { screens } from './nav.ts'
 
 export const Sidebar = () => {
@@ -30,7 +30,7 @@ export const Sidebar = () => {
         </nav>
         <div className="mt-auto flex flex-col items-start gap-4 border-t px-2.5 pt-4">
           <ThemeSwitch />
-          <IdentityPicker />
+          <Account />
         </div>
       </aside>
     </div>

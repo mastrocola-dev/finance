@@ -135,6 +135,7 @@ export const routes: Route[] = [
   route({ method: 'GET', path: '/debts', operationId: 'listDebts', summary: 'Active debts', response: z.array(schemas.Debt) }, ({ client }) => listDebts(client)),
   route({ method: 'GET', path: '/reserves', operationId: 'listReserves', summary: 'Reserves with progress to target', response: z.array(schemas.Reserve) }, ({ client }) => listReserves(client)),
   route({ method: 'GET', path: '/decisions', operationId: 'listDecisions', summary: 'Decisions by status, newest first', query: decisionQuery, response: z.array(schemas.Decision) }, ({ client, query }) => listDecisions(client, query.status, query.limit)),
+  route({ method: 'GET', path: '/me', operationId: 'getMe', summary: 'The member making the request', identified: true, response: schemas.Member }, async ({ member }) => member),
   route({ method: 'GET', path: '/members', operationId: 'listMembers', summary: 'Active members with their share of joint expenses', response: z.array(schemas.Member) }, ({ client }) => listMembers(client)),
   route({ method: 'GET', path: '/categories', operationId: 'listCategories', summary: 'Active categories, optionally of one direction', query: categoryQuery, response: z.array(schemas.Category) }, ({ client, query }) => listCategories(client, query.direction)),
   route({ method: 'GET', path: '/accounts', operationId: 'listAccounts', summary: 'Active accounts by nickname and last four digits, joint first', response: z.array(schemas.Account) }, ({ client }) => listAccounts(client)),

@@ -409,6 +409,40 @@
         }
       }
     },
+    "/api/me": {
+      "get": {
+        "operationId": "getMe",
+        "summary": "The member making the request",
+        "security": [
+          {
+            "member": []
+          }
+        ],
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Member"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/members": {
       "get": {
         "operationId": "listMembers",

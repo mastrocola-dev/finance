@@ -139,6 +139,8 @@ describe('entra mode', () => {
     const handle = api(pool, undefined, verify)
     const call = (path: string, headers: Record<string, string>, method = 'GET') => handle(new Request(`http://localhost/api${path}`, { method, headers: { host: 'localhost', ...headers } }))
     assert.equal((await call('/audit?limit=1', { authorization: `Bearer ${tokenOf()}` })).status, 200)
+    const me = await call('/me', { authorization: `Bearer ${tokenOf()}` })
+    assert.equal((await me.json()).name, 'Marcio')
     const anonymous = await call('/audit?limit=1', { 'x-member': 'Marcio' })
     assert.equal(anonymous.status, 401)
     assert.deepEqual(await anonymous.json(), { error: 'this request needs a bearer token' })

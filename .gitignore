@@ -16,3 +16,4 @@ __pycache__/
 *.tfvars
 *.tfplan
 backend.hcl
+web/dist-entra/

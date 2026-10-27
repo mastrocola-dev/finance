@@ -18,7 +18,7 @@ export const IdentityPicker = ({ compact = false }: { compact?: boolean }) => {
         <label htmlFor={id} className={cn('text-[12px] text-muted', compact && 'sr-only')}>
           Você é
         </label>
-        <select id={id} value={current?.name ?? ''} onChange={(event) => choose(event.target.value || undefined)} className="min-h-11 min-w-0 rounded-control bg-transparent font-medium text-text md:min-h-8">
+        <select id={id} value={current?.name ?? ''} onChange={(event) => choose?.(event.target.value || undefined)} className="min-h-11 min-w-0 rounded-control bg-transparent font-medium text-text md:min-h-8">
           <option value="">Escolher membro</option>
           {members.map(({ id: memberId, name }) => (
             <option key={memberId} value={name}>

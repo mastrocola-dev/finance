@@ -56,11 +56,11 @@ describe('openapi', () => {
     await db.drop()
   })
 
-  test('marks writes and the audit log as needing a member', () => {
+  test('marks writes, the caller and the audit log as needing a member', () => {
     const needing = routes.filter((route) => operationOf(route)?.security.length === 1).map(({ operationId }) => operationId)
     assert.deepEqual(
       needing,
-      routes.filter(({ method, operationId }) => method !== 'GET' || operationId === 'listAudit').map(({ operationId }) => operationId),
+      routes.filter(({ method, operationId }) => method !== 'GET' || ['getMe', 'listAudit'].includes(operationId)).map(({ operationId }) => operationId),
     )
     assert.deepEqual(
       routes.filter((route) => operationOf(route)?.security.length === 0).map(({ operationId }) => operationId),
@@ -110,6 +110,7 @@ describe('openapi', () => {
       listDebts: { path: '/debts' },
       listReserves: { path: '/reserves' },
       listDecisions: { path: '/decisions?status=all' },
+      getMe: { path: '/me' },
       listMembers: { path: '/members' },
       listCategories: { path: '/categories?direction=expense' },
       listAccounts: { path: '/accounts' },
