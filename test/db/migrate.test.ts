@@ -28,7 +28,7 @@ describe('migrations', () => {
   }
 
   test('applies every migration to an empty database', async () => {
-    assert.deepEqual(db.applied, ['001-ledger.sql', '002-ledger-clock.sql', '003-import-staging.sql', '004-import-totals.sql', '005-import-retry.sql', '006-import-commit.sql', '007-open-names.sql'])
+    assert.deepEqual(db.applied, ['001-ledger.sql', '002-ledger-clock.sql', '003-import-staging.sql', '004-import-totals.sql', '005-import-retry.sql', '006-import-commit.sql', '007-open-names.sql', '008-member-external-id.sql'])
     const { rows } = await client.query<{ table_name: string }>("select table_name from information_schema.tables where table_schema = 'public' order by table_name")
     assert.deepEqual(
       rows.map((row) => row.table_name),

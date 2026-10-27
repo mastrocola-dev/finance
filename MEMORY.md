@@ -2,9 +2,8 @@
 
 ## State
 
-- Sprint S1–S5 finished 2026-10-27; **Next** is empty and the schedule "finance build agent" was disabled by the S5 run. A new run only happens when the author re-enables it after moving items into **Next**. Never promote **Later** items yourself
-- The author walks through `docs/acceptance.md` and answers **Needs author** (S5 hosting defaults from ADR-010 first)
-- Tests after S5: 288 node, 173 web, 131 Playwright (not rerun since S3: no web change in S4 or S5), 63 pytest; `npm run check` green; failing-test run streak 0
+- Sprint S6–S10 in progress (approved 2026-10-27). S6 done (API verifies Entra tokens); next is S7 (web sign-in with MSAL, reads closed in `entra` mode). The schedule stops itself after S10
+- Tests after S6: 298 node, 173 web, 131 Playwright (not rerun since S3; S7 must rerun it), 63 pytest; `npm run check` green; failing-test run streak 0
 
 ## Session setup (cloud container, each run, one command per Bash call)
 
@@ -23,7 +22,8 @@
 - Every ledger write goes through `write(client, actor, (ledger) => ...)` (one transaction plus `audit_log`); use a leased client and never nest `write()`. `ledger.update` and `ledger.close` refuse closed rows
 - Nothing is deleted (triggers raise); lifecycle is `closed_at`; corrected entries close with `replaced_by`. Names unique only among open rows, case-insensitive (migration 007)
 - Setup records: `src/ledger/setup.ts`; payload schemas from `src/import/candidate.ts`, rows from `rowOf` in `src/import/commit.ts` (Later P04 moves them)
-- Identity: `identify(client, request, verify)` in `src/http/identity.ts`, `verifierFor(AUTH_MODE)` (only `local`). Writes and `identified: true` routes need a member (401); unknown/closed 403. API 3200, MCP 3100; `RuleError` 422
+- Identity: `identify(client, request, verify)` in `src/http/identity.ts`; `verifierFor(AUTH_MODE)` gives `localVerifier` or `entraVerifier(rules)` (`src/http/auth.ts`: `bearerOf`, `verifyToken`, `jwksOf`). A `Verifier` carries `credential` used in the 401 text. Writes and `identified: true` routes need a member (401); unknown/closed 403. API 3200, MCP 3100; `RuleError` 422
+- Entra tests sign RS256 tokens with `generateKeyPairSync` and a stub key source (`test/http/auth.test.ts`); reuse `tokenOf` there for S7/S8 route tests. `member.external_id` is set only by `linkMember` (`src/db/link-member.ts`)
 - The API accepts only localhost Host and Origin (L177); MCP hosts come from `MCP_ALLOWED_HOSTS`/`MCP_ALLOWED_ORIGINS`
 - New API route: `route({...}, handler)` in `src/http/api.ts`, schemas in `contract.ts`, a sample in `test/http/openapi.test.ts`. New MCP write tools: `src/mcp/server.ts` plus tool lists in `test/mcp/server.test.ts` and `test/mcp/http.test.ts`
 - Seed time from `setClock`/`FINANCE_CLOCK`; Playwright contexts use `openContext` from `web/e2e/context.ts`

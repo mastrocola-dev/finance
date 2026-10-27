@@ -93,7 +93,7 @@ flowchart LR
 - `src/ledger` holds the domain: read models (`summary`, `entries`, `split`, `worth`, `audit`) and the write commands in `record.ts`; it knows nothing about HTTP or MCP
 - Every write goes through `write()` in `src/db`: one transaction, one `audit_log` row (author member, claude, import or system), nothing deleted; database triggers refuse deletes and truncates
 - `src/http` and `src/mcp` are thin adapters over the same ledger; the API contract is generated from its zod schemas into `openapi.json`, and the web app's typed client is generated from that file
-- `web/` reads and writes only through the API; identity is the local `x-member` header until Entra ID arrives with the Azure stage
+- `web/` reads and writes only through the API; identity is the local `x-member` header; the API already verifies Entra tokens with `AUTH_MODE=entra` (S6), the web sign-in arrives with S7
 - No adapter executes payments or transfers: marking a bill paid records a fact, and joint decisions stay proposed until every member confirms
 
 ## Development
@@ -204,11 +204,15 @@ One `identify(request)` (`src/http/identity.ts`) resolves the calling member for
 
 | Variable | Default | Meaning |
 | --- | --- | --- |
-| `AUTH_MODE` | `local` | `local` reads the `x-member` header; it is the only mode enabled. `token` is a reserved slot for Entra ID (Azure stage): it refuses bearer tokens with `401` and the servers refuse to start with it |
+| `AUTH_MODE` | `local` | `local` reads the `x-member` header (development only: any caller can name a member). `entra` reads `Authorization: Bearer <access token>` from Entra External ID (Google federated) and ignores `x-member`; the servers refuse to start without the two variables below |
+| `ENTRA_ISSUER` | none | Issuer the token's `iss` must equal, for example `https://<tenant>.ciamlogin.com/<tenant id>/v2.0`; the signing keys come from `<issuer>/.well-known/openid-configuration` (`jwks_uri`), cached and refreshed at most once a minute when a token names an unknown key |
+| `ENTRA_AUDIENCE` | none | Value the token's `aud` must contain: the application ID URI or client ID of the API registration |
 | `MCP_ALLOWED_HOSTS` | `localhost,127.0.0.1,[::1]` | Host header hostnames the MCP HTTP server accepts |
 | `MCP_ALLOWED_ORIGINS` | `localhost,127.0.0.1,[::1]` | Origin hostnames the MCP HTTP server accepts (requests without Origin pass) |
 
 An unknown or closed member is answered `403 { "error": "unknown member" }`; the web app then forgets the stored identity and asks again.
+
+In `entra` mode a token must be RS256, signed by a key of the issuer, with the configured `iss` and `aud`, not expired (60 s of clock skew) and an `oid` claim; anything else is `401 { "error": "invalid token: <reason>" }`, and `503` while the issuer's keys cannot be fetched. The `oid` maps to a member through `member.external_id` (migration `008`); a valid token whose `oid` names no active member is `403`. Link each person once, audited as `system`: `npm run member:link -- Marcio <object id>`.
 
 ## Web app
 

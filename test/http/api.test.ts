@@ -4,7 +4,7 @@ import { connectPool } from '../../src/db/connection.ts'
 import { seed, seedToday } from '../../src/db/seed.ts'
 import { api, serveApi } from '../../src/http/api.ts'
 import { bodyLimit } from '../../src/http/body.ts'
-import { tokenVerifier } from '../../src/http/identity.ts'
+import type { Verifier } from '../../src/http/identity.ts'
 import { testDatabase } from '../db/database.ts'
 
 const groceries = { month: '2026-10', due_on: '2026-10-25', description: 'Farmers market', direction: 'expense', amount_cents: 12345, category: 'alimentação', member: 'joint' }
@@ -95,13 +95,13 @@ describe('http api', () => {
   })
 
   test('routes go through the configured verifier', async () => {
-    const verified = api(pool, undefined, tokenVerifier)
+    const nobody: Verifier = Object.assign(async () => undefined, { credential: 'a test credential' })
+    const verified = api(pool, undefined, nobody)
     const handle = (path: string, headers: Record<string, string>) => verified(new Request(`http://localhost/api${path}`, { headers: { host: 'localhost', ...headers } }))
-    const answer = await handle('/debts', { authorization: 'Bearer abc' })
-    assert.equal(answer.status, 401)
-    assert.deepEqual(await answer.json(), { error: 'token verification is not configured' })
     assert.equal((await handle('/debts', { 'x-member': 'Marcio' })).status, 200)
-    assert.equal((await handle('/audit', { 'x-member': 'Marcio' })).status, 401)
+    const answer = await handle('/audit', { 'x-member': 'Marcio' })
+    assert.equal(answer.status, 401)
+    assert.deepEqual(await answer.json(), { error: 'this request needs a test credential' })
   })
 
   test('creates an entry as the calling member, audited', async () => {

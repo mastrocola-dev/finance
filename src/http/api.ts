@@ -274,7 +274,7 @@ export const api =
     if (!matched) return Response.json({ error: 'method not allowed' }, { status: 405, headers: { allow: matches.map(({ method }) => method).join(', ') } })
     try {
       const member = await identify(client, request, verify)
-      if ((request.method !== 'GET' || matched.identified) && !member) throw new HttpError(401, `this request needs the ${memberHeader} header`)
+      if ((request.method !== 'GET' || matched.identified) && !member) throw new HttpError(401, `this request needs ${verify.credential}`)
       const params = matched.params?.parse(matched.groups)
       const parsedQuery = matched.query?.parse(Object.fromEntries(url.searchParams))
       const headers = matched.headers?.parse(Object.fromEntries(request.headers))
