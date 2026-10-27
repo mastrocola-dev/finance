@@ -16,6 +16,23 @@ export type paths = {
         patch?: never;
         trace?: never;
     };
+    "/api/health": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Liveness without identity or database */
+        get: operations["getHealth"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/months/{month}/summary": {
         parameters: {
             query?: never;
@@ -977,6 +994,10 @@ export type components = {
         } & {
             [key: string]: unknown;
         };
+        Health: {
+            /** @constant */
+            status: "ok";
+        };
         ListEntriesResponse: components["schemas"]["Entry"][];
         ListDebtsResponse: components["schemas"]["Debt"][];
         ListReservesResponse: components["schemas"]["Reserve"][];
@@ -1089,6 +1110,7 @@ export type ImportQuestion = components['schemas']['ImportQuestion'];
 export type ImportRuntime = components['schemas']['ImportRuntime'];
 export type ApiError = components['schemas']['ApiError'];
 export type OpenApiDocument = components['schemas']['OpenApiDocument'];
+export type Health = components['schemas']['Health'];
 export type ListEntriesResponse = components['schemas']['ListEntriesResponse'];
 export type ListDebtsResponse = components['schemas']['ListDebtsResponse'];
 export type ListReservesResponse = components['schemas']['ListReservesResponse'];
@@ -1130,6 +1152,35 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["OpenApiDocument"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+        };
+    };
+    getHealth: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Health"];
                 };
             };
             /** @description Error */

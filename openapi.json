@@ -10,12 +10,7 @@
       "get": {
         "operationId": "getOpenApi",
         "summary": "This OpenAPI document",
-        "security": [
-          {},
-          {
-            "member": []
-          }
-        ],
+        "security": [],
         "parameters": [],
         "responses": {
           "200": {
@@ -24,6 +19,36 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/OpenApiDocument"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/health": {
+      "get": {
+        "operationId": "getHealth",
+        "summary": "Liveness without identity or database",
+        "security": [],
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Health"
                 }
               }
             }
@@ -3619,6 +3644,19 @@
           "openapi"
         ],
         "additionalProperties": {}
+      },
+      "Health": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string",
+            "const": "ok"
+          }
+        },
+        "required": [
+          "status"
+        ],
+        "additionalProperties": false
       },
       "ListEntriesResponse": {
         "type": "array",

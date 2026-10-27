@@ -4,7 +4,7 @@ import { after, before, describe, test } from 'node:test'
 import { connectPool } from '../../src/db/connection.ts'
 import { linkMember } from '../../src/db/link-member.ts'
 import { seed } from '../../src/db/seed.ts'
-import { api } from '../../src/http/api.ts'
+import { api, routes } from '../../src/http/api.ts'
 import { bearerOf, jwksOf, verifyToken } from '../../src/http/auth.ts'
 import { HttpError } from '../../src/http/body.ts'
 import { entraVerifier, localVerifier, verifierFor } from '../../src/http/identity.ts'
@@ -145,6 +145,21 @@ describe('entra mode', () => {
     const expired = await call('/debts', { authorization: `Bearer ${tokenOf({ exp: seconds() - 600 })}` })
     assert.deepEqual([expired.status, await expired.json()], [401, { error: 'invalid token: expired' }])
     assert.equal((await call('/debts', { authorization: `Bearer ${tokenOf({ oid: 'oid-unknown' })}` })).status, 403)
+  })
+
+  test('every route needs a token except the OpenAPI document and health', async () => {
+    const handle = api(pool, undefined, verify)
+    const sample = (path: string) => path.replace(/:month/g, '2026-10').replace(/:\w+/g, '1')
+    for (const route of routes) {
+      const path = sample(route.path)
+      const answer = await handle(new Request(`http://localhost/api${path}`, { method: route.method, headers: { host: 'localhost', 'x-member': 'Marcio' } }))
+      if (route.open) assert.equal(answer.status, 200, `${route.method} ${path}`)
+      else assert.deepEqual([answer.status, await answer.json()], [401, { error: 'this request needs a bearer token' }], `${route.method} ${path}`)
+    }
+    assert.deepEqual(
+      routes.filter((route) => route.open).map(({ path }) => path),
+      ['/openapi.json', '/health'],
+    )
   })
 })
 

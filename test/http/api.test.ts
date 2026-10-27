@@ -95,7 +95,7 @@ describe('http api', () => {
   })
 
   test('routes go through the configured verifier', async () => {
-    const nobody: Verifier = Object.assign(async () => undefined, { credential: 'a test credential' })
+    const nobody: Verifier = Object.assign(async () => undefined, { credential: 'a test credential', openReads: true })
     const verified = api(pool, undefined, nobody)
     const handle = (path: string, headers: Record<string, string>) => verified(new Request(`http://localhost/api${path}`, { headers: { host: 'localhost', ...headers } }))
     assert.equal((await handle('/debts', { 'x-member': 'Marcio' })).status, 200)

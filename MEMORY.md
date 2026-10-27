@@ -2,8 +2,8 @@
 
 ## State
 
-- Sprint S6–S10 in progress (approved 2026-10-27). S6 done (API verifies Entra tokens); next is S7 (web sign-in with MSAL, reads closed in `entra` mode). The schedule stops itself after S10
-- Tests after S6: 298 node, 173 web, 131 Playwright (not rerun since S3; S7 must rerun it), 63 pytest; `npm run check` green; failing-test run streak 0
+- Sprint S6–S10 in progress (approved 2026-10-27). S6 and S7a done (API closed in `entra` mode); S7 was split, next is S7b (web sign-in with MSAL, rerun full Playwright). The schedule stops itself after S10
+- Tests after S7a: 299 node, 173 web, 131 Playwright (not rerun since S3; S7b must rerun it), 63 pytest; `npm run check` green; failing-test run streak 0
 
 ## Session setup (cloud container, each run, one command per Bash call)
 
@@ -22,7 +22,7 @@
 - Every ledger write goes through `write(client, actor, (ledger) => ...)` (one transaction plus `audit_log`); use a leased client and never nest `write()`. `ledger.update` and `ledger.close` refuse closed rows
 - Nothing is deleted (triggers raise); lifecycle is `closed_at`; corrected entries close with `replaced_by`. Names unique only among open rows, case-insensitive (migration 007)
 - Setup records: `src/ledger/setup.ts`; payload schemas from `src/import/candidate.ts`, rows from `rowOf` in `src/import/commit.ts` (Later P04 moves them)
-- Identity: `identify(client, request, verify)` in `src/http/identity.ts`; `verifierFor(AUTH_MODE)` gives `localVerifier` or `entraVerifier(rules)` (`src/http/auth.ts`: `bearerOf`, `verifyToken`, `jwksOf`). A `Verifier` carries `credential` used in the 401 text. Writes and `identified: true` routes need a member (401); unknown/closed 403. API 3200, MCP 3100; `RuleError` 422
+- Identity: `identify(client, request, verify)` in `src/http/identity.ts`; `verifierFor(AUTH_MODE)` gives `localVerifier` or `entraVerifier(rules)` (`src/http/auth.ts`: `bearerOf`, `verifyToken`, `jwksOf`). A `Verifier` carries `credential` used in the 401 text. Writes and `identified: true` routes need a member (401); in `entra` every route but `open: true` ones (openapi, health) does (`Verifier.openReads` false); unknown/closed 403. API 3200, MCP 3100; `RuleError` 422
 - Entra tests sign RS256 tokens with `generateKeyPairSync` and a stub key source (`test/http/auth.test.ts`); reuse `tokenOf` there for S7/S8 route tests. `member.external_id` is set only by `linkMember` (`src/db/link-member.ts`)
 - The API accepts only localhost Host and Origin (L177); MCP hosts come from `MCP_ALLOWED_HOSTS`/`MCP_ALLOWED_ORIGINS`
 - New API route: `route({...}, handler)` in `src/http/api.ts`, schemas in `contract.ts`, a sample in `test/http/openapi.test.ts`. New MCP write tools: `src/mcp/server.ts` plus tool lists in `test/mcp/server.test.ts` and `test/mcp/http.test.ts`

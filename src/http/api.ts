@@ -61,7 +61,7 @@ export const apiPrefix = '/api'
 
 type Schema = z.ZodType
 type Parsed<T> = T extends Schema ? z.output<T> : undefined
-type Spec = { method: string; path: string; operationId: string; summary: string; params?: Schema; query?: Schema; headers?: Schema; body?: Schema; upload?: true; response: Schema; status?: number; identified?: true }
+type Spec = { method: string; path: string; operationId: string; summary: string; params?: Schema; query?: Schema; headers?: Schema; body?: Schema; upload?: true; response: Schema; status?: number; identified?: true; open?: true }
 type Input<S extends Spec> = { request: Request; params: Parsed<S['params']>; query: Parsed<S['query']>; headers: Parsed<S['headers']>; body: Parsed<S['body']>; member?: Member; client: Database; imports: ImportUploads }
 export type Route = Spec & { pattern: URLPattern; handle: (input: Input<Spec>) => Promise<unknown> }
 
@@ -126,7 +126,8 @@ const decisionAnswers = [
 ] as const
 
 export const routes: Route[] = [
-  route({ method: 'GET', path: '/openapi.json', operationId: 'getOpenApi', summary: 'This OpenAPI document', response: schemas.OpenApiDocument }, async () => openApi(routes)),
+  route({ method: 'GET', path: '/openapi.json', operationId: 'getOpenApi', summary: 'This OpenAPI document', open: true, response: schemas.OpenApiDocument }, async () => openApi(routes)),
+  route({ method: 'GET', path: '/health', operationId: 'getHealth', summary: 'Liveness without identity or database', open: true, response: schemas.Health }, async () => ({ status: 'ok' })),
   route({ method: 'GET', path: '/months/:month/summary', operationId: 'getMonthSummary', summary: 'Month totals compared with another month', params: monthPath, query: summaryQuery, response: schemas.Comparison }, ({ client, params, query }) => compareMonths(client, params.month, query.compare_with, query.today)),
   route({ method: 'GET', path: '/months/:month/entries', operationId: 'listEntries', summary: 'Entries of a month with filters', params: monthPath, query: entryQuery, response: z.array(schemas.Entry) }, ({ client, params, query: { today, ...filters } }) =>
     listEntries(client, { month: params.month, ...filters }, today),
@@ -273,8 +274,8 @@ export const api =
     const matched = matches.find(({ method }) => method === request.method)
     if (!matched) return Response.json({ error: 'method not allowed' }, { status: 405, headers: { allow: matches.map(({ method }) => method).join(', ') } })
     try {
-      const member = await identify(client, request, verify)
-      if ((request.method !== 'GET' || matched.identified) && !member) throw new HttpError(401, `this request needs ${verify.credential}`)
+      const member = matched.open ? undefined : await identify(client, request, verify)
+      if (!matched.open && !member && (request.method !== 'GET' || matched.identified || !verify.openReads)) throw new HttpError(401, `this request needs ${verify.credential}`)
       const params = matched.params?.parse(matched.groups)
       const parsedQuery = matched.query?.parse(Object.fromEntries(url.searchParams))
       const headers = matched.headers?.parse(Object.fromEntries(request.headers))

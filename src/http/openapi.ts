@@ -31,7 +31,7 @@ export const openApi = (routes: Route[]) => {
       [route.method.toLowerCase()]: {
         operationId: route.operationId,
         summary: route.summary,
-        security: needsMember ? [{ member: [] }] : [{}, { member: [] }],
+        security: route.open ? [] : needsMember ? [{ member: [] }] : [{}, { member: [] }],
         parameters: [...parameters('path', route.params), ...parameters('query', route.query), ...parameters('header', route.headers)],
         ...(route.upload ? { requestBody: { required: true, content: { 'application/octet-stream': { schema: { type: 'string', format: 'binary' } } } } } : {}),
         ...(route.body ? { requestBody: { required: true, content: json(reference(route.body, `${capitalized(route.operationId)}Body`)) } } : {}),

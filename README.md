@@ -93,7 +93,7 @@ flowchart LR
 - `src/ledger` holds the domain: read models (`summary`, `entries`, `split`, `worth`, `audit`) and the write commands in `record.ts`; it knows nothing about HTTP or MCP
 - Every write goes through `write()` in `src/db`: one transaction, one `audit_log` row (author member, claude, import or system), nothing deleted; database triggers refuse deletes and truncates
 - `src/http` and `src/mcp` are thin adapters over the same ledger; the API contract is generated from its zod schemas into `openapi.json`, and the web app's typed client is generated from that file
-- `web/` reads and writes only through the API; identity is the local `x-member` header; the API already verifies Entra tokens with `AUTH_MODE=entra` (S6), the web sign-in arrives with S7
+- `web/` reads and writes only through the API; identity is the local `x-member` header; the API verifies Entra tokens with `AUTH_MODE=entra` and closes every read but the contract and health (S6, S7a); the web sign-in arrives with S7b
 - No adapter executes payments or transfers: marking a bill paid records a fact, and joint decisions stay proposed until every member confirms
 
 ## Development
@@ -193,6 +193,7 @@ Write tools `create_entry` (planned or already paid income or expense, member na
 - `POST /api/decisions/:id/confirm|reject|withdraw`
 - `POST /api/months/:month/forecast`, planning the month's recurring entries once (`today`)
 - `GET /api/openapi.json`, the OpenAPI 3.1 contract of these routes
+- `GET /api/health`, `{ "status": "ok" }` without identity or database, for probes
 
 The contract is built from the zod schemas the routes validate with (`src/http/contract.ts`) and committed as `openapi.json`; after changing a route run `npm run openapi`, which also regenerates the web types in `web/src/api/schema.ts`. Tests fail when a route is undocumented, answers outside its documented shape, or either file is stale.
 
@@ -212,7 +213,7 @@ One `identify(request)` (`src/http/identity.ts`) resolves the calling member for
 
 An unknown or closed member is answered `403 { "error": "unknown member" }`; the web app then forgets the stored identity and asks again.
 
-In `entra` mode a token must be RS256, signed by a key of the issuer, with the configured `iss` and `aud`, not expired (60 s of clock skew) and an `oid` claim; anything else is `401 { "error": "invalid token: <reason>" }`, and `503` while the issuer's keys cannot be fetched. The `oid` maps to a member through `member.external_id` (migration `008`); a valid token whose `oid` names no active member is `403`. Link each person once, audited as `system`: `npm run member:link -- Marcio <object id>`.
+In `entra` mode a token must be RS256, signed by a key of the issuer, with the configured `iss` and `aud`, not expired (60 s of clock skew) and an `oid` claim; anything else is `401 { "error": "invalid token: <reason>" }`, and `503` while the issuer's keys cannot be fetched. The `oid` maps to a member through `member.external_id` (migration `008`); a valid token whose `oid` names no active member is `403`. Reads are closed too: every API route answers `401` without a token except `GET /api/openapi.json` and `GET /api/health` (the MCP HTTP server gets its bearer with S8). Link each person once, audited as `system`: `npm run member:link -- Marcio <object id>`.
 
 ## Web app
 

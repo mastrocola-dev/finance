@@ -284,6 +284,7 @@ const importRuntime = z.strictObject({ ready: z.boolean(), cause: z.enum(runtime
 const error = z.strictObject({ error: z.string(), issues: z.array(z.strictObject({ path: z.string(), message: z.string() })).optional() })
 
 const document = z.looseObject({ openapi: z.string() })
+const health = z.strictObject({ status: z.literal('ok') })
 
 export const schemas = {
   Money: money,
@@ -315,4 +316,5 @@ export const schemas = {
   ImportRuntime: importRuntime,
   ApiError: error,
   OpenApiDocument: document,
+  Health: health,
 }

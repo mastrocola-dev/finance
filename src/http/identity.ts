@@ -4,11 +4,11 @@ import { bearerOf, jwksOf, type TokenRules, verifyToken } from './auth.ts'
 import { HttpError } from './body.ts'
 import { memberHeader } from './contract.ts'
 
-export type Verifier = ((client: Database, request: Request) => Promise<Member | undefined>) & { credential: string }
+export type Verifier = ((client: Database, request: Request) => Promise<Member | undefined>) & { credential: string; openReads: boolean }
 
-const verifier = (credential: string, resolve: (client: Database, request: Request) => Promise<Member | undefined>): Verifier => Object.assign(resolve, { credential })
+const verifier = (credential: string, openReads: boolean, resolve: (client: Database, request: Request) => Promise<Member | undefined>): Verifier => Object.assign(resolve, { credential, openReads })
 
-export const localVerifier = verifier(`the ${memberHeader} header`, async (client, request) => {
+export const localVerifier = verifier(`the ${memberHeader} header`, true, async (client, request) => {
   const name = request.headers.get(memberHeader)
   if (name === null) return undefined
   const member = await findMember(client, name)
@@ -17,7 +17,7 @@ export const localVerifier = verifier(`the ${memberHeader} header`, async (clien
 })
 
 export const entraVerifier = (rules: TokenRules) =>
-  verifier('a bearer token', async (client, request) => {
+  verifier('a bearer token', false, async (client, request) => {
     const token = bearerOf(request)
     if (token === undefined) return undefined
     const { oid } = await verifyToken(token, rules)

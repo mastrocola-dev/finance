@@ -62,6 +62,10 @@ describe('openapi', () => {
       needing,
       routes.filter(({ method, operationId }) => method !== 'GET' || operationId === 'listAudit').map(({ operationId }) => operationId),
     )
+    assert.deepEqual(
+      routes.filter((route) => operationOf(route)?.security.length === 0).map(({ operationId }) => operationId),
+      ['getOpenApi', 'getHealth'],
+    )
   })
 
   test('documents every route with its parameters, body and response', () => {
@@ -100,6 +104,7 @@ describe('openapi', () => {
     const today = `today=${seedToday}`
     const samples: Record<string, Sample> = {
       getOpenApi: { path: '/openapi.json' },
+      getHealth: { path: '/health' },
       getMonthSummary: { path: `/months/2026-10/summary?${today}` },
       listEntries: { path: `/months/2026-10/entries?${today}` },
       listDebts: { path: '/debts' },
