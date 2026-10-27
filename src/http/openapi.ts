@@ -25,13 +25,13 @@ export const openApi = (routes: Route[]) => {
   const paths: Record<string, Record<string, unknown>> = {}
   for (const route of routes) {
     const path = route.pattern.pathname.replace(/:(\w+)/g, '{$1}')
-    const writes = route.method !== 'GET'
+    const needsMember = route.method !== 'GET' || route.identified
     paths[path] = {
       ...paths[path],
       [route.method.toLowerCase()]: {
         operationId: route.operationId,
         summary: route.summary,
-        security: writes ? [{ member: [] }] : [{}, { member: [] }],
+        security: needsMember ? [{ member: [] }] : [{}, { member: [] }],
         parameters: [...parameters('path', route.params), ...parameters('query', route.query), ...parameters('header', route.headers)],
         ...(route.upload ? { requestBody: { required: true, content: { 'application/octet-stream': { schema: { type: 'string', format: 'binary' } } } } } : {}),
         ...(route.body ? { requestBody: { required: true, content: json(reference(route.body, `${capitalized(route.operationId)}Body`)) } } : {}),

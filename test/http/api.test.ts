@@ -2,8 +2,9 @@ import assert from 'node:assert/strict'
 import { after, before, describe, test } from 'node:test'
 import { connectPool } from '../../src/db/connection.ts'
 import { seed, seedToday } from '../../src/db/seed.ts'
-import { serveApi } from '../../src/http/api.ts'
+import { api, serveApi } from '../../src/http/api.ts'
 import { bodyLimit } from '../../src/http/body.ts'
+import { tokenVerifier } from '../../src/http/identity.ts'
 import { testDatabase } from '../db/database.ts'
 
 const groceries = { month: '2026-10', due_on: '2026-10-25', description: 'Farmers market', direction: 'expense', amount_cents: 12345, category: 'alimentação', member: 'joint' }
@@ -83,6 +84,24 @@ describe('http api', () => {
     assert.equal(response.headers.get('allow'), 'GET')
     assert.deepEqual(await get('/debts', { 'x-member': 'Nobody' }), { status: 403, body: { error: 'unknown member' } })
     assert.equal((await get('/debts', { origin: 'https://example.com' })).status, 403)
+  })
+
+  test('the audit log needs a member and a closed member is refused', async () => {
+    assert.deepEqual(await get('/audit?limit=1'), { status: 401, body: { error: 'this request needs the x-member header' } })
+    assert.equal((await get('/audit?limit=1', { 'x-member': 'Gabriela' })).status, 200)
+    await pool.query("insert into member (name, share_percent, closed_at) values ('Ana', 0, now())")
+    assert.deepEqual(await get('/debts', { 'x-member': 'Ana' }), { status: 403, body: { error: 'unknown member' } })
+    assert.equal((await post('/entries', groceries, { 'x-member': 'Ana' })).status, 403)
+  })
+
+  test('routes go through the configured verifier', async () => {
+    const verified = api(pool, undefined, tokenVerifier)
+    const handle = (path: string, headers: Record<string, string>) => verified(new Request(`http://localhost/api${path}`, { headers: { host: 'localhost', ...headers } }))
+    const answer = await handle('/debts', { authorization: 'Bearer abc' })
+    assert.equal(answer.status, 401)
+    assert.deepEqual(await answer.json(), { error: 'token verification is not configured' })
+    assert.equal((await handle('/debts', { 'x-member': 'Marcio' })).status, 200)
+    assert.equal((await handle('/audit', { 'x-member': 'Marcio' })).status, 401)
   })
 
   test('creates an entry as the calling member, audited', async () => {

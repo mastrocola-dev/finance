@@ -1,6 +1,6 @@
 import { createMemoryHistory } from '@tanstack/react-router'
 import { cleanup, render, screen, within } from '@testing-library/react'
-import { afterEach, expect, test, vi } from 'vitest'
+import { afterEach, beforeEach, expect, test, vi } from 'vitest'
 import { App } from '../app.tsx'
 
 const money = (cents: number, brl: string) => ({ cents: String(cents), brl })
@@ -54,9 +54,12 @@ const fetch = vi.fn(async (input: Request) => {
   return body ? Response.json(body) : Response.json({ error: 'not found' }, { status: 404 })
 }) as unknown as typeof globalThis.fetch
 
+beforeEach(() => localStorage.setItem('finance.member', 'Marcio'))
+
 afterEach(() => {
   cleanup()
   vi.unstubAllGlobals()
+  localStorage.clear()
   calls.length = 0
 })
 
@@ -106,4 +109,11 @@ test('skips the flow chart and its six months of reads on a phone', async () => 
   expect(screen.queryByRole('region', { name: 'Receitas × despesas' })).toBeNull()
   const months = calls.filter(({ pathname }) => pathname.endsWith('/entries')).map(({ pathname }) => pathname.slice(12, 19))
   expect([...new Set(months)].sort()).toEqual(['2026-09', '2026-10'])
+})
+
+test('the recent activity card asks who you are without an identity', async () => {
+  localStorage.clear()
+  start('/?month=2026-10')
+  expect(await screen.findByText(/Escolha quem você é em “Você é”/)).toBeTruthy()
+  expect(calls.some(({ pathname }) => pathname === '/api/audit')).toBe(false)
 })

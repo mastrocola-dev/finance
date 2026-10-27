@@ -12,9 +12,9 @@
 
 ## Sprint S1–S5 (author approved 2026-10-26)
 
-- S1 done 2026-10-27. Next run: S2, then S3, S4, S5. When S5 is done, Next is empty: stop the schedule (`list_triggers`, task "finance build agent", `update_trigger enabled false`). Never promote Later items: the author parks them until review
+- S1 and S2 done 2026-10-27. Next run: S3, then S4, S5. When S5 is done, Next is empty: stop the schedule (`list_triggers`, task "finance build agent", `update_trigger enabled false`). Never promote Later items: the author parks them until review
 - S3 notes: CI must run the same commands as local, including `npm run ingest:check`, `ingest:test`, `web:build` and the budget spec; e2e should get its own database name (flow/import specs reseed through `npm run db:reset && db:seed` with `cwd: '..'`)
-- S4/S5: Terraform, Docker and registries cannot run in a Claude session; say so in the report
+- S4/S5: Terraform, Docker and registries cannot run in a Claude session; say so in the report. The API still accepts only localhost Host/Origin (Later L177): S4/S5 must flag it in Needs author or the Container App answers 403
 
 ## Architecture facts the code does not make obvious
 
@@ -22,7 +22,8 @@
 - Nothing is deleted (triggers raise); lifecycle is `closed_at`; corrected entries close with `replaced_by`. Lookups by name use `lower()` and `closed_at is null`
 - Since migration 007, category (name, kind), account nickname and number, reserve and goal names are unique only among open rows, case-insensitive; a closed name can be registered again
 - Setup records: `src/ledger/setup.ts` (`registerRecord`, `editRecord` in place with `columns` per kind, `closeRecord`, `listSetup`); payload schemas come from `src/import/candidate.ts` (`text`, `balance`, `dayOfMonth` exported) and rows from `rowOf` in `src/import/commit.ts` (Later P04 moves them)
-- Identity today: `x-member` header; writes need a member (401 without). API port 3200, MCP 3100; `RuleError` maps to 422, other errors 500 without details
+- Identity: `identify(client, request, verify)` in `src/http/identity.ts`, verifier from `verifierFor(AUTH_MODE)` (only `local`; `token` is a refusing slot). Writes and routes with `identified: true` (`/audit`) need a member (401); unknown/closed 403. `api(client, imports, verify)`, `mcpHttp(client, { verify, hosts, origins })`. API port 3200, MCP 3100; `RuleError` maps to 422, other errors 500 without details
+- Web: audit queries are `enabled` only with a chosen member; e2e specs that read Atividade need `finance.member` set; `IdentityProvider` clears a stale identity on 403 `unknown member`
 - New API route: `route({...}, handler)` in `src/http/api.ts`, schemas in `contract.ts`, a sample in `test/http/openapi.test.ts` (routes run in declaration order; `RECORD`, `ENTRY`, `IMPORT` placeholders). New MCP write tools: `src/mcp/server.ts` and the tool lists in `test/mcp/server.test.ts` and `test/mcp/http.test.ts`; read tools only in `src/mcp/read.ts`
 - Seed time comes from `setClock`/`FINANCE_CLOCK`; Playwright contexts must use `openContext(browser, options)` from `web/e2e/context.ts`
 - MCP output is JSON text; bigint money becomes `{ cents, brl }` except `id` (string)
@@ -42,5 +43,5 @@
 
 ## Status
 
-- Tests after S1: 266 node, 169 web, 127 Playwright, 63 pytest; `npm run check` green; failing-test run streak 0
-- Needs author items stand as written in BACKLOG; none blocks S2
+- Tests after S2: 275 node, 173 web, 135 Playwright, 63 pytest; `npm run check` green; failing-test run streak 0
+- Needs author items stand as written in BACKLOG; none blocks S3

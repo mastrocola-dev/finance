@@ -14,3 +14,12 @@ export const storeIdentity = (member: string | undefined) => {
     else localStorage.removeItem(key)
   } catch {}
 }
+
+export const isStaleIdentity = async (response: Response) => {
+  if (response.status !== 403) return false
+  const body = await response
+    .clone()
+    .json()
+    .catch(() => undefined)
+  return body?.error === 'unknown member'
+}

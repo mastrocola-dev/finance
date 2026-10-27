@@ -1,7 +1,7 @@
 import { createMemoryHistory } from '@tanstack/react-router'
 import { cleanup, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { afterEach, expect, test, vi } from 'vitest'
+import { afterEach, beforeEach, expect, test, vi } from 'vitest'
 import { App } from '../app.tsx'
 import type { AuditItem } from './describe.ts'
 
@@ -38,6 +38,8 @@ const fetch = vi.fn(async (input: Request) => {
   const chosen = items.filter((item) => !author || (item.author === author && (!query.get('member') || item.member === query.get('member'))))
   return Response.json({ items: chosen, ...counts, next: author ? null : '4' })
 }) as unknown as typeof globalThis.fetch
+
+beforeEach(() => localStorage.setItem('finance.member', 'Marcio'))
 
 afterEach(() => {
   cleanup()
@@ -111,4 +113,12 @@ test('links an entry to its month without the member filter so the record is sho
   const first = await day(/20 de outubro/)
   const links = within(first).getAllByRole('link', { name: 'Ver registro' })
   expect(links.map((link) => link.getAttribute('href'))).toEqual(['/lancamentos?month=2025-10#entry-6', '/lancamentos?month=2025-10#entry-5'])
+})
+
+test('asks who you are before reading the audit log', async () => {
+  localStorage.clear()
+  start()
+  expect(await screen.findByText('Escolha quem você é')).toBeTruthy()
+  await waitFor(() => expect(calls.some(({ pathname }) => pathname === '/api/members')).toBe(true))
+  expect(calls.some(({ pathname }) => pathname === '/api/audit')).toBe(false)
 })

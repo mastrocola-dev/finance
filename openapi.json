@@ -620,9 +620,8 @@
     "/api/audit": {
       "get": {
         "operationId": "listAudit",
-        "summary": "Audit log, newest first, with counts per author",
+        "summary": "Audit log, newest first, with counts per author; needs a member",
         "security": [
-          {},
           {
             "member": []
           }

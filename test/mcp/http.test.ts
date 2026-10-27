@@ -5,7 +5,7 @@ import { Client, StreamableHTTPClientTransport } from '@modelcontextprotocol/cli
 import { connectPool } from '../../src/db/connection.ts'
 import { seed, seedToday } from '../../src/db/seed.ts'
 import { findMember } from '../../src/ledger/members.ts'
-import { serveHttp } from '../../src/mcp/http.ts'
+import { allowedHosts, allowedOrigins, serveHttp } from '../../src/mcp/http.ts'
 import { testDatabase } from '../db/database.ts'
 
 const rawPost = (url: string, headers: Record<string, string>) =>
@@ -103,8 +103,25 @@ describe('streamable http adapter', () => {
     assert.equal(await rawPost(server.url, {}), 200)
   })
 
-  test('rejects an unknown member', async () => {
+  test('rejects an unknown or closed member', async () => {
     assert.equal(await rawPost(server.url, { 'x-member': 'Mallory' }), 403)
+    await pool.query("insert into member (name, share_percent, closed_at) values ('Ana', 0, now())")
+    assert.equal(await rawPost(server.url, { 'x-member': 'Ana' }), 403)
+  })
+
+  test('allowed hosts and origins come from the environment, localhost by default', async () => {
+    assert.deepEqual(allowedHosts({}), ['localhost', '127.0.0.1', '[::1]'])
+    assert.deepEqual(allowedOrigins({ MCP_ALLOWED_ORIGINS: ' ' }), ['localhost', '127.0.0.1', '[::1]'])
+    const env = { MCP_ALLOWED_HOSTS: 'mcp.example, localhost', MCP_ALLOWED_ORIGINS: 'claude.ai' }
+    assert.deepEqual(allowedHosts(env), ['mcp.example', 'localhost'])
+    const exposed = await serveHttp(pool, 0, '127.0.0.1', { hosts: allowedHosts(env), origins: allowedOrigins(env) })
+    try {
+      assert.equal(await rawPost(exposed.url, { host: 'mcp.example', origin: 'https://claude.ai' }), 200)
+      assert.equal(await rawPost(exposed.url, { host: 'mcp.example', origin: 'https://finance.example' }), 403)
+      assert.equal(await rawPost(exposed.url, { host: 'finance.example' }), 403)
+    } finally {
+      await exposed.close()
+    }
   })
 
   test('rejects a foreign host or origin', async () => {

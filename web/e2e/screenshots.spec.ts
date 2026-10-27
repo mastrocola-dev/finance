@@ -10,6 +10,7 @@ const routes = [
   { name: 'decisions', path: '/decisoes', heading: 'Decisões' },
   { name: 'activity', path: '/atividade', heading: 'Atividade' },
   { name: 'setup', path: '/cadastros', heading: 'Cadastros' },
+  { name: 'activity-guest', path: '/atividade', heading: 'Atividade', member: '' },
 ]
 
 const viewports = [
@@ -22,11 +23,12 @@ for (const theme of ['light', 'dark'] as const)
     for (const route of routes)
       test(`${route.name} ${viewport.width} ${theme}`, async ({ browser }) => {
         const context = await openContext(browser, { viewport, colorScheme: theme })
-        await context.addInitScript(() => localStorage.setItem('finance.member', 'Marcio'))
+        const member = route.member ?? 'Marcio'
+        if (member) await context.addInitScript((name) => localStorage.setItem('finance.member', name), member)
         const page = await context.newPage()
         await page.goto(route.path)
         await expect(page.getByRole('heading', { level: 1, name: route.heading })).toBeVisible()
-        await expect(page.getByLabel('Você é').locator('visible=true')).toHaveValue('Marcio')
+        await expect(page.getByLabel('Você é').locator('visible=true')).toHaveValue(member)
         await expect(page.locator('[aria-busy="true"]')).toHaveCount(0)
         await page.evaluate(() => document.fonts.ready)
         await fullShot(page, `screenshots/${route.name}-${viewport.width}-${theme}.png`)

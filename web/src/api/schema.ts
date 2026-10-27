@@ -211,7 +211,7 @@ export type paths = {
             path?: never;
             cookie?: never;
         };
-        /** Audit log, newest first, with counts per author */
+        /** Audit log, newest first, with counts per author; needs a member */
         get: operations["listAudit"];
         put?: never;
         post?: never;

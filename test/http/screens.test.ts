@@ -11,7 +11,7 @@ describe('http api for the screens', () => {
   let server: Awaited<ReturnType<typeof serveApi>>
 
   const get = async (path: string) => {
-    const response = await fetch(`${server.url}/api${path}`)
+    const response = await fetch(`${server.url}/api${path}`, { headers: { 'x-member': 'Marcio' } })
     return { status: response.status, body: await response.json() }
   }
 

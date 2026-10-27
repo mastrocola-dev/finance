@@ -3,6 +3,7 @@ import { EmptyState } from '../components/empty-state.tsx'
 import { QueryView } from '../components/query-view.tsx'
 import { Skeleton } from '../components/skeleton.tsx'
 import { buttonVariants } from '../components/ui/button.tsx'
+import { useIdentity } from '../identity/identity-provider.tsx'
 import { formatMonth } from '../lib/format.ts'
 import { desktop, useMediaQuery } from '../lib/media.ts'
 import { firstDay, monthOf, shiftMonth } from '../lib/search.ts'
@@ -102,6 +103,7 @@ export const OverviewPage = () => {
   const members = useMembers()
   const decisions = useProposedDecisions()
   const activity = useRecentActivity()
+  const { member } = useIdentity()
   return (
     <>
       <PageHeader screen={screenOf('/')} />
@@ -115,9 +117,13 @@ export const OverviewPage = () => {
           <QueryView query={decisions} skeleton={<CardSkeleton />}>
             {(data) => <PendingDecisions decisions={data} />}
           </QueryView>
-          <QueryView query={activity} skeleton={<CardSkeleton />}>
-            {(data) => <RecentActivity items={data.items} />}
-          </QueryView>
+          {member ? (
+            <QueryView query={activity} skeleton={<CardSkeleton />}>
+              {(data) => <RecentActivity items={data.items} />}
+            </QueryView>
+          ) : (
+            <RecentActivity />
+          )}
         </div>
       </div>
     </>

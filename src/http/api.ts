@@ -16,7 +16,7 @@ import { findDecision, listDecisions } from '../ledger/decisions.ts'
 import { findEntry, listEntries } from '../ledger/entries.ts'
 import { forecastMonth } from '../ledger/forecast.ts'
 import { listGoals } from '../ledger/goals.ts'
-import { findMember, listMembers, type Member } from '../ledger/members.ts'
+import { listMembers, type Member } from '../ledger/members.ts'
 import { cancelEntry, confirmDecision, correctEntry, createEntry, markPaid, markUnpaid, type NewEntry, proposeDecision, rejectDecision, updateReserve, withdrawDecision } from '../ledger/record.ts'
 import { findReserve, listReserves } from '../ledger/reserves.ts'
 import { RuleError } from '../ledger/rule.ts'
@@ -53,6 +53,7 @@ import {
   uploadHeaders,
   uploadQuery,
 } from './contract.ts'
+import { identify, type Verifier, verifierFor } from './identity.ts'
 import { listen } from './node.ts'
 import { openApi } from './openapi.ts'
 
@@ -60,7 +61,7 @@ export const apiPrefix = '/api'
 
 type Schema = z.ZodType
 type Parsed<T> = T extends Schema ? z.output<T> : undefined
-type Spec = { method: string; path: string; operationId: string; summary: string; params?: Schema; query?: Schema; headers?: Schema; body?: Schema; upload?: true; response: Schema; status?: number }
+type Spec = { method: string; path: string; operationId: string; summary: string; params?: Schema; query?: Schema; headers?: Schema; body?: Schema; upload?: true; response: Schema; status?: number; identified?: true }
 type Input<S extends Spec> = { request: Request; params: Parsed<S['params']>; query: Parsed<S['query']>; headers: Parsed<S['headers']>; body: Parsed<S['body']>; member?: Member; client: Database; imports: ImportUploads }
 export type Route = Spec & { pattern: URLPattern; handle: (input: Input<Spec>) => Promise<unknown> }
 
@@ -139,7 +140,9 @@ export const routes: Route[] = [
   route({ method: 'GET', path: '/goals', operationId: 'listGoals', summary: 'Goals with progress, nearest due first', response: z.array(schemas.Goal) }, ({ client }) => listGoals(client)),
   route({ method: 'GET', path: '/net-worth', operationId: 'getNetWorth', summary: 'Reserves and goals minus debt balances', response: schemas.NetWorth }, ({ client }) => netWorth(client)),
   route({ method: 'GET', path: '/months/:month/split', operationId: 'getMonthSplit', summary: 'Who owes whom from joint expenses paid from member accounts', params: monthPath, response: schemas.Split }, ({ client, params }) => monthSplit(client, params.month)),
-  route({ method: 'GET', path: '/audit', operationId: 'listAudit', summary: 'Audit log, newest first, with counts per author', query: auditQuery, response: schemas.AuditPage }, ({ client, query: { before, ...filter } }) => listAudit(client, { ...filter, before: before === undefined ? undefined : BigInt(before) })),
+  route({ method: 'GET', path: '/audit', operationId: 'listAudit', summary: 'Audit log, newest first, with counts per author; needs a member', identified: true, query: auditQuery, response: schemas.AuditPage }, ({ client, query: { before, ...filter } }) =>
+    listAudit(client, { ...filter, before: before === undefined ? undefined : BigInt(before) }),
+  ),
   route({ method: 'POST', path: '/entries', operationId: 'createEntry', summary: 'Record an entry', query: referenceQuery, body: newEntry, response: schemas.Entry, status: 201 }, async (input) => {
     const { body } = input
     const created = await writing(input, (connection, actor) => createEntry(connection, actor, entryOf(body)))
@@ -256,16 +259,8 @@ const failure = (caught: unknown) => {
   return error('internal error', 500)
 }
 
-const memberOf = async (client: Database, request: Request) => {
-  const name = request.headers.get(memberHeader)
-  if (name === null) return undefined
-  const member = await findMember(client, name)
-  if (!member) throw new HttpError(403, 'unknown member')
-  return member
-}
-
 export const api =
-  (client: Database, imports = importUploads(client)) =>
+  (client: Database, imports = importUploads(client), verify: Verifier = verifierFor()) =>
   async (request: Request) => {
     const rejected = hostHeaderValidationResponse(request, localhostAllowedHostnames()) ?? originValidationResponse(request, localhostAllowedOrigins())
     if (rejected) return rejected
@@ -278,8 +273,8 @@ export const api =
     const matched = matches.find(({ method }) => method === request.method)
     if (!matched) return Response.json({ error: 'method not allowed' }, { status: 405, headers: { allow: matches.map(({ method }) => method).join(', ') } })
     try {
-      const member = await memberOf(client, request)
-      if (request.method !== 'GET' && !member) throw new HttpError(401, `writes need the ${memberHeader} header`)
+      const member = await identify(client, request, verify)
+      if ((request.method !== 'GET' || matched.identified) && !member) throw new HttpError(401, `this request needs the ${memberHeader} header`)
       const params = matched.params?.parse(matched.groups)
       const parsedQuery = matched.query?.parse(Object.fromEntries(url.searchParams))
       const headers = matched.headers?.parse(Object.fromEntries(request.headers))

@@ -1,34 +1,44 @@
 import { createMcpHandler, hostHeaderValidationResponse, localhostAllowedHostnames, localhostAllowedOrigins, originValidationResponse } from '@modelcontextprotocol/server'
 import { connectPool, type Database } from '../db/connection.ts'
+import { HttpError } from '../http/body.ts'
+import { identify, type Verifier, verifierFor } from '../http/identity.ts'
 import { listen } from '../http/node.ts'
-import { findMember } from '../ledger/members.ts'
 import { createServer } from './server.ts'
 
 export const mcpPath = '/mcp'
-export const memberHeader = 'x-member'
 
 const error = (message: string, status: number) => Response.json({ error: message }, { status })
 
-const memberOf = async (client: Database, request?: Request) => {
-  const name = request?.headers.get(memberHeader)
-  return name ? findMember(client, name) : undefined
+const listOf = (value: string | undefined, fallback: string[]) => {
+  const items = (value ?? '')
+    .split(',')
+    .map((item) => item.trim())
+    .filter(Boolean)
+  return items.length ? items : fallback
 }
 
-export const mcpHttp = (client: Database) => {
-  const mcp = createMcpHandler(async ({ requestInfo }) => createServer(client, await memberOf(client, requestInfo)))
+export const allowedHosts = (env = process.env) => listOf(env.MCP_ALLOWED_HOSTS, localhostAllowedHostnames())
+export const allowedOrigins = (env = process.env) => listOf(env.MCP_ALLOWED_ORIGINS, localhostAllowedOrigins())
+
+export const mcpHttp = (client: Database, { verify = verifierFor(), hosts = allowedHosts(), origins = allowedOrigins() }: { verify?: Verifier; hosts?: string[]; origins?: string[] } = {}) => {
+  const mcp = createMcpHandler(async ({ requestInfo }) => createServer(client, requestInfo && (await identify(client, requestInfo, verify))))
   const fetch = async (request: Request) => {
-    const rejected = hostHeaderValidationResponse(request, localhostAllowedHostnames()) ?? originValidationResponse(request, localhostAllowedOrigins())
+    const rejected = hostHeaderValidationResponse(request, hosts) ?? originValidationResponse(request, origins)
     if (rejected) return rejected
     if (new URL(request.url).pathname !== mcpPath) return error('not found', 404)
-    const member = request.headers.get(memberHeader)
-    if (member !== null && !(await findMember(client, member))) return error('unknown member', 403)
+    try {
+      await identify(client, request, verify)
+    } catch (caught) {
+      if (caught instanceof HttpError) return error(caught.message, caught.status)
+      throw caught
+    }
     return mcp.fetch(request)
   }
   return { fetch, close: mcp.close }
 }
 
-export const serveHttp = async (client: Database, port = Number(process.env.MCP_PORT ?? 3100), host = process.env.MCP_HOST ?? '127.0.0.1') => {
-  const handler = mcpHttp(client)
+export const serveHttp = async (client: Database, port = Number(process.env.MCP_PORT ?? 3100), host = process.env.MCP_HOST ?? '127.0.0.1', options?: Parameters<typeof mcpHttp>[1]) => {
+  const handler = mcpHttp(client, options)
   const server = await listen(handler.fetch, port, host)
   const close = async () => {
     await server.close()

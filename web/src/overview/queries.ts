@@ -36,6 +36,6 @@ export const useMonthSplit = (month: string) => {
 }
 
 export const useRecentActivity = (limit = 5) => {
-  const { api } = useIdentity()
-  return useQuery({ queryKey: ['audit', 'recent', limit], queryFn: async () => unwrap(await api.GET('/api/audit', { params: { query: { limit } } })) })
+  const { api, member } = useIdentity()
+  return useQuery({ queryKey: ['audit', 'recent', limit, member], enabled: Boolean(member), queryFn: async () => unwrap(await api.GET('/api/audit', { params: { query: { limit } } })) })
 }

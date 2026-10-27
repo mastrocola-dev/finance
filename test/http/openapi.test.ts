@@ -12,7 +12,7 @@ import { importUploads } from '../../src/import/uploads.ts'
 import { testDatabase } from '../db/database.ts'
 import { sample as extracted } from '../import/sample.ts'
 
-type Operation = { operationId: string; parameters: { name: string; in: string }[]; requestBody?: unknown; responses: Record<string, { content?: Record<string, { schema?: { $ref?: string } }> }> }
+type Operation = { operationId: string; security: Record<string, string[]>[]; parameters: { name: string; in: string }[]; requestBody?: unknown; responses: Record<string, { content?: Record<string, { schema?: { $ref?: string } }> }> }
 type Sample = { path: string; body?: unknown; file?: string }
 
 const document = openApi(routes) as unknown as { paths: Record<string, Record<string, Operation>>; components: { schemas: Record<string, unknown> } }
@@ -54,6 +54,14 @@ describe('openapi', () => {
     await server.close()
     await pool.end()
     await db.drop()
+  })
+
+  test('marks writes and the audit log as needing a member', () => {
+    const needing = routes.filter((route) => operationOf(route)?.security.length === 1).map(({ operationId }) => operationId)
+    assert.deepEqual(
+      needing,
+      routes.filter(({ method, operationId }) => method !== 'GET' || operationId === 'listAudit').map(({ operationId }) => operationId),
+    )
   })
 
   test('documents every route with its parameters, body and response', () => {
