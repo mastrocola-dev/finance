@@ -1,5 +1,5 @@
 import { defineConfig } from '@playwright/test'
-import { e2eEnv, entraBuildEnv, entraPreview, frozenAt } from './e2e/context.ts'
+import { e2eEnv, e2eIssuer, entraApiEnv, entraBuildEnv, entraPreview, frozenAt } from './e2e/context.ts'
 
 const chromium = process.env.PLAYWRIGHT_CHROMIUM ?? (process.env.CI ? undefined : '/opt/pw-browsers/chromium')
 const reuseExistingServer = !process.env.CI
@@ -21,10 +21,12 @@ export default defineConfig({
       reuseExistingServer,
       timeout: 360_000,
     },
+    { command: 'node e2e/issuer.ts', url: `${e2eIssuer.issuer}/.well-known/openid-configuration`, reuseExistingServer, timeout: 30_000 },
+    { command: 'npm run api:http', cwd: '..', env: entraApiEnv, url: `http://127.0.0.1:${e2eIssuer.apiPort}/api/health`, reuseExistingServer, timeout: 60_000 },
     { command: 'npm run build && npm run preview -- --host 127.0.0.1 --port 4273 --strictPort', env: { API_PORT: e2eEnv.API_PORT }, url: 'http://127.0.0.1:4273', reuseExistingServer, timeout: 120_000 },
     {
       command: `npx vite build --outDir dist-entra && npx vite preview --outDir dist-entra --host 127.0.0.1 --port ${entraPreview.port} --strictPort`,
-      env: { ...entraBuildEnv, API_PORT: e2eEnv.API_PORT },
+      env: { ...entraBuildEnv, API_PORT: e2eIssuer.apiPort },
       url: `http://127.0.0.1:${entraPreview.port}`,
       reuseExistingServer,
       timeout: 120_000,

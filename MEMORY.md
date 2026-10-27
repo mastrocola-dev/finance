@@ -2,8 +2,8 @@
 
 ## State
 
-- Sprint S6–S10 in progress (approved 2026-10-27). S6 to S8b done; next is S9 (full suite in entra and local modes), then S10 (runbook). The schedule stops itself after S10
-- Tests after S8b: 305 node, 199 web, 142 Playwright (full run S8b, local mode), 63 pytest; `npm run check` green; failing-test run streak 0
+- Sprint S6–S10 in progress (approved 2026-10-27). S6 to S9a done; next is S9b (every spec in entra mode as a second Playwright project), then S10 (runbook). The schedule stops itself after S10
+- Tests after S9a: 305 node, 199 web, 147 Playwright (full run, 142 local + 5 entra), 63 pytest; `npm run check` green; failing-test run streak 0
 
 ## Session setup (cloud container, each run, one command per Bash call)
 
@@ -37,7 +37,7 @@
 - Data: `useIdentity().api`, `unwrap(await api.GET(...))` in `useQuery`, render with `QueryView`. App tests render `<App history={createMemoryHistory(...)} fetch={stub} />` with full API shapes
 - Identity: `IdentityProvider` gets `session?: Session` (`web/src/auth/session.ts`); without it the local picker and `x-member`, with it `SessionIdentity` (bearer via `createApi({ token })`, member from `GET /api/me`, `signOut` in context, `choose` absent). `main.tsx` imports `msal-session.ts` only behind a literal `import.meta.env.VITE_AUTH_MODE === 'entra'` check so local builds drop MSAL (keeps the precache budget); `@azure/msal-browser` is the one dependency outside the CLAUDE.md list, added by S7b because the item names it
 - Tests of signed-in states pass a fake `Session` to `<App session={...} />` (`web/src/auth/sign-in.test.tsx`); MSAL itself is mocked with `vi.mock` in `msal-session.test.ts`
-- Playwright runs a third server: an `entra` build in `web/dist-entra` previewed on 4274 (`entraPreview`, `entraBuildEnv` in `web/e2e/context.ts`, fictional client and `caixa-e2e.ciamlogin.com` authority, routes stubbed in the spec)
+- Playwright servers: local API 3290, fake issuer 3292 (`web/e2e/issuer.ts`), entra API 3291 (`entraApiEnv`, same `finance_e2e`), preview 4273 and `entra` preview 4274 (`web/dist-entra`, proxies to 3291). `signIn(context, member)` routes `caixa-e2e.ciamlogin.com` to the issuer (forwards `x-public-origin`; the id token `iss` is the public one, the access token `iss` is `e2eIssuer.issuer`); call `linkMembers()` after every `reseed()`. Signed-in overview h1 is the month (`Outubro de 2026`), not the screen title
 - New screenshot files must be added to the README table (`test/docs/readme.test.ts`); state screenshots live in their flow spec (`flow.spec.ts`, `goal.spec.ts`), not `screenshots.spec.ts`
 - Vitest tests that depend on today use `vi.useFakeTimers({ toFake: ['Date'] })`; downloads are tested by assigning `URL.createObjectURL` and spying `HTMLAnchorElement.prototype.click`
 - Forms: shared `CandidateForm` (`web/src/imports/candidate-form.tsx`) with optional `fields`
