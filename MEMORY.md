@@ -12,9 +12,10 @@
 
 ## Sprint S1–S5 (author approved 2026-10-26)
 
-- S1, S2, S3 done 2026-10-27. Next run: S4 (Terraform), then S5. When S5 is done, Next is empty: stop the schedule (`list_triggers`, task "finance build agent", `update_trigger enabled false`). Never promote Later items: the author parks them until review
-- S3: `.github/workflows/ci.yml` mirrors the local commands; action majors are a guess (Needs author). S5's acceptance/Dockerfile must not break the workflow; any new check script goes into the workflow too
-- S4/S5: Terraform, Docker and registries cannot run in a Claude session; say so in the report. The API still accepts only localhost Host/Origin (Later L177): S4/S5 must flag it in Needs author or the Container App answers 403
+- S1–S4 done 2026-10-27. Next run: S5 (the last). When S5 is done, Next is empty: stop the schedule (`list_triggers`, task "finance build agent", `update_trigger enabled false`). Never promote Later items: the author parks them until review
+- S3: `.github/workflows/ci.yml` mirrors the local commands; action majors are a guess (Needs author). S4 added an `infra` job (setup-terraform@v3). S5's Dockerfile must not break the workflow; any new check script goes into it too
+- S4: `infra/` is Terraform 1.16.4; no Terraform binary here (releases.hashicorp.com blocked, downloading binaries from GitHub was refused by the permission classifier): `test/infra/terraform.test.ts` stands in for `fmt -check` (alignment of `=` per group of consecutive one-line attributes; keep a blank line around multi-line attributes and nested blocks). Apps read env from `local.apps` in `infra/main.tf`: if S5 needs new env vars or ports, add them there
+- S5: Docker cannot run here; say so. ADR-010 must use S4's facts: Container Apps internal until `allowed_ips`, Static Web App Free in eastus2 (no linked backend on Free, so the web must call the API cross-origin or ADR-010 picks a BFF), L177 and L179 (API cold start awaits uv sync) in Needs author
 
 ## Architecture facts the code does not make obvious
 
@@ -43,5 +44,5 @@
 
 ## Status
 
-- Tests after S3: 275 node, 173 web, 131 Playwright, 63 pytest; `npm run check` green. S2 had left the readme test red (missing `activity-guest-*` row; always run the full `npm test` before committing); failing-test run streak 0 after S3
-- Needs author items stand as written in BACKLOG; none blocks S4
+- Tests after S4: 280 node, 173 web, 131 Playwright (not rerun in S4, no web change), 63 pytest; `npm run check` green; always run the full `npm test` before committing; failing-test run streak 0 after S4
+- Needs author items stand as written in BACKLOG; none blocks S5

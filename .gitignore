@@ -10,3 +10,9 @@ __pycache__/
 .ruff_cache/
 .imports/
 .imports-e2e/
+.terraform/
+*.tfstate
+*.tfstate.*
+*.tfvars
+*.tfplan
+backend.hcl

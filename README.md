@@ -116,6 +116,8 @@ Copy `.env.example` to `.env` and adjust it; every script loads `.env` when pres
 
 `.github/workflows/ci.yml` runs on every push to `poc` and on pull requests to `main`, on Ubuntu 24.04 with a PostgreSQL 16 service, Node 24 and uv: `npm ci`, `npm run check`, `npm run ingest:check`, `npm run ingest:test`, `npm test`, `npm run web:build` and the first-load budget (`npx playwright test -g budget` in `web/`), in that order. Running the same commands locally reproduces it.
 
+A second job checks the Azure configuration in `infra/` with Terraform 1.16.4: `terraform fmt -check -recursive`, `terraform init -backend=false` and `terraform validate`. What it creates, the apply order and the rollback are in [infra/README.md](infra/README.md).
+
 The Playwright suite never touches the dev ledger: it resets and seeds its own database (`finance_e2e` on the server of `DATABASE_URL`, or `E2E_DATABASE_URL`), starts its API on port 3290 (`E2E_API_PORT`) with uploads under `.imports-e2e/`, and serves the build on port 4273. Outside CI it reuses servers already running on those ports; with `CI` set it starts its own and uses the Chromium installed by `playwright install`.
 
 ### Import converters (Python)
