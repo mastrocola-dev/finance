@@ -1,6 +1,6 @@
 import { execSync } from 'node:child_process'
 import { existsSync } from 'node:fs'
-import { type Browser, type BrowserContext, type BrowserContextOptions, expect } from '@playwright/test'
+import { type Browser, type BrowserContext, type BrowserContextOptions, expect, type Page, test } from '@playwright/test'
 
 export const frozenAt = '2026-10-18T12:00:00-03:00'
 
@@ -31,27 +31,37 @@ export const e2eIssuer = {
   members: { Marcio: '00000000-0000-4000-8000-0000000e2e01', Gabriela: '00000000-0000-4000-8000-0000000e2e02' },
 }
 
-export const entraApiEnv = { ...e2eEnv, API_PORT: e2eIssuer.apiPort, FINANCE_CLOCK: frozenAt, AUTH_MODE: 'entra', ENTRA_ISSUER: e2eIssuer.issuer, ENTRA_AUDIENCE: e2eIssuer.audience }
+export const entraApiEnv = { ...e2eEnv, SERVICE_AGENT_CLI: 'test/import/fake-agent.ts', API_PORT: e2eIssuer.apiPort, FINANCE_CLOCK: frozenAt, AUTH_MODE: 'entra', ENTRA_ISSUER: e2eIssuer.issuer, ENTRA_AUDIENCE: e2eIssuer.audience }
 
 export const entraBuildEnv = { VITE_AUTH_MODE: 'entra', VITE_ENTRA_CLIENT_ID: entraPreview.clientId, VITE_ENTRA_AUTHORITY: entraPreview.authority, VITE_ENTRA_SCOPE: entraPreview.scope }
 
-const run = (command: string) => execSync(command, { cwd: '..', stdio: 'ignore', env: { ...process.env, ...e2eEnv } })
+const run = (command: string, env = {}) => execSync(command, { cwd: '..', stdio: 'ignore', env: { ...process.env, ...e2eEnv, ...env } })
 
-export const reseed = () => run('npm run db:reset && npm run db:seed')
+export const entraMode = () => test.info().project.name === 'entra'
+
+let linked = false
 
 export const linkMembers = () => {
-  for (const [name, oid] of Object.entries(e2eIssuer.members)) run(`npm run member:link -- ${name} ${oid}`)
+  for (const [name, oid] of Object.entries(e2eIssuer.members)) run(`npm run member:link -- ${name} ${oid}`, { PGOPTIONS: `-c finance.clock=${frozenAt}` })
+  linked = true
 }
 
-export const openContext = async (browser: Browser, options: BrowserContextOptions = {}) => {
+export const reseed = () => {
+  run('npm run db:reset && npm run db:seed')
+  linked = false
+}
+
+export const openContext = async (browser: Browser, options: BrowserContextOptions = {}, frozen = true) => {
   const context = await browser.newContext({ locale: 'pt-BR', timezoneId: 'America/Sao_Paulo', ...options })
-  await context.clock.setFixedTime(new Date(frozenAt))
+  if (frozen) await context.clock.setFixedTime(new Date(frozenAt))
   return context
 }
 
-export const signIn = async (context: BrowserContext, member: keyof typeof e2eIssuer.members) => {
+type Member = keyof typeof e2eIssuer.members
+
+const routeAuthority = (context: BrowserContext, member: Member) => {
   const authority = new URL(entraPreview.authority).origin
-  await context.route(`${authority}/**`, async (route) => {
+  return context.route(`${authority}/**`, async (route) => {
     const request = route.request()
     const target = new URL(request.url())
     const forwarded = new URL(`${target.pathname}${target.search}`, e2eIssuer.origin)
@@ -59,9 +69,53 @@ export const signIn = async (context: BrowserContext, member: keyof typeof e2eIs
     const response = await route.fetch({ url: forwarded.href, headers: { ...request.headers(), 'x-public-origin': authority }, maxRedirects: 0 })
     await route.fulfill({ response })
   })
+}
+
+export const signIn = async (context: BrowserContext, member: Member) => {
+  await routeAuthority(context, member)
   const page = await context.newPage()
   await page.goto(`http://127.0.0.1:${entraPreview.port}/`)
   await page.getByRole('button', { name: 'Entrar com Google' }).click()
   await expect(page.getByRole('heading', { level: 1, name: 'Outubro de 2026' })).toBeVisible({ timeout: 15_000 })
   return page
+}
+
+type State = Awaited<ReturnType<BrowserContext['storageState']>>
+
+const sessions = new Map<string, State>()
+const authorizations = new WeakMap<BrowserContext, string>()
+
+export const memberState = async (browser: Browser, member: Member = 'Marcio', frozen = true): Promise<BrowserContextOptions> => {
+  if (!entraMode()) return {}
+  if (!linked) linkMembers()
+  const key = `${member} ${frozen}`
+  if (!sessions.has(key)) {
+    const context = await openContext(browser, {}, frozen)
+    await signIn(context, member)
+    sessions.set(key, await context.storageState())
+    await context.close()
+  }
+  return { storageState: sessions.get(key) }
+}
+
+export const actAs = async (context: BrowserContext, member: Member = 'Marcio') => {
+  if (!entraMode()) return context.addInitScript((name) => localStorage.setItem('finance.member', name), member)
+  await routeAuthority(context, member)
+  context.on('request', (request) => {
+    const authorization = request.headers().authorization
+    if (authorization) authorizations.set(context, authorization)
+  })
+}
+
+export const memberContext = async (browser: Browser, options: BrowserContextOptions = {}, member: Member = 'Marcio') => {
+  const context = await openContext(browser, { ...options, ...(await memberState(browser, member)) })
+  await actAs(context, member)
+  return context
+}
+
+export const memberHeaders = async (page: Page, member: Member = 'Marcio'): Promise<Record<string, string>> => {
+  if (!entraMode()) return { 'x-member': member }
+  const context = page.context()
+  if (!authorizations.has(context)) await Promise.all([context.waitForEvent('request', (request) => Boolean(request.headers().authorization)), page.goto('/')])
+  return { authorization: authorizations.get(context) ?? '' }
 }

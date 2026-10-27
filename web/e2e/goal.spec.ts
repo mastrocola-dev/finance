@@ -1,11 +1,11 @@
 import { readFile } from 'node:fs/promises'
 import AxeBuilder from '@axe-core/playwright'
 import { type Browser, expect, test } from '@playwright/test'
-import { openContext, reseed } from './context.ts'
+import { memberContext, reseed } from './context.ts'
+import { shotPath } from './shot.ts'
 
 const open = async (browser: Browser, viewport = { width: 1440, height: 1000 }, colorScheme: 'light' | 'dark' = 'light') => {
-  const context = await openContext(browser, { viewport, colorScheme })
-  await context.addInitScript(() => localStorage.setItem('finance.member', 'Marcio'))
+  const context = await memberContext(browser, { viewport, colorScheme })
   const page = await context.newPage()
   return { context, page }
 }
@@ -32,7 +32,7 @@ for (const theme of ['light', 'dark'] as const)
       expect(violations.map(({ id, nodes }) => ({ id, targets: nodes.map((node) => node.target.join(' ')) }))).toEqual([])
       await form.scrollIntoViewIfNeeded()
       await page.evaluate(() => document.fonts.ready)
-      await page.screenshot({ path: `screenshots/net-worth-goal-${viewport.width}-${theme}.png`, style: 'nav.fixed { position: absolute !important }' })
+      await page.screenshot({ path: shotPath(`screenshots/net-worth-goal-${viewport.width}-${theme}.png`), style: 'nav.fixed { position: absolute !important }' })
       await context.close()
     })
 

@@ -2,8 +2,8 @@
 
 ## State
 
-- Sprint S6–S10 in progress (approved 2026-10-27). S6 to S9a done; next is S9b (every spec in entra mode as a second Playwright project), then S10 (runbook). The schedule stops itself after S10
-- Tests after S9a: 305 node, 199 web, 147 Playwright (full run, 142 local + 5 entra), 63 pytest; `npm run check` green; failing-test run streak 0
+- Sprint S6–S10 in progress (approved 2026-10-27). S6 to S9b done; next is S10 (runbook and migration job). The schedule stops itself after S10
+- Tests after S9b: 305 node, 199 web, 280 Playwright (137 `local` + 143 `entra`), 63 pytest; `npm test` and `npm run check` green; failing-test run streak 0
 
 ## Session setup (cloud container, each run, one command per Bash call)
 
@@ -11,7 +11,7 @@
 - `pg_ctlcluster 16 main start`; `su postgres -c "psql -c \"alter user postgres password 'local'\""`; `cp .env.example .env`; `npm ci`; `npm run db:reset`; `npm run db:seed` (189 entries, 4 decisions)
 - `export UV_SYSTEM_CERTS=1; unset UV_NATIVE_TLS` then `uv sync` in `ingest/` before any test (else ingest tests fail with `SdkError: Connection closed`)
 - `npm test` takes about 3 minutes: `timeout 590` with a 600000 ms Bash timeout, output to a log file, read exit codes from the log. Single file: `node --env-file=.env --test test/x.test.ts`; web: `cd web && npx vitest run src/setup`
-- Playwright: `cd web && timeout 590 npx playwright test` (about 4 min; own `finance_e2e`, API on 3290, preview on 4273; reuses servers on those ports outside CI). PNGs are byte-stable; a changed PNG is a real change
+- Playwright: the full run takes about 8 min, too close to the Bash limit: start it in the background (`timeout 1200 npx playwright test > log 2>&1; echo exit $? >> log` with `&`) and poll the log with `sleep`; `--project=local` alone is about 4 min. Own `finance_e2e`, reuses servers on 3290/3291/3292/4273/4274 outside CI. PNGs are byte-stable; a changed PNG is a real change
 - `./node_modules/.bin/biome check --write <paths>`, never `npx biome`. `curl` to local servers needs `--noproxy '*'`; stop servers by pid (node processes show as `MainThread` in `pgrep`, so `pgrep node` misses them)
 - `npm run openapi` after any route change
 - Docker: `setsid dockerd &` starts a daemon, but Docker Hub and ghcr.io answer 403 through the proxy, so no image can be built. To check the image layout, copy the files the `Dockerfile` copies to a folder outside `/tmp/claude-0` (mode 700), `npm ci --omit=dev --workspaces=false`, sync the runtime venv, and run as `nobody` with a writable `HOME`
@@ -37,7 +37,8 @@
 - Data: `useIdentity().api`, `unwrap(await api.GET(...))` in `useQuery`, render with `QueryView`. App tests render `<App history={createMemoryHistory(...)} fetch={stub} />` with full API shapes
 - Identity: `IdentityProvider` gets `session?: Session` (`web/src/auth/session.ts`); without it the local picker and `x-member`, with it `SessionIdentity` (bearer via `createApi({ token })`, member from `GET /api/me`, `signOut` in context, `choose` absent). `main.tsx` imports `msal-session.ts` only behind a literal `import.meta.env.VITE_AUTH_MODE === 'entra'` check so local builds drop MSAL (keeps the precache budget); `@azure/msal-browser` is the one dependency outside the CLAUDE.md list, added by S7b because the item names it
 - Tests of signed-in states pass a fake `Session` to `<App session={...} />` (`web/src/auth/sign-in.test.tsx`); MSAL itself is mocked with `vi.mock` in `msal-session.test.ts`
-- Playwright servers: local API 3290, fake issuer 3292 (`web/e2e/issuer.ts`), entra API 3291 (`entraApiEnv`, same `finance_e2e`), preview 4273 and `entra` preview 4274 (`web/dist-entra`, proxies to 3291). `signIn(context, member)` routes `caixa-e2e.ciamlogin.com` to the issuer (forwards `x-public-origin`; the id token `iss` is the public one, the access token `iss` is `e2eIssuer.issuer`); call `linkMembers()` after every `reseed()`. Signed-in overview h1 is the month (`Outubro de 2026`), not the screen title
+- Playwright servers: local API 3290, fake issuer 3292 (`web/e2e/issuer.ts`), entra API 3291 (`entraApiEnv`, same `finance_e2e`), preview 4273 and `entra` preview 4274 (`web/dist-entra`, proxies to 3291). `signIn(context, member)` routes `caixa-e2e.ciamlogin.com` to the issuer (forwards `x-public-origin`; the id token `iss` is the public one, the access token `iss` is `e2eIssuer.issuer`). Signed-in overview h1 is the month (`Outubro de 2026`), not the screen title
+- Two projects (S9b): new specs open contexts with `memberContext(browser, options)` and call the API with `await memberHeaders(page)`, never `finance.member` or `x-member` directly; picker-only tests get `{ tag: '@local' }`; screenshot paths go through `shotPath` (or `fullShot`). `memberState` links members lazily after `reseed()` and caches the MSAL storage state per member and clock; `context.clock.setFixedTime` fakes `performance`, so timing tests use `memberState(browser, member, false)`
 - New screenshot files must be added to the README table (`test/docs/readme.test.ts`); state screenshots live in their flow spec (`flow.spec.ts`, `goal.spec.ts`), not `screenshots.spec.ts`
 - Vitest tests that depend on today use `vi.useFakeTimers({ toFake: ['Date'] })`; downloads are tested by assigning `URL.createObjectURL` and spying `HTMLAnchorElement.prototype.click`
 - Forms: shared `CandidateForm` (`web/src/imports/candidate-form.tsx`) with optional `fields`

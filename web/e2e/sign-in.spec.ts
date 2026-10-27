@@ -1,7 +1,7 @@
 import AxeBuilder from '@axe-core/playwright'
 import { expect, test } from '@playwright/test'
 import { entraPreview, openContext } from './context.ts'
-import { fullShot } from './shot.ts'
+import { pinTabBar } from './shot.ts'
 
 const url = `http://127.0.0.1:${entraPreview.port}/decisoes`
 
@@ -21,7 +21,7 @@ for (const theme of ['light', 'dark'] as const)
       const { violations } = await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa']).analyze()
       expect(violations.map(({ id, nodes }) => ({ id, targets: nodes.map((node) => node.target.join(' ')) }))).toEqual([])
       await page.evaluate(() => document.fonts.ready)
-      await fullShot(page, `screenshots/sign-in-${viewport.width}-${theme}.png`)
+      await page.screenshot({ path: `screenshots/sign-in-${viewport.width}-${theme}.png`, fullPage: true, style: pinTabBar })
       await context.close()
     })
 

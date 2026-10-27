@@ -1,6 +1,6 @@
 import AxeBuilder from '@axe-core/playwright'
 import { expect, test } from '@playwright/test'
-import { openContext } from './context.ts'
+import { memberContext } from './context.ts'
 
 const routes = [
   { name: 'overview', path: '/?month=2026-10', heading: 'Outubro de 2026' },
@@ -22,8 +22,7 @@ for (const theme of ['light', 'dark'] as const)
   for (const viewport of viewports)
     for (const route of routes)
       test(`axe ${route.name} ${viewport.width} ${theme}`, async ({ browser }) => {
-        const context = await openContext(browser, { viewport, colorScheme: theme })
-        await context.addInitScript(() => localStorage.setItem('finance.member', 'Marcio'))
+        const context = await memberContext(browser, { viewport, colorScheme: theme })
         const page = await context.newPage()
         await page.goto(route.path)
         await expect(page.getByRole('heading', { level: 1, name: route.heading })).toBeVisible()

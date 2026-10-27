@@ -8,8 +8,11 @@ export default defineConfig({
   testDir: 'e2e',
   workers: 1,
   reporter: 'list',
+  projects: [
+    { name: 'local', testIgnore: /(entra|sign-in)\.spec\.ts/, use: { baseURL: 'http://127.0.0.1:4273' } },
+    { name: 'entra', grepInvert: /@local/, use: { baseURL: `http://127.0.0.1:${entraPreview.port}` } },
+  ],
   use: {
-    baseURL: 'http://127.0.0.1:4273',
     launchOptions: { executablePath: chromium, args: ['--disable-partial-raster'], env: { ...process.env, LANG: 'pt_BR.UTF-8' } },
   },
   webServer: [

@@ -1,9 +1,9 @@
 import { type Browser, expect, test } from '@playwright/test'
-import { openContext, reseed } from './context.ts'
+import { memberContext, reseed } from './context.ts'
+import { shotPath } from './shot.ts'
 
 const open = async (browser: Browser, viewport = { width: 1440, height: 1000 }, colorScheme: 'light' | 'dark' = 'light') => {
-  const context = await openContext(browser, { viewport, colorScheme })
-  await context.addInitScript(() => localStorage.setItem('finance.member', 'Marcio'))
+  const context = await memberContext(browser, { viewport, colorScheme })
   const page = await context.newPage()
   return { context, page }
 }
@@ -26,7 +26,7 @@ for (const theme of ['light', 'dark'] as const)
       await expect(bill).toHaveAttribute('aria-pressed', 'true')
       await expect(page.getByRole('status')).toContainText('Internet marcada como paga')
       await page.evaluate(() => document.fonts.ready)
-      await page.screenshot({ path: `screenshots/bills-toast-${viewport.width}-${theme}.png` })
+      await page.screenshot({ path: shotPath(`screenshots/bills-toast-${viewport.width}-${theme}.png`) })
       await page.getByRole('button', { name: 'Desfazer' }).click()
       await expect(bill).toHaveAttribute('aria-pressed', 'false')
       await expect(page.getByRole('status')).toContainText('Internet voltou para em aberto')
@@ -75,7 +75,7 @@ for (const theme of ['light', 'dark'] as const)
       await expect(form.getByLabel('Valor')).toHaveValue('3.200,00')
       await expect(form).toBeInViewport()
       await page.evaluate(() => document.fonts.ready)
-      await page.screenshot({ path: `screenshots/entries-edit-${viewport.width}-${theme}.png` })
+      await page.screenshot({ path: shotPath(`screenshots/entries-edit-${viewport.width}-${theme}.png`) })
       await context.close()
     })
 

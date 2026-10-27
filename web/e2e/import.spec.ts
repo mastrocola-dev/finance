@@ -1,7 +1,7 @@
 import AxeBuilder from '@axe-core/playwright'
 import { expect, type Page, test } from '@playwright/test'
-import { openContext, reseed } from './context.ts'
-import { fullShot } from './shot.ts'
+import { memberContext, memberHeaders, reseed } from './context.ts'
+import { fullShot, shotPath } from './shot.ts'
 
 const statement = { name: 'extrato-outubro.csv', mimeType: 'text/csv', buffer: Buffer.from('data,descricao,valor\n2026-10-03,Padaria do bairro,-18.50\n2026-10-05,Salario,4200.00\n') }
 
@@ -19,8 +19,7 @@ test.beforeAll(reseed)
 test.afterAll(reseed)
 
 test('import uploads a file with consent, waits until it can be reviewed', async ({ browser }) => {
-  const context = await openContext(browser, { viewport: viewports[1] })
-  await context.addInitScript(() => localStorage.setItem('finance.member', 'Marcio'))
+  const context = await memberContext(browser, { viewport: viewports[1] })
   const page = await context.newPage()
   await page.goto('/importar')
   await expect(page.getByText('Nenhuma importação ainda')).toBeVisible()
@@ -38,8 +37,7 @@ test('import uploads a file with consent, waits until it can be reviewed', async
 for (const theme of ['light', 'dark'] as const)
   for (const viewport of viewports)
     test(`import screenshot ${viewport.width} ${theme}`, async ({ browser }) => {
-      const context = await openContext(browser, { viewport, colorScheme: theme })
-      await context.addInitScript(() => localStorage.setItem('finance.member', 'Marcio'))
+      const context = await memberContext(browser, { viewport, colorScheme: theme })
       const page = await context.newPage()
       await page.goto('/importar')
       await expect(history(page).getByText('Para revisar')).toBeVisible()
@@ -52,8 +50,7 @@ for (const theme of ['light', 'dark'] as const)
 for (const theme of ['light', 'dark'] as const)
   for (const viewport of viewports)
     test(`import review screenshot ${viewport.width} ${theme}`, async ({ browser }) => {
-      const context = await openContext(browser, { viewport, colorScheme: theme })
-      await context.addInitScript(() => localStorage.setItem('finance.member', 'Marcio'))
+      const context = await memberContext(browser, { viewport, colorScheme: theme })
       const page = await context.newPage()
       await page.goto('/importar')
       await history(page)
@@ -69,13 +66,12 @@ for (const theme of ['light', 'dark'] as const)
       await form.getByRole('button', { name: 'Salvar' }).click()
       await expect(form.getByText('Preencha este campo.')).toBeVisible()
       await form.scrollIntoViewIfNeeded()
-      await page.screenshot({ path: `screenshots/imports-review-edit-${viewport.width}-${theme}.png` })
+      await page.screenshot({ path: shotPath(`screenshots/imports-review-edit-${viewport.width}-${theme}.png`) })
       await context.close()
     })
 
 test('import review reads the low-confidence chunk again before anything is reviewed', async ({ browser }) => {
-  const context = await openContext(browser, { viewport: viewports[1] })
-  await context.addInitScript(() => localStorage.setItem('finance.member', 'Marcio'))
+  const context = await memberContext(browser, { viewport: viewports[1] })
   const page = await context.newPage()
   await page.goto('/importar')
   await expect(history(page).getByText('1 trecho pode ser lido de novo: falhou ou tem baixa confiança.')).toBeVisible()
@@ -95,8 +91,7 @@ test('import review reads the low-confidence chunk again before anything is revi
 })
 
 test('import review answers, accepts and rejects candidates', async ({ browser }) => {
-  const context = await openContext(browser, { viewport: viewports[1] })
-  await context.addInitScript(() => localStorage.setItem('finance.member', 'Marcio'))
+  const context = await memberContext(browser, { viewport: viewports[1] })
   const page = await context.newPage()
   await page.goto('/importar')
   await history(page)
@@ -138,13 +133,12 @@ const shoot = (name: string, prepare: (page: Page) => Promise<void>) => {
   for (const theme of ['light', 'dark'] as const)
     for (const viewport of viewports)
       test(`${name} screenshot ${viewport.width} ${theme}`, async ({ browser }) => {
-        const context = await openContext(browser, { viewport, colorScheme: theme })
-        await context.addInitScript(() => localStorage.setItem('finance.member', 'Marcio'))
+        const context = await memberContext(browser, { viewport, colorScheme: theme })
         const page = await context.newPage()
         await prepare(page)
         await expect(page.locator('[aria-busy="true"]')).toHaveCount(0)
         await page.evaluate(() => document.fonts.ready)
-        await page.screenshot({ path: `screenshots/${name}-${viewport.width}-${theme}.png` })
+        await page.screenshot({ path: shotPath(`screenshots/${name}-${viewport.width}-${theme}.png`) })
         await context.close()
       })
 }
@@ -166,8 +160,7 @@ for (const [state, prepare] of [
   ['warming', warming],
 ] as const)
   test(`import form says why it cannot read files and stays accessible while ${state}`, async ({ browser }) => {
-    const context = await openContext(browser, { viewport: viewports[0] })
-    await context.addInitScript(() => localStorage.setItem('finance.member', 'Marcio'))
+    const context = await memberContext(browser, { viewport: viewports[0] })
     const page = await context.newPage()
     await prepare(page)
     await expect(page.getByRole('button', { name: 'Enviar para leitura' })).toBeDisabled()
@@ -176,7 +169,7 @@ for (const [state, prepare] of [
   })
 
 const batchId = async (page: Page) => {
-  const batches: { id: string; fileName: string }[] = await (await page.request.get('/api/imports', { headers: { 'x-member': 'Marcio' } })).json()
+  const batches: { id: string; fileName: string }[] = await (await page.request.get('/api/imports', { headers: await memberHeaders(page) })).json()
   return batches.find((batch) => batch.fileName === statement.name)?.id
 }
 
@@ -196,8 +189,7 @@ shoot('imports-unstaged', async (page) => {
 })
 
 test('import commit waits until the item that creates the name is accepted', async ({ browser }) => {
-  const context = await openContext(browser, { viewport: viewports[1] })
-  await context.addInitScript(() => localStorage.setItem('finance.member', 'Marcio'))
+  const context = await memberContext(browser, { viewport: viewports[1] })
   const page = await context.newPage()
   await review(page)
   const accept = page.getByRole('button', { name: 'Aceitar Pets' })
@@ -223,8 +215,7 @@ shoot('imports-commit', async (page) => {
 })
 
 test('import commit writes the accepted items, which reach the entries and the activity', async ({ browser }) => {
-  const context = await openContext(browser, { viewport: viewports[1] })
-  await context.addInitScript(() => localStorage.setItem('finance.member', 'Marcio'))
+  const context = await memberContext(browser, { viewport: viewports[1] })
   const page = await context.newPage()
   await review(page)
   const commit = page.getByRole('region', { name: 'Gravar no livro' })
@@ -249,8 +240,7 @@ shoot('imports-committed', async (page) => {
 })
 
 test('import closes the committed batch from the review', async ({ browser }) => {
-  const context = await openContext(browser, { viewport: viewports[0] })
-  await context.addInitScript(() => localStorage.setItem('finance.member', 'Marcio'))
+  const context = await memberContext(browser, { viewport: viewports[0] })
   const page = await context.newPage()
   await page.goto('/importar')
   await expect(history(page).getByText('Gravado', { exact: true })).toBeVisible()
@@ -269,8 +259,7 @@ test('import closes the committed batch from the review', async ({ browser }) =>
 const second = { name: 'extrato-novembro.csv', mimeType: 'text/csv', buffer: Buffer.from('data,descricao,valor\n2026-11-03,Padaria do bairro,-21.00\n') }
 
 test('import discards a batch that was never reviewed', async ({ browser }) => {
-  const context = await openContext(browser, { viewport: viewports[0] })
-  await context.addInitScript(() => localStorage.setItem('finance.member', 'Marcio'))
+  const context = await memberContext(browser, { viewport: viewports[0] })
   const page = await context.newPage()
   await page.goto('/importar')
   const form = page.getByRole('form', { name: 'Enviar arquivo' })
