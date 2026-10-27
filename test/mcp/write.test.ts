@@ -121,6 +121,20 @@ describe('mcp write tools', () => {
     assert.equal(still.id, pending.id)
   })
 
+  test('mark_unpaid undoes a payment mark once, audited, and refuses without a member', async () => {
+    const created = (await call(member, 'create_entry', { ...groceries, description: 'Paid by mistake', paid_on: '2026-10-20' })).json()
+    assert.equal(created.status, 'paid')
+    const refused = await call(anonymous, 'mark_unpaid', { id: created.id, today: seedToday })
+    assert.equal(refused.isError, true)
+    const reopened = (await call(member, 'mark_unpaid', { id: created.id, today: seedToday })).json()
+    assert.equal(reopened.status, 'planned')
+    assert.equal(reopened.paidOn, null)
+    assert.deepEqual((await audit(created.id)).at(-1), { author: 'claude', member_id: marcio.id, action: 'update' })
+    const again = await call(member, 'mark_unpaid', { id: created.id, today: seedToday })
+    assert.equal(again.isError, true)
+    assert.match(again.text, /not paid/)
+  })
+
   test('correct_entry replaces an entry and cancel_entry closes it, both audited as claude', async () => {
     const created = (await call(member, 'create_entry', { ...groceries, description: 'Feira' })).json()
     const corrected = (await call(member, 'correct_entry', { ...groceries, id: created.id, description: 'Feira', amount_cents: 4321 })).json()

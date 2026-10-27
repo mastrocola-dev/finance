@@ -197,7 +197,8 @@ export type paths = {
         /** Goals with progress, nearest due first */
         get: operations["listGoals"];
         put?: never;
-        post?: never;
+        /** Register a goal with its target, optional due date and reserve */
+        post: operations["createGoal"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1068,6 +1069,14 @@ export type components = {
             balance_cents?: number;
             target_cents?: number;
         };
+        CreateGoalBody: {
+            name: string;
+            target_cents: number;
+            saved_cents?: number;
+            /** Format: date */
+            due_on?: string;
+            reserve?: string;
+        };
         ProposeDecisionBody: {
             title: string;
             description?: string;
@@ -1142,6 +1151,7 @@ export type ListSetupResponse = components['schemas']['ListSetupResponse'];
 export type RegisterRecordBody = components['schemas']['RegisterRecordBody'];
 export type EditRecordBody = components['schemas']['EditRecordBody'];
 export type UpdateReserveBody = components['schemas']['UpdateReserveBody'];
+export type CreateGoalBody = components['schemas']['CreateGoalBody'];
 export type ProposeDecisionBody = components['schemas']['ProposeDecisionBody'];
 export type ListImportsResponse = components['schemas']['ListImportsResponse'];
 export type ListImportCandidatesResponse = components['schemas']['ListImportCandidatesResponse'];
@@ -1547,6 +1557,39 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ListGoalsResponse"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+        };
+    };
+    createGoal: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateGoalBody"];
+            };
+        };
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Goal"];
                 };
             };
             /** @description Error */

@@ -15,7 +15,8 @@ const parameters = (place: 'path' | 'query' | 'header', schema?: z.ZodType) => {
   return Object.entries(properties).map(([name, { description, ...property }]) => ({ name, in: place, required: place === 'path' || required.includes(name), ...(description ? { description } : {}), schema: property }))
 }
 
-export const openApi = (routes: Route[]) => {
+export const openApi = (routes: Route[], { bearer = false } = {}) => {
+  const scheme = bearer ? 'bearer' : 'member'
   const registry = z.registry<{ id: string }>()
   for (const [id, schema] of Object.entries(schemas)) registry.add(schema, { id })
   const reference = (schema: z.ZodType, fallback: string) => {
@@ -25,13 +26,13 @@ export const openApi = (routes: Route[]) => {
   const paths: Record<string, Record<string, unknown>> = {}
   for (const route of routes) {
     const path = route.pattern.pathname.replace(/:(\w+)/g, '{$1}')
-    const needsMember = route.method !== 'GET' || route.identified
+    const needsMember = bearer || route.method !== 'GET' || route.identified
     paths[path] = {
       ...paths[path],
       [route.method.toLowerCase()]: {
         operationId: route.operationId,
         summary: route.summary,
-        security: route.open ? [] : needsMember ? [{ member: [] }] : [{}, { member: [] }],
+        security: route.open ? [] : needsMember ? [{ [scheme]: [] }] : [{}, { [scheme]: [] }],
         parameters: [...parameters('path', route.params), ...parameters('query', route.query), ...parameters('header', route.headers)],
         ...(route.upload ? { requestBody: { required: true, content: { 'application/octet-stream': { schema: { type: 'string', format: 'binary' } } } } } : {}),
         ...(route.body ? { requestBody: { required: true, content: json(reference(route.body, `${capitalized(route.operationId)}Body`)) } } : {}),
@@ -45,8 +46,8 @@ export const openApi = (routes: Route[]) => {
   const components = Object.fromEntries(Object.entries(z.toJSONSchema(registry, { io: 'input', uri }).schemas).map(([id, { $schema, $id, ...schema }]) => [id, schema]))
   return {
     openapi: '3.1.0',
-    info: { title: 'finance', version: '0.1.0', description: `Household finance ledger. Writes are audited as the member named in the ${memberHeader} header.` },
+    info: { title: 'finance', version: '0.1.0', description: `Household finance ledger. Writes are audited as the member ${bearer ? 'the bearer token belongs to' : `named in the ${memberHeader} header`}.` },
     paths,
-    components: { schemas: components, securitySchemes: { member: { type: 'apiKey', in: 'header', name: memberHeader } } },
+    components: { schemas: components, securitySchemes: bearer ? { bearer: { type: 'http', scheme: 'bearer', bearerFormat: 'JWT' } } : { member: { type: 'apiKey', in: 'header', name: memberHeader } } },
   }
 }

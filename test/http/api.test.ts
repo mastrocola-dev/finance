@@ -172,6 +172,24 @@ describe('http api', () => {
     assert.equal((await send('PATCH', '/reserves/Reserva%20de%20emerg%C3%AAncia', {}, {})).status, 401)
   })
 
+  test('creates a goal as the calling member, audited, and refuses bad or duplicate goals', async () => {
+    const created = await post('/goals', { name: 'Bicicleta nova', target_cents: 450000, due_on: '2027-03-01', reserve: 'Reserva de emergência' })
+    assert.equal(created.status, 201)
+    assert.equal(created.body.name, 'Bicicleta nova')
+    assert.deepEqual(created.body.target, { cents: '450000', brl: 'R$ 4.500,00' })
+    assert.equal(created.body.saved.cents, '0')
+    assert.equal(created.body.dueOn, '2027-03-01')
+    assert.equal(created.body.reserve, 'Reserva de emergência')
+    const { rows } = await pool.query<{ author: string; action: string; name: string }>("select a.author, a.action, m.name from audit_log a join member m on m.id = a.member_id where a.entity = 'goal' and a.entity_id = $1", [created.body.id])
+    assert.deepEqual(rows, [{ author: 'member', action: 'create', name: 'Marcio' }])
+    assert.ok((await get('/goals')).body.some((goal: { id: string }) => goal.id === created.body.id))
+    assert.equal((await post('/goals', { name: 'bicicleta NOVA', target_cents: 1 })).status, 422)
+    assert.equal((await post('/goals', { name: 'Viagem', target_cents: 1, reserve: 'Nowhere' })).status, 422)
+    assert.equal((await post('/goals', { name: 'Viagem', target_cents: 0 })).status, 400)
+    assert.equal((await post('/goals', { name: 'Viagem', target_cents: 1, due_on: '2027-13-01' })).status, 400)
+    assert.equal((await post('/goals', { name: 'Viagem', target_cents: 1 }, {})).status, 401)
+  })
+
   test('proposes a decision and closes it once every member confirms', async () => {
     const proposed = await post('/decisions', { title: 'Move to a bigger flat', amount_cents: 50000000 })
     assert.equal(proposed.status, 201)

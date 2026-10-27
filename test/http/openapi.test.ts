@@ -128,6 +128,7 @@ describe('openapi', () => {
       editRecord: { path: '/setup/category/RECORD', body: { name: 'Bichos' } },
       closeRecord: { path: '/setup/category/RECORD/close' },
       updateReserve: { path: '/reserves/Reserva%20de%20emerg%C3%AAncia', body: { target_cents: 3000000 } },
+      createGoal: { path: '/goals', body: { name: 'Sofá', target_cents: 300000, due_on: '2027-01-01' } },
       proposeDecision: { path: '/decisions', body: { title: 'Bike', description: 'Commuting' } },
       confirmDecision: { path: `/decisions/${proposed.body.id}/confirm` },
       rejectDecision: { path: `/decisions/${answered[0]?.body.id}/reject` },

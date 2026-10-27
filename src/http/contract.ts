@@ -95,6 +95,14 @@ export const newDecision = z.object({
   amount_cents: z.int().positive().optional(),
 })
 
+export const newGoal = z.object({
+  name: z.string().trim().min(1),
+  target_cents: z.int().positive(),
+  saved_cents: z.int().nonnegative().optional(),
+  due_on: z.iso.date().optional(),
+  reserve: z.string().trim().min(1).optional(),
+})
+
 const money = z.strictObject({ cents: z.string().describe('Integer cents in BRL'), brl: z.string().describe('Formatted as R$ 1.234,56') })
 
 const entry = z.strictObject({

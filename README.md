@@ -167,11 +167,11 @@ The API takes the same flow from a browser: `POST /api/imports?consent=true` wit
 
 `npm run mcp:stdio` serves the read tools `month_summary`, `list_entries`, `list_debts`, `list_reserves`, `list_setup` (open categories, accounts, reserves, incomes, recurring expenses, debts and goals) and `list_decisions` (status `proposed` by default, or `all`) over stdio against `DATABASE_URL`. Amounts are cents as strings with a BRL display, for example `{ "cents": "123456", "brl": "R$ 1.234,56" }`.
 
-`npm run mcp:http` serves the same tools over streamable HTTP at `http://127.0.0.1:3100/mcp` (`MCP_HOST`, `MCP_PORT`; `DATABASE_POOL_MAX` sets the pool size, default 5). Only the Host and Origin hostnames listed in `MCP_ALLOWED_HOSTS` and `MCP_ALLOWED_ORIGINS` are accepted (comma-separated, default `localhost,127.0.0.1,[::1]`); set them only when the server is exposed, for example `MCP_ALLOWED_HOSTS=mcp.example.com` and `MCP_ALLOWED_ORIGINS=claude.ai`. An optional `x-member` header names the calling member; an unknown or closed member is answered `403`.
+`npm run mcp:http` serves the same tools over streamable HTTP at `http://127.0.0.1:3100/mcp` (`MCP_HOST`, `MCP_PORT`; `DATABASE_POOL_MAX` sets the pool size, default 5). Only the Host and Origin hostnames listed in `MCP_ALLOWED_HOSTS` and `MCP_ALLOWED_ORIGINS` are accepted (comma-separated, default `localhost,127.0.0.1,[::1]`); set them only when the server is exposed, for example `MCP_ALLOWED_HOSTS=mcp.example.com` and `MCP_ALLOWED_ORIGINS=claude.ai`. An optional `x-member` header names the calling member; an unknown or closed member is answered `403`. With `AUTH_MODE=entra` the endpoint needs `Authorization: Bearer <access token>` for every call (`401` with `WWW-Authenticate: Bearer resource_metadata="…"` otherwise) and publishes its OAuth protected resource metadata (RFC 9728) at `/.well-known/oauth-protected-resource/mcp` (and at the root well-known path), naming the Entra issuer as authorization server, so Claude can connect through OAuth.
 
 `npm run mcp:demo` serves the same read tools over stdio against `DEMO_DATABASE_URL` (default `DATABASE_URL`), with the connection opened read-only so no write can reach the database; it registers no write tools.
 
-Write tools `create_entry` (planned or already paid income or expense, member name or `joint`), `correct_entry` (closes the entry and points it to its replacement), `cancel_entry` (closes it; the forecast does not plan it again), `register_record` and `close_record` (categories, accounts, reserves, incomes, recurring expenses, debts and goals) and `mark_paid`, `forecast_month` (plans a month from the active recurring expenses and incomes, idempotent), `update_reserve`, and the joint decision tools `propose_decision`, `confirm_decision`, `reject_decision` and `withdraw_decision` record facts on behalf of the calling member, audited as `claude` with that member; they never execute a payment. Over HTTP the caller is the `x-member` header, over stdio the `FINANCE_MEMBER` variable (the server refuses to start when it names no active member). Without a caller every write is refused. A decision stays `proposed` until every active member confirms it.
+Write tools `create_entry` (planned or already paid income or expense, member name or `joint`), `correct_entry` (closes the entry and points it to its replacement), `cancel_entry` (closes it; the forecast does not plan it again), `register_record` and `close_record` (categories, accounts, reserves, incomes, recurring expenses, debts and goals), `mark_paid` and `mark_unpaid` (undoes a wrong payment mark), `forecast_month` (plans a month from the active recurring expenses and incomes, idempotent), `update_reserve`, and the joint decision tools `propose_decision`, `confirm_decision`, `reject_decision` and `withdraw_decision` record facts on behalf of the calling member, audited as `claude` with that member; they never execute a payment. Over HTTP the caller is the `x-member` header, over stdio the `FINANCE_MEMBER` variable (the server refuses to start when it names no active member). Without a caller every write is refused. A decision stays `proposed` until every active member confirms it.
 
 ## HTTP API
 
@@ -189,11 +189,12 @@ Write tools `create_entry` (planned or already paid income or expense, member na
 - `PUT /api/entries/:id` corrects an entry with the full new values: the old row is closed with `replaced_by` pointing to the new one (installment and recurring source kept)
 - `POST /api/entries/:id/cancel` closes an entry; the forecast does not plan it again
 - `GET /api/setup`, `POST /api/setup` with `{ kind, payload }` (the import candidate schema of the kind) and `POST /api/setup/:kind/:id/close` manage categories, accounts, reserves, incomes, recurring expenses, debts and goals; account nicknames are unique among open accounts
+- `POST /api/goals` with `name`, `target_cents`, optional `saved_cents`, `due_on` and `reserve`, answered `201` with the goal and its progress
 - `PATCH /api/reserves/:name` with `balance_cents` and/or `target_cents`
 - `POST /api/decisions` with `title`, optional `description` and `amount_cents`, answered `201`
 - `POST /api/decisions/:id/confirm|reject|withdraw`
 - `POST /api/months/:month/forecast`, planning the month's recurring entries once (`today`)
-- `GET /api/openapi.json`, the OpenAPI 3.1 contract of these routes
+- `GET /api/openapi.json`, the OpenAPI 3.1 contract of these routes (in `entra` mode it declares the HTTP bearer scheme on every route instead of `x-member`)
 - `GET /api/health`, `{ "status": "ok" }` without identity or database, for probes
 
 The contract is built from the zod schemas the routes validate with (`src/http/contract.ts`) and committed as `openapi.json`; after changing a route run `npm run openapi`, which also regenerates the web types in `web/src/api/schema.ts`. Tests fail when a route is undocumented, answers outside its documented shape, or either file is stale.
@@ -211,6 +212,8 @@ One `identify(request)` (`src/http/identity.ts`) resolves the calling member for
 | `ENTRA_AUDIENCE` | none | Value the token's `aud` must contain: the application ID URI or client ID of the API registration |
 | `MCP_ALLOWED_HOSTS` | `localhost,127.0.0.1,[::1]` | Host header hostnames the MCP HTTP server accepts |
 | `MCP_ALLOWED_ORIGINS` | `localhost,127.0.0.1,[::1]` | Origin hostnames the MCP HTTP server accepts (requests without Origin pass) |
+| `MCP_PUBLIC_URL` | the request's origin | Public origin of the MCP server behind a proxy, for example `https://mcp.example.com`; the protected resource metadata names `<origin>/mcp` as the resource |
+| `MCP_SCOPES` | none | Comma-separated scopes listed as `scopes_supported` in the metadata, for example the API's `api://<client id>/access` scope |
 
 An unknown or closed member is answered `403 { "error": "unknown member" }`; the web app then forgets the stored identity and asks again (in `entra` mode it returns to the sign-in screen and says the Google account is not linked).
 

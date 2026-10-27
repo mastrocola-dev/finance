@@ -15,7 +15,7 @@ import { listDebts } from '../ledger/debts.ts'
 import { findDecision, listDecisions } from '../ledger/decisions.ts'
 import { findEntry, listEntries } from '../ledger/entries.ts'
 import { forecastMonth } from '../ledger/forecast.ts'
-import { listGoals } from '../ledger/goals.ts'
+import { createGoal, findGoal, listGoals } from '../ledger/goals.ts'
 import { listMembers, type Member } from '../ledger/members.ts'
 import { cancelEntry, confirmDecision, correctEntry, createEntry, markPaid, markUnpaid, type NewEntry, proposeDecision, rejectDecision, updateReserve, withdrawDecision } from '../ledger/record.ts'
 import { findReserve, listReserves } from '../ledger/reserves.ts'
@@ -42,6 +42,7 @@ import {
   namePath,
   newDecision,
   newEntry,
+  newGoal,
   newRecord,
   payment,
   questionPath,
@@ -62,7 +63,7 @@ export const apiPrefix = '/api'
 type Schema = z.ZodType
 type Parsed<T> = T extends Schema ? z.output<T> : undefined
 type Spec = { method: string; path: string; operationId: string; summary: string; params?: Schema; query?: Schema; headers?: Schema; body?: Schema; upload?: true; response: Schema; status?: number; identified?: true; open?: true }
-type Input<S extends Spec> = { request: Request; params: Parsed<S['params']>; query: Parsed<S['query']>; headers: Parsed<S['headers']>; body: Parsed<S['body']>; member?: Member; client: Database; imports: ImportUploads }
+type Input<S extends Spec> = { request: Request; params: Parsed<S['params']>; query: Parsed<S['query']>; headers: Parsed<S['headers']>; body: Parsed<S['body']>; member?: Member; client: Database; imports: ImportUploads; verify: Verifier }
 export type Route = Spec & { pattern: URLPattern; handle: (input: Input<Spec>) => Promise<unknown> }
 
 const writing = async <T>({ client, member }: { client: Database; member?: Member }, work: (connection: PoolClient, actor: Actor) => Promise<T>) => {
@@ -126,7 +127,7 @@ const decisionAnswers = [
 ] as const
 
 export const routes: Route[] = [
-  route({ method: 'GET', path: '/openapi.json', operationId: 'getOpenApi', summary: 'This OpenAPI document', open: true, response: schemas.OpenApiDocument }, async () => openApi(routes)),
+  route({ method: 'GET', path: '/openapi.json', operationId: 'getOpenApi', summary: 'This OpenAPI document', open: true, response: schemas.OpenApiDocument }, async ({ verify }) => openApi(routes, { bearer: Boolean(verify.issuer) })),
   route({ method: 'GET', path: '/health', operationId: 'getHealth', summary: 'Liveness without identity or database', open: true, response: schemas.Health }, async () => ({ status: 'ok' })),
   route({ method: 'GET', path: '/months/:month/summary', operationId: 'getMonthSummary', summary: 'Month totals compared with another month', params: monthPath, query: summaryQuery, response: schemas.Comparison }, ({ client, params, query }) => compareMonths(client, params.month, query.compare_with, query.today)),
   route({ method: 'GET', path: '/months/:month/entries', operationId: 'listEntries', summary: 'Entries of a month with filters', params: monthPath, query: entryQuery, response: z.array(schemas.Entry) }, ({ client, params, query: { today, ...filters } }) =>
@@ -183,6 +184,11 @@ export const routes: Route[] = [
     const name = decodeURIComponent(input.params.name)
     await writing(input, (connection, actor) => updateReserve(connection, actor, name, { balance: cents(input.body.balance_cents), target: cents(input.body.target_cents) }))
     return findReserve(input.client, name)
+  }),
+  route({ method: 'POST', path: '/goals', operationId: 'createGoal', summary: 'Register a goal with its target, optional due date and reserve', body: newGoal, response: schemas.Goal, status: 201 }, async (input) => {
+    const { body } = input
+    const created = await writing(input, (connection, actor) => createGoal(connection, actor, { name: body.name, target: BigInt(body.target_cents), saved: cents(body.saved_cents), dueOn: body.due_on, reserve: body.reserve }))
+    return findGoal(input.client, created)
   }),
   route({ method: 'POST', path: '/decisions', operationId: 'proposeDecision', summary: 'Propose a joint decision', body: newDecision, response: schemas.Decision, status: 201 }, async (input) => {
     const { body } = input
@@ -281,7 +287,7 @@ export const api =
       const parsedQuery = matched.query?.parse(Object.fromEntries(url.searchParams))
       const headers = matched.headers?.parse(Object.fromEntries(request.headers))
       const body = matched.body?.parse(await readJson(request))
-      return Response.json(toJson(await matched.handle({ request, params, query: parsedQuery, headers, body, member, client, imports })), { status: matched.status ?? 200 })
+      return Response.json(toJson(await matched.handle({ request, params, query: parsedQuery, headers, body, member, client, imports, verify })), { status: matched.status ?? 200 })
     } catch (caught) {
       return failure(caught)
     }

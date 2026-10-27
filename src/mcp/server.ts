@@ -7,7 +7,7 @@ import { findDecision } from '../ledger/decisions.ts'
 import { findEntry } from '../ledger/entries.ts'
 import { forecastMonth } from '../ledger/forecast.ts'
 import type { Member } from '../ledger/members.ts'
-import { cancelEntry, confirmDecision, correctEntry, createEntry, markPaid, type NewEntry, proposeDecision, rejectDecision, updateReserve, withdrawDecision } from '../ledger/record.ts'
+import { cancelEntry, confirmDecision, correctEntry, createEntry, markPaid, markUnpaid, type NewEntry, proposeDecision, rejectDecision, updateReserve, withdrawDecision } from '../ledger/record.ts'
 import { findReserve } from '../ledger/reserves.ts'
 import { closeRecord, editRecord, listSetup, recordChanges, registerRecord, setupKinds } from '../ledger/setup.ts'
 import { result } from './json.ts'
@@ -141,6 +141,20 @@ export const createServer = (client: Database, member?: Member) => {
     async (input) => {
       const paid = await writing((connection, actor) => markPaid(connection, actor, BigInt(input.id), input.paid_on ?? input.today))
       return result(await findEntry(client, paid, input.today))
+    },
+  )
+
+  server.registerTool(
+    'mark_unpaid',
+    {
+      title: 'Mark entry unpaid',
+      description: 'Undo a wrong payment mark: a paid entry goes back to planned and loses its paid date. Confirm with the member first. Never reverses a payment.',
+      inputSchema: z.object({ id, today }),
+      annotations: writes,
+    },
+    async (input) => {
+      const reopened = await writing((connection, actor) => markUnpaid(connection, actor, BigInt(input.id)))
+      return result(await findEntry(client, reopened, input.today))
     },
   )
 

@@ -4,9 +4,9 @@ import { bearerOf, jwksOf, type TokenRules, verifyToken } from './auth.ts'
 import { HttpError } from './body.ts'
 import { memberHeader } from './contract.ts'
 
-export type Verifier = ((client: Database, request: Request) => Promise<Member | undefined>) & { credential: string; openReads: boolean }
+export type Verifier = ((client: Database, request: Request) => Promise<Member | undefined>) & { credential: string; openReads: boolean; issuer?: string }
 
-const verifier = (credential: string, openReads: boolean, resolve: (client: Database, request: Request) => Promise<Member | undefined>): Verifier => Object.assign(resolve, { credential, openReads })
+const verifier = (credential: string, openReads: boolean, resolve: (client: Database, request: Request) => Promise<Member | undefined>, issuer?: string): Verifier => Object.assign(resolve, { credential, openReads, issuer })
 
 export const localVerifier = verifier(`the ${memberHeader} header`, true, async (client, request) => {
   const name = request.headers.get(memberHeader)
@@ -17,15 +17,20 @@ export const localVerifier = verifier(`the ${memberHeader} header`, true, async 
 })
 
 export const entraVerifier = (rules: TokenRules) =>
-  verifier('a bearer token', false, async (client, request) => {
-    const token = bearerOf(request)
-    if (token === undefined) return undefined
-    const { oid } = await verifyToken(token, rules)
-    if (typeof oid !== 'string' || !oid) throw new HttpError(401, 'invalid token: oid')
-    const member = await memberByExternalId(client, oid)
-    if (!member) throw new HttpError(403, 'unknown member')
-    return member
-  })
+  verifier(
+    'a bearer token',
+    false,
+    async (client, request) => {
+      const token = bearerOf(request)
+      if (token === undefined) return undefined
+      const { oid } = await verifyToken(token, rules)
+      if (typeof oid !== 'string' || !oid) throw new HttpError(401, 'invalid token: oid')
+      const member = await memberByExternalId(client, oid)
+      if (!member) throw new HttpError(403, 'unknown member')
+      return member
+    },
+    rules.issuer,
+  )
 
 const required = (name: string) => {
   const value = process.env[name]?.trim()

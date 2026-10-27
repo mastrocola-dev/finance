@@ -64,6 +64,7 @@ describe('streamable http adapter', () => {
       'list_reserves',
       'list_setup',
       'mark_paid',
+      'mark_unpaid',
       'month_summary',
       'propose_decision',
       'register_record',
