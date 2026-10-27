@@ -2,6 +2,7 @@ data "azurerm_client_config" "current" {}
 
 locals {
   suffix   = substr(sha1("${var.subscription_id}-${var.name}"), 0, 6)
+  api_host = "${var.name}-api.${azurerm_container_app_environment.main.default_domain}"
   mcp_host = "${var.name}-mcp.${azurerm_container_app_environment.main.default_domain}"
 
   entra = {
@@ -21,8 +22,9 @@ locals {
       port  = 3200
 
       env = {
-        API_HOST = "0.0.0.0"
-        API_PORT = "3200"
+        API_HOST          = "0.0.0.0"
+        API_PORT          = "3200"
+        API_ALLOWED_HOSTS = local.api_host
       }
     }
 

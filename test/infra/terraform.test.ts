@@ -85,6 +85,11 @@ test('both apps verify Entra tokens and the MCP app advertises its public URL an
   assert.match(all, /MCP_SCOPES\s+= join\(",", var\.mcp_scopes\)/)
 })
 
+test('the api app accepts its own Container Apps host', () => {
+  assert.match(all, /api_host = "\$\{var\.name\}-api\.\$\{azurerm_container_app_environment\.main\.default_domain\}"/)
+  assert.match(all, /API_ALLOWED_HOSTS = local\.api_host/)
+})
+
 test('a manual job runs the migrations with the api image and the database secret reference', () => {
   const job = /resource "azurerm_container_app_job" "migrate" \{([\s\S]*?)\n\}/.exec(all)?.[1] ?? ''
   assert.match(job, /manual_trigger_config \{/)

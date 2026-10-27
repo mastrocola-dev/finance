@@ -1,6 +1,7 @@
 import { createMcpHandler, hostHeaderValidationResponse, localhostAllowedHostnames, localhostAllowedOrigins, originValidationResponse } from '@modelcontextprotocol/server'
 import { connectPool, type Database } from '../db/connection.ts'
 import { HttpError } from '../http/body.ts'
+import { listOf } from '../http/hosts.ts'
 import { identify, type Verifier, verifierFor } from '../http/identity.ts'
 import { listen } from '../http/node.ts'
 import { createServer } from './server.ts'
@@ -9,14 +10,6 @@ export const mcpPath = '/mcp'
 export const metadataPath = '/.well-known/oauth-protected-resource'
 
 const error = (message: string, status: number) => Response.json({ error: message }, { status })
-
-const listOf = (value: string | undefined, fallback: string[]) => {
-  const items = (value ?? '')
-    .split(',')
-    .map((item) => item.trim())
-    .filter(Boolean)
-  return items.length ? items : fallback
-}
 
 export const allowedHosts = (env = process.env) => listOf(env.MCP_ALLOWED_HOSTS, localhostAllowedHostnames())
 export const allowedOrigins = (env = process.env) => listOf(env.MCP_ALLOWED_ORIGINS, localhostAllowedOrigins())

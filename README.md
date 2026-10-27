@@ -176,7 +176,7 @@ Write tools `create_entry` (planned or already paid income or expense, member na
 
 ## HTTP API
 
-`npm run api:http` serves a JSON API at `http://127.0.0.1:3200/api` (`API_HOST`, `API_PORT`) over the same ledger, with the same money shape and localhost-only Host and Origin checks:
+`npm run api:http` serves a JSON API at `http://127.0.0.1:3200/api` (`API_HOST`, `API_PORT`) over the same ledger, with the same money shape and Host and Origin checks (`API_ALLOWED_HOSTS`, `API_ALLOWED_ORIGINS`, localhost by default):
 
 - `GET /api/months/:month/summary` (`compare_with`, `today`)
 - `GET /api/months/:month/entries` (`direction`, `category`, `account`, `member`, `state`, `today`)
@@ -211,6 +211,8 @@ One `identify(request)` (`src/http/identity.ts`) resolves the calling member for
 | `AUTH_MODE` | `local` | `local` reads the `x-member` header (development only: any caller can name a member). `entra` reads `Authorization: Bearer <access token>` from Entra External ID (Google federated) and ignores `x-member`; the servers refuse to start without the two variables below |
 | `ENTRA_ISSUER` | none | Issuer the token's `iss` must equal, for example `https://<tenant>.ciamlogin.com/<tenant id>/v2.0`; the signing keys come from `<issuer>/.well-known/openid-configuration` (`jwks_uri`), cached and refreshed at most once a minute when a token names an unknown key |
 | `ENTRA_AUDIENCE` | none | Value the token's `aud` must contain: the application ID URI or client ID of the API registration |
+| `API_ALLOWED_HOSTS` | `localhost,127.0.0.1,[::1]` | Host header hostnames the HTTP API accepts, for example `finance-api.<environment domain>` |
+| `API_ALLOWED_ORIGINS` | `localhost,127.0.0.1,[::1]` | Origin hostnames the HTTP API accepts (requests without Origin pass) |
 | `MCP_ALLOWED_HOSTS` | `localhost,127.0.0.1,[::1]` | Host header hostnames the MCP HTTP server accepts |
 | `MCP_ALLOWED_ORIGINS` | `localhost,127.0.0.1,[::1]` | Origin hostnames the MCP HTTP server accepts (requests without Origin pass) |
 | `MCP_PUBLIC_URL` | the request's origin | Public origin of the MCP server behind a proxy, for example `https://mcp.example.com`; the protected resource metadata names `<origin>/mcp` as the resource |
@@ -218,7 +220,7 @@ One `identify(request)` (`src/http/identity.ts`) resolves the calling member for
 
 An unknown or closed member is answered `403 { "error": "unknown member" }`; the web app then forgets the stored identity and asks again (in `entra` mode it returns to the sign-in screen and says the Google account is not linked).
 
-In `entra` mode a token must be RS256, signed by a key of the issuer, with the configured `iss` and `aud`, not expired (60 s of clock skew) and an `oid` claim; anything else is `401 { "error": "invalid token: <reason>" }`, and `503` while the issuer's keys cannot be fetched. The `oid` maps to a member through `member.external_id` (migration `008`); a valid token whose `oid` names no active member is `403`. Reads are closed too: every API route answers `401` without a token except `GET /api/openapi.json` and `GET /api/health` (the MCP HTTP server gets its bearer with S8). Link each person once, audited as `system`: `npm run member:link -- Marcio <object id>`.
+In `entra` mode a token must be RS256, signed by a key of the issuer, with the configured `iss` and `aud`, not expired (60 s of clock skew) and an `oid` claim; anything else is `401 { "error": "invalid token: <reason>" }`, and `503` while the issuer's keys cannot be fetched. The `oid` maps to a member through `member.external_id` (migration `008`); a valid token whose `oid` names no active member is `403`. Reads are closed too: every API route answers `401` without a token except `GET /api/openapi.json` and `GET /api/health` (the MCP HTTP server gets its bearer with S8). A fresh ledger gets its members in one command whose shares add up to 100, audited as `system` (a duplicate open name is refused): `npm run member:add -- Marcio 50 Gabriela 50`. Link each person once, also as `system`: `npm run member:link -- Marcio <object id>`.
 
 ## Web app
 

@@ -2,8 +2,8 @@
 
 ## State
 
-- Sprint S6–S10 done except S11, added by S10's review (API host check L177 plus `member:add`); then Next is empty and the schedule stops. The web origin on Azure waits for the author (Needs author "S10 web origin")
-- Tests after S10: 308 node, 199 web, 280 Playwright (unchanged, not rerun: no web change), 63 pytest; `npm test` and `npm run check` green; failing-test run streak 0
+- Sprint S6–S11 done; Next is empty, so S11's run stopped the schedule. Next work waits for the author: "S10 web origin" (then L180 and L203) or a new sprint
+- Tests after S11: 314 node, 199 web, 280 Playwright (not rerun since S9b: no web change), 63 pytest; `npm test` and `npm run check` green; failing-test run streak 0
 
 ## Session setup (cloud container, each run, one command per Bash call)
 
@@ -25,7 +25,8 @@
 - MCP OAuth (S8a): `mcpHttp` options `publicUrl` (`MCP_PUBLIC_URL`) and `scopes` (`MCP_SCOPES`); metadata and the 401 challenge exist only when `verify.issuer` is set (entra). Route handlers get `verify` in their input (the OpenAPI route uses it for the bearer scheme). Goals are created through `createGoal` (wraps `registerRecord('goal', …)`)
 - Identity: `identify(client, request, verify)` in `src/http/identity.ts`; `verifierFor(AUTH_MODE)` gives `localVerifier` or `entraVerifier(rules)` (`src/http/auth.ts`: `bearerOf`, `verifyToken`, `jwksOf`). A `Verifier` carries `credential` used in the 401 text. Writes and `identified: true` routes need a member (401); in `entra` every route but `open: true` ones (openapi, health) does (`Verifier.openReads` false); unknown/closed 403. API 3200, MCP 3100; `RuleError` 422
 - Entra tests sign RS256 tokens with `generateKeyPairSync` and a stub key source (`test/http/auth.test.ts`); reuse `tokenOf` there for S7/S8 route tests. `member.external_id` is set only by `linkMember` (`src/db/link-member.ts`)
-- The API accepts only localhost Host and Origin (L177); MCP hosts come from `MCP_ALLOWED_HOSTS`/`MCP_ALLOWED_ORIGINS`
+- Host and Origin checks: API from `API_ALLOWED_HOSTS`/`API_ALLOWED_ORIGINS` (`apiHosts`/`apiOrigins`, 4th and 5th args of `api()`), MCP from `MCP_ALLOWED_*`; both via `listOf` in `src/http/hosts.ts`, localhost fallback. Node `fetch` cannot set Host: tests use `node:http` `get`
+- `write()` requires active member shares to sum to exactly 100 after any member change: `member:add` takes several `<name> <percent>` pairs in one write
 - New API route: `route({...}, handler)` in `src/http/api.ts`, schemas in `contract.ts`, a sample in `test/http/openapi.test.ts`. New MCP write tools: `src/mcp/server.ts` plus tool lists in `test/mcp/server.test.ts` and `test/mcp/http.test.ts`
 - Seed time from `setClock`/`FINANCE_CLOCK`; Playwright contexts use `openContext` from `web/e2e/context.ts`
 - Images: `Dockerfile` targets `api` (uv, Python 3.13 in `/opt/python`, `ingest/.venv-runtime`, `UV_OFFLINE=1`, uploads `/app/.imports`) and `mcp`; `.dockerignore` is an allow list, so a new runtime folder must be added there and in `test/infra/docker.test.ts`. `ingestRuntime` passes only `UV_SYSTEM_CERTS`, `UV_OFFLINE` and `UV_PROJECT_ENVIRONMENT` to uv

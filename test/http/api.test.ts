@@ -1,8 +1,9 @@
 import assert from 'node:assert/strict'
+import { get as httpGet } from 'node:http'
 import { after, before, describe, test } from 'node:test'
 import { connectPool } from '../../src/db/connection.ts'
 import { seed, seedToday } from '../../src/db/seed.ts'
-import { api, serveApi } from '../../src/http/api.ts'
+import { api, apiHosts, apiOrigins, serveApi } from '../../src/http/api.ts'
 import { bodyLimit } from '../../src/http/body.ts'
 import type { Verifier } from '../../src/http/identity.ts'
 import { testDatabase } from '../db/database.ts'
@@ -84,6 +85,25 @@ describe('http api', () => {
     assert.equal(response.headers.get('allow'), 'GET')
     assert.deepEqual(await get('/debts', { 'x-member': 'Nobody' }), { status: 403, body: { error: 'unknown member' } })
     assert.equal((await get('/debts', { origin: 'https://example.com' })).status, 403)
+  })
+
+  test('allowed hosts and origins come from the environment with localhost as fallback', async () => {
+    assert.deepEqual(apiHosts({ API_ALLOWED_HOSTS: ' finance-api.example, other.example ' }), ['finance-api.example', 'other.example'])
+    assert.ok(apiHosts({ API_ALLOWED_HOSTS: '' }).includes('localhost'))
+    assert.deepEqual(apiOrigins({ API_ALLOWED_ORIGINS: 'https://finance-web.example' }), ['https://finance-web.example'])
+    const previous = process.env.API_ALLOWED_HOSTS
+    process.env.API_ALLOWED_HOSTS = 'finance-api.example'
+    const hosted = await serveApi(pool, 0, '127.0.0.1')
+    if (previous === undefined) delete process.env.API_ALLOWED_HOSTS
+    else process.env.API_ALLOWED_HOSTS = previous
+    try {
+      const status = (host: string) => new Promise<number | undefined>((resolve, reject) => httpGet(`${hosted.url}/api/health`, { headers: { host } }, (response) => resolve(response.resume().statusCode)).on('error', reject))
+      assert.equal(await status('finance-api.example'), 200)
+      assert.equal(await status('localhost'), 403)
+      assert.equal(await status('evil.example'), 403)
+    } finally {
+      await hosted.close()
+    }
   })
 
   test('the audit log needs a member and a closed member is refused', async () => {

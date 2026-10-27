@@ -4,11 +4,9 @@ The exact order for the author to put the finance POC on Azure behind sign-in wi
 
 ## Before you start
 
-Three gaps remain between this runbook and a working deploy; the steps say where each one bites.
+One gap remains between this runbook and a working deploy:
 
-1. **API host check** (backlog S11): the HTTP API still accepts only a localhost Host and Origin, so behind Container Apps it answers 403 until `API_ALLOWED_HOSTS` exists. The MCP server is not affected
-2. **First members** (backlog S11): migrations create an empty ledger and nothing but the fictional seed creates members; step 7 needs `npm run member:add`, which S11 adds. Never run `db:seed` on Azure
-3. **Web origin** (Needs author, ADR-010): the web calls `/api` on its own origin, and the Free Static Web App cannot forward `/api` to the API container. Until the author picks an option of ADR-010 (API serving the web, SWA Standard with a linked backend, or cross-origin calls), step 10 publishes a web app that signs in but cannot load data. Claude through the MCP connector works without it
+- **Web origin** (Needs author, ADR-010): the web calls `/api` on its own origin, and the Free Static Web App cannot forward `/api` to the API container. Until the author picks an option of ADR-010 (API serving the web, SWA Standard with a linked backend, or cross-origin calls), step 10 publishes a web app that signs in but cannot load data. Claude through the MCP connector works without it
 
 Tools on the author's machine: Azure CLI (`az`), Terraform 1.16.4, Docker, Node 24 and npm.
 
@@ -79,7 +77,7 @@ Steps 1 to 7 of [infra/README.md](../infra/README.md) (state storage, `backend.h
 | `log_daily_cap_gb` | no, `0.1` | Log Analytics daily cap |
 | `budget_amount` | no, `25` | monthly budget in the billing currency |
 
-Terraform sets on both apps `AUTH_MODE=entra`, `ENTRA_ISSUER` and `ENTRA_AUDIENCE`, and on the MCP app `MCP_ALLOWED_HOSTS`, `MCP_PUBLIC_URL` (`https://<name>-mcp.<environment domain>`) and `MCP_SCOPES`. `DATABASE_URL` is a Key Vault reference, never a value. Note the outputs: `terraform output` (`api_url`, `mcp_url`, `web_url`, `migrate_job`, `resource_group`, `key_vault_uri`).
+Terraform sets on both apps `AUTH_MODE=entra`, `ENTRA_ISSUER` and `ENTRA_AUDIENCE`, on the API app `API_ALLOWED_HOSTS` (`<name>-api.<environment domain>`), and on the MCP app `MCP_ALLOWED_HOSTS`, `MCP_PUBLIC_URL` (`https://<name>-mcp.<environment domain>`) and `MCP_SCOPES`. `DATABASE_URL` is a Key Vault reference, never a value. Note the outputs: `terraform output` (`api_url`, `mcp_url`, `web_url`, `migrate_job`, `resource_group`, `key_vault_uri`).
 
 ## 5. Migrations
 
@@ -99,12 +97,13 @@ The execution must end `Succeeded`; its log (Log Analytics, `ContainerAppConsole
 
 ## 7. Members
 
-Needs S11 (`member:add`). The job's image runs any npm script with an override (check the flags with `az containerapp job start --help` if your CLI version differs):
+Migrations create an empty ledger; never run `db:seed` on Azure. Both members are created in one execution, because active shares must always add up to 100. The job's image runs any npm script with an override (check the flags with `az containerapp job start --help` if your CLI version differs):
 
 ```sh
-az containerapp job start -g <resource group> -n <migrate job> --image <api image> --container-name migrate --command npm --args "run member:add -- Marcio 50"
-az containerapp job start -g <resource group> -n <migrate job> --image <api image> --container-name migrate --command npm --args "run member:add -- Gabriela 50"
+az containerapp job start -g <resource group> -n <migrate job> --image <api image> --container-name migrate --command npm --args "run member:add -- Marcio 50 Gabriela 50"
 ```
+
+The execution prints `added Marcio, Gabriela`; it refuses a name that already exists or shares that do not add up to 100, and writes nothing then.
 
 ## 8. Link members to their sign-in
 
@@ -119,7 +118,7 @@ Each execution prints `linked <name>`. An unlinked person who signs in gets 403 
 
 - `curl <mcp_url>/.well-known/oauth-protected-resource/mcp` returns `resource` `<mcp_url>/mcp`, `authorization_servers` with `entra_issuer` and the scopes of `mcp_scopes`
 - `curl -i -X POST <mcp_url>/mcp` returns 401 with `WWW-Authenticate: Bearer resource_metadata=…`
-- `curl <api_url>/api/health` returns 200 (403 until S11 lands; see "Before you start")
+- `curl <api_url>/api/health` returns 200, and `curl -i <api_url>/api/members` returns 401 without a token
 
 ## 10. Web app
 

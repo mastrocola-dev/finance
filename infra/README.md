@@ -24,7 +24,7 @@ No secret is in this folder, in a variable or in the state. The database passwor
 
 ## Exposure
 
-Both apps have external ingress and run `AUTH_MODE=entra`: every route but `/api/health`, `/api/openapi.json` and the MCP metadata needs a bearer token from `entra_issuer` for `entra_audience`, linked to a member. `allowed_ips` restricts both apps to the listed CIDR ranges; leave it empty while Claude's connector is used, since Claude calls from Anthropic's servers. Never set `AUTH_MODE=local` here: it trusts the `x-member` header. The HTTP API still accepts only localhost Host and Origin (backlog S11), so it answers 403 behind Container Apps until that lands.
+Both apps have external ingress and run `AUTH_MODE=entra`: every route but `/api/health`, `/api/openapi.json` and the MCP metadata needs a bearer token from `entra_issuer` for `entra_audience`, linked to a member. `allowed_ips` restricts both apps to the listed CIDR ranges; leave it empty while Claude's connector is used, since Claude calls from Anthropic's servers. Never set `AUTH_MODE=local` here: it trusts the `x-member` header. The API accepts the Host `<name>-api.<environment domain>` (`API_ALLOWED_HOSTS`); its allowed origins stay on the localhost default until ADR-010 decides the web origin.
 
 ## Apply order
 

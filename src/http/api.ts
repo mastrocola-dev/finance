@@ -54,6 +54,7 @@ import {
   uploadHeaders,
   uploadQuery,
 } from './contract.ts'
+import { listOf } from './hosts.ts'
 import { identify, type Verifier, verifierFor } from './identity.ts'
 import { listen } from './node.ts'
 import { openApi } from './openapi.ts'
@@ -267,10 +268,13 @@ const failure = (caught: unknown) => {
   return error('internal error', 500)
 }
 
+export const apiHosts = (env = process.env) => listOf(env.API_ALLOWED_HOSTS, localhostAllowedHostnames())
+export const apiOrigins = (env = process.env) => listOf(env.API_ALLOWED_ORIGINS, localhostAllowedOrigins())
+
 export const api =
-  (client: Database, imports = importUploads(client), verify: Verifier = verifierFor()) =>
+  (client: Database, imports = importUploads(client), verify: Verifier = verifierFor(), hosts = apiHosts(), origins = apiOrigins()) =>
   async (request: Request) => {
-    const rejected = hostHeaderValidationResponse(request, localhostAllowedHostnames()) ?? originValidationResponse(request, localhostAllowedOrigins())
+    const rejected = hostHeaderValidationResponse(request, hosts) ?? originValidationResponse(request, origins)
     if (rejected) return rejected
     const url = new URL(request.url)
     const matches = routes.flatMap((candidate) => {
