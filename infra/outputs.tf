@@ -6,6 +6,14 @@ output "mcp_url" {
   value = "https://${azurerm_container_app.app["mcp"].ingress[0].fqdn}"
 }
 
+output "migrate_job" {
+  value = azurerm_container_app_job.migrate.name
+}
+
+output "resource_group" {
+  value = azurerm_resource_group.main.name
+}
+
 output "web_url" {
   value = "https://${azurerm_static_web_app.web.default_host_name}"
 }

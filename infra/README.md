@@ -1,6 +1,6 @@
 # Infrastructure
 
-Terraform 1.16.4 for the Azure stage. Nothing here has been applied: the build agent cannot reach the Terraform registry, so `init`, `validate` and `plan` run on the author's machine or in CI.
+Terraform 1.16.4 for the Azure stage. Nothing here has been applied: the build agent cannot reach the Terraform registry, so `init`, `validate` and `plan` run on the author's machine or in CI. The whole deploy, from the Entra tenant to the smoke test and the rollback, is in [docs/deploy-azure.md](../docs/deploy-azure.md); this file covers Terraform only.
 
 ## Resources
 
@@ -11,7 +11,8 @@ Terraform 1.16.4 for the Azure stage. Nothing here has been applied: the build a
 | Key Vault `kv-<name>-<suffix>` | RBAC, soft delete 7 days, no purge protection; holds `database-url` and, for private images, `registry-password` |
 | PostgreSQL Flexible Server `psql-<name>-<suffix>` | 16, B_Standard_B1ms, 32 GiB (P4), 7-day backups, no geo backup, database `finance`, firewall open to Azure services only |
 | Container Apps environment `cae-<name>` | consumption, logs to the workspace |
-| Container Apps `<name>-api` (3200) and `<name>-mcp` (3100) | 0.25 vCPU, 0.5 GiB, zero to one replica, `DATABASE_URL` from Key Vault through a user-assigned identity |
+| Container Apps `<name>-api` (3200) and `<name>-mcp` (3100) | 0.25 vCPU, 0.5 GiB, zero to one replica, external ingress, `AUTH_MODE=entra` with `ENTRA_ISSUER` and `ENTRA_AUDIENCE`, `DATABASE_URL` from Key Vault through a user-assigned identity |
+| Container Apps job `<name>-migrate` | manual trigger, `npm run db:migrate` with `api_image` and the same `database-url` reference, 10 minutes, no retry |
 | Static Web App `swa-<name>` | Free, in `web_location` (eastus2: Static Web Apps are not offered in eastus) |
 | Budget `budget-<name>` | `budget_amount` (25) per month on the resource group; e-mail at 80 percent actual and 100 percent forecast |
 
@@ -23,7 +24,7 @@ No secret is in this folder, in a variable or in the state. The database passwor
 
 ## Exposure
 
-`allowed_ips` empty (the default) keeps both apps on internal ingress: nothing answers from the internet. Listing CIDR ranges turns on external ingress for those ranges only. Keep it to the author's address while `AUTH_MODE` is `local`, because any caller can name a member with `x-member` until the Entra verifier exists. The HTTP API also still accepts only localhost Host and Origin (backlog L177), so it answers 403 behind Container Apps until that lands.
+Both apps have external ingress and run `AUTH_MODE=entra`: every route but `/api/health`, `/api/openapi.json` and the MCP metadata needs a bearer token from `entra_issuer` for `entra_audience`, linked to a member. `allowed_ips` restricts both apps to the listed CIDR ranges; leave it empty while Claude's connector is used, since Claude calls from Anthropic's servers. Never set `AUTH_MODE=local` here: it trusts the `x-member` header. The HTTP API still accepts only localhost Host and Origin (backlog S11), so it answers 403 behind Container Apps until that lands.
 
 ## Apply order
 
@@ -38,13 +39,13 @@ No secret is in this folder, in a variable or in the state. The database passwor
    use_azuread_auth     = true
    ```
 
-3. Put the values in an untracked `terraform.tfvars`: `subscription_id`, `api_image`, `mcp_image`, `budget_emails` and any default to change
+3. Put the values in an untracked `terraform.tfvars`: `subscription_id`, `api_image`, `mcp_image`, `entra_issuer`, `entra_audience`, `budget_emails` and any default to change (every variable is listed in the runbook)
 4. `az login` with an identity that may assign roles (Owner or User Access Administrator on the subscription)
 5. `terraform init -backend-config=backend.hcl`
 6. `terraform fmt -check && terraform validate`
 7. `terraform plan -out=finance.tfplan`, review it, `terraform apply finance.tfplan`. Role assignments take a few minutes to reach Key Vault; if the first apply fails reading or writing a secret, run plan and apply again
-8. Run the migrations once against the new server: `DATABASE_URL="$(az keyvault secret show --vault-name <vault> --name database-url --query value -o tsv)" npm run db:migrate` from an address the firewall allows (add a temporary rule for it and remove it afterwards). Never run the seed there
-9. Deploy the web build with the `web_deployment_token` output (`terraform output -raw web_deployment_token`)
+8. Start the `migrate_job` output (`az containerapp job start`) and wait for `Succeeded`; it runs inside Azure, so no firewall rule is needed. Never run the seed there
+9. Deploy the web build with the `web_deployment_token` output (`terraform output -raw web_deployment_token`); the runbook has the build variables
 
 ## Rollback
 

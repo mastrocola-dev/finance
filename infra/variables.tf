@@ -48,9 +48,30 @@ variable "registry_username" {
   default     = null
 }
 
+variable "entra_issuer" {
+  type        = string
+  description = "Issuer of the access tokens, https://<tenant id>.ciamlogin.com/<tenant id>/v2.0 for External ID"
+
+  validation {
+    condition     = can(regex("^https://[^/]+/.+", var.entra_issuer))
+    error_message = "Use the https issuer URL of the tenant, ending in /v2.0."
+  }
+}
+
+variable "entra_audience" {
+  type        = string
+  description = "Audience of the access tokens: the application (client) ID of the API registration"
+}
+
+variable "mcp_scopes" {
+  type        = list(string)
+  description = "Scopes the MCP server advertises to Claude, such as api://<API client id>/access"
+  default     = []
+}
+
 variable "allowed_ips" {
   type        = list(string)
-  description = "CIDR ranges allowed to reach api and mcp; empty keeps both internal"
+  description = "CIDR ranges allowed to reach api and mcp; empty lets any address reach them, behind Entra sign-in"
   default     = []
 }
 

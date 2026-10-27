@@ -2,8 +2,8 @@
 
 ## State
 
-- Sprint S6–S10 in progress (approved 2026-10-27). S6 to S9b done; next is S10 (runbook and migration job). The schedule stops itself after S10
-- Tests after S9b: 305 node, 199 web, 280 Playwright (137 `local` + 143 `entra`), 63 pytest; `npm test` and `npm run check` green; failing-test run streak 0
+- Sprint S6–S10 done except S11, added by S10's review (API host check L177 plus `member:add`); then Next is empty and the schedule stops. The web origin on Azure waits for the author (Needs author "S10 web origin")
+- Tests after S10: 308 node, 199 web, 280 Playwright (unchanged, not rerun: no web change), 63 pytest; `npm test` and `npm run check` green; failing-test run streak 0
 
 ## Session setup (cloud container, each run, one command per Bash call)
 
@@ -29,7 +29,7 @@
 - New API route: `route({...}, handler)` in `src/http/api.ts`, schemas in `contract.ts`, a sample in `test/http/openapi.test.ts`. New MCP write tools: `src/mcp/server.ts` plus tool lists in `test/mcp/server.test.ts` and `test/mcp/http.test.ts`
 - Seed time from `setClock`/`FINANCE_CLOCK`; Playwright contexts use `openContext` from `web/e2e/context.ts`
 - Images: `Dockerfile` targets `api` (uv, Python 3.13 in `/opt/python`, `ingest/.venv-runtime`, `UV_OFFLINE=1`, uploads `/app/.imports`) and `mcp`; `.dockerignore` is an allow list, so a new runtime folder must be added there and in `test/infra/docker.test.ts`. `ingestRuntime` passes only `UV_SYSTEM_CERTS`, `UV_OFFLINE` and `UV_PROJECT_ENVIRONMENT` to uv
-- Infra env per app lives in `local.apps` of `infra/main.tf`; CI jobs: `check`, `images`, `infra`
+- Infra env per app lives in `local.apps` of `infra/main.tf`, merged with `local.entra` (AUTH_MODE entra, ENTRA_*) in the `env` dynamic block (a `merge(x, {` literal breaks the fmt stand-in test); migration job `azurerm_container_app_job.migrate`; `test/infra/terraform.test.ts` requires every variable to appear in backticks in `docs/deploy-azure.md`. CI jobs: `check`, `images`, `infra`
 
 ## Web conventions
 

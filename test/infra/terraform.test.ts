@@ -76,3 +76,29 @@ test('files follow the terraform fmt layout', () => {
     assert.ok(text.endsWith('}\n') && !text.endsWith('\n\n'), file)
   }
 })
+
+test('both apps verify Entra tokens and the MCP app advertises its public URL and scopes', () => {
+  assert.doesNotMatch(all, /AUTH_MODE\s+= "local"/)
+  assert.match(all, /AUTH_MODE\s+= "entra"\n\s+ENTRA_ISSUER\s+= var\.entra_issuer\n\s+ENTRA_AUDIENCE = var\.entra_audience/)
+  assert.match(all, /for_each = merge\(local\.entra, each\.value\.env\)/)
+  assert.match(all, /MCP_PUBLIC_URL\s+= "https:\/\/\$\{local\.mcp_host\}"/)
+  assert.match(all, /MCP_SCOPES\s+= join\(",", var\.mcp_scopes\)/)
+})
+
+test('a manual job runs the migrations with the api image and the database secret reference', () => {
+  const job = /resource "azurerm_container_app_job" "migrate" \{([\s\S]*?)\n\}/.exec(all)?.[1] ?? ''
+  assert.match(job, /manual_trigger_config \{/)
+  assert.match(job, /image\s+= var\.api_image/)
+  assert.match(job, /command = \["npm", "run", "db:migrate"\]/)
+  assert.match(job, /key_vault_secret_id = azurerm_key_vault_secret\.database_url\.versionless_id/)
+  assert.match(job, /secret_name = "database-url"/)
+  assert.doesNotMatch(job, /value\s+=/)
+})
+
+test('the runbook names every variable terraform reads and the README links to it', () => {
+  const runbook = readFileSync(new URL('../../docs/deploy-azure.md', import.meta.url), 'utf8')
+  const names = [...all.matchAll(/variable "(\w+)"/g)].map(([, name]) => name)
+  assert.ok(names.length > 10)
+  for (const name of names) assert.match(runbook, new RegExp(`\`${name}\``), name)
+  assert.match(readFileSync(new URL('README.md', folder), 'utf8'), /\[docs\/deploy-azure\.md\]\(\.\.\/docs\/deploy-azure\.md\)/)
+})

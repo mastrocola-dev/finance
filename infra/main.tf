@@ -1,8 +1,14 @@
 data "azurerm_client_config" "current" {}
 
 locals {
-  suffix = substr(sha1("${var.subscription_id}-${var.name}"), 0, 6)
-  public = length(var.allowed_ips) > 0
+  suffix   = substr(sha1("${var.subscription_id}-${var.name}"), 0, 6)
+  mcp_host = "${var.name}-mcp.${azurerm_container_app_environment.main.default_domain}"
+
+  entra = {
+    AUTH_MODE      = "entra"
+    ENTRA_ISSUER   = var.entra_issuer
+    ENTRA_AUDIENCE = var.entra_audience
+  }
 
   tags = {
     app        = "finance"
@@ -15,9 +21,8 @@ locals {
       port  = 3200
 
       env = {
-        API_HOST  = "0.0.0.0"
-        API_PORT  = "3200"
-        AUTH_MODE = "local"
+        API_HOST = "0.0.0.0"
+        API_PORT = "3200"
       }
     }
 
@@ -28,9 +33,10 @@ locals {
       env = {
         MCP_HOST            = "0.0.0.0"
         MCP_PORT            = "3100"
-        AUTH_MODE           = "local"
-        MCP_ALLOWED_HOSTS   = "${var.name}-mcp.${azurerm_container_app_environment.main.default_domain}"
+        MCP_ALLOWED_HOSTS   = local.mcp_host
         MCP_ALLOWED_ORIGINS = join(",", var.mcp_allowed_origins)
+        MCP_PUBLIC_URL      = "https://${local.mcp_host}"
+        MCP_SCOPES          = join(",", var.mcp_scopes)
       }
     }
   }
@@ -188,7 +194,7 @@ resource "azurerm_container_app" "app" {
   }
 
   ingress {
-    external_enabled = local.public
+    external_enabled = true
     target_port      = each.value.port
     transport        = "auto"
 
@@ -224,12 +230,75 @@ resource "azurerm_container_app" "app" {
       }
 
       dynamic "env" {
-        for_each = each.value.env
+        for_each = merge(local.entra, each.value.env)
 
         content {
           name  = env.key
           value = env.value
         }
+      }
+    }
+  }
+
+  depends_on = [azurerm_role_assignment.apps_secrets]
+}
+
+resource "azurerm_container_app_job" "migrate" {
+  name                         = "${var.name}-migrate"
+  resource_group_name          = azurerm_resource_group.main.name
+  location                     = var.location
+  container_app_environment_id = azurerm_container_app_environment.main.id
+  replica_timeout_in_seconds   = 600
+  replica_retry_limit          = 0
+  tags                         = local.tags
+
+  manual_trigger_config {
+    parallelism              = 1
+    replica_completion_count = 1
+  }
+
+  identity {
+    type         = "UserAssigned"
+    identity_ids = [azurerm_user_assigned_identity.apps.id]
+  }
+
+  secret {
+    name                = "database-url"
+    identity            = azurerm_user_assigned_identity.apps.id
+    key_vault_secret_id = azurerm_key_vault_secret.database_url.versionless_id
+  }
+
+  dynamic "secret" {
+    for_each = var.registry_username == null ? [] : [1]
+
+    content {
+      name                = "registry-password"
+      identity            = azurerm_user_assigned_identity.apps.id
+      key_vault_secret_id = "${azurerm_key_vault.main.vault_uri}secrets/registry-password"
+    }
+  }
+
+  dynamic "registry" {
+    for_each = var.registry_username == null ? [] : [1]
+
+    content {
+      server               = var.registry_server
+      username             = var.registry_username
+      password_secret_name = "registry-password"
+    }
+  }
+
+  template {
+    container {
+      name    = "migrate"
+      image   = var.api_image
+      command = ["npm", "run", "db:migrate"]
+      cpu     = 0.25
+      memory  = "0.5Gi"
+
+      env {
+        name        = "DATABASE_URL"
+        secret_name = "database-url"
       }
     }
   }
