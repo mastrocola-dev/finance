@@ -1,5 +1,6 @@
-import { Search } from 'lucide-react'
+import { Download, Search } from 'lucide-react'
 import { useEffect, useRef } from 'react'
+import { Button } from '../components/ui/button.tsx'
 import { cn } from '../lib/utils.ts'
 import { type Filters, openLabel } from './model.ts'
 
@@ -27,9 +28,9 @@ const directions = [
   { value: 'expense', label: 'Despesas' },
 ] as const
 
-type Props = { filters: Filters; categories: string[]; onChange: (filters: Filters) => void }
+type Props = { filters: Filters; categories: string[]; exportable: boolean; onChange: (filters: Filters) => void; onExport: () => void }
 
-export const Toolbar = ({ filters, categories, onChange }: Props) => {
+export const Toolbar = ({ filters, categories, exportable, onChange, onExport }: Props) => {
   const search = useSlashFocus()
   const set = (changes: Partial<Filters>) => onChange({ ...filters, ...changes })
   return (
@@ -69,6 +70,10 @@ export const Toolbar = ({ filters, categories, onChange }: Props) => {
       <button type="button" aria-pressed={filters.open} onClick={() => set({ open: !filters.open })} className={cn(chip, filters.open && active)}>
         {openLabel(filters.direction)}
       </button>
+      <Button variant="outline" disabled={!exportable} onClick={onExport} className="font-normal md:ml-auto">
+        <Download size={16} aria-hidden="true" />
+        Exportar CSV
+      </Button>
     </div>
   )
 }

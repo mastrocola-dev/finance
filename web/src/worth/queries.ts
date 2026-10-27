@@ -1,6 +1,7 @@
-import { useQuery } from '@tanstack/react-query'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useIdentity } from '../identity/identity-provider.tsx'
 import { unwrap } from '../query/client.ts'
+import type { NewGoal } from './goal.ts'
 
 export const useDebts = () => {
   const { api } = useIdentity()
@@ -21,4 +22,13 @@ export const useSavings = () => {
 export const useNetWorth = () => {
   const { api } = useIdentity()
   return useQuery({ queryKey: ['net-worth'], queryFn: async () => unwrap(await api.GET('/api/net-worth')) })
+}
+
+export const useCreateGoal = () => {
+  const { api } = useIdentity()
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async (body: NewGoal) => unwrap(await api.POST('/api/goals', { body })),
+    onSuccess: () => Promise.all(['savings', 'net-worth', 'audit'].map((key) => queryClient.invalidateQueries({ queryKey: [key] }))),
+  })
 }

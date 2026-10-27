@@ -2,8 +2,8 @@
 
 ## State
 
-- Sprint S6–S10 in progress (approved 2026-10-27). S6, S7a, S7b, S8a done (S8 split; S8a is the API/MCP side); next is S8b (web goal form and CSV export). The schedule stops itself after S10
-- Tests after S8a: 305 node, 184 web, 136 Playwright (last full run S7b, local mode), 63 pytest; `npm run check` green; failing-test run streak 0
+- Sprint S6–S10 in progress (approved 2026-10-27). S6 to S8b done; next is S9 (full suite in entra and local modes), then S10 (runbook). The schedule stops itself after S10
+- Tests after S8b: 305 node, 199 web, 142 Playwright (full run S8b, local mode), 63 pytest; `npm run check` green; failing-test run streak 0
 
 ## Session setup (cloud container, each run, one command per Bash call)
 
@@ -38,6 +38,8 @@
 - Identity: `IdentityProvider` gets `session?: Session` (`web/src/auth/session.ts`); without it the local picker and `x-member`, with it `SessionIdentity` (bearer via `createApi({ token })`, member from `GET /api/me`, `signOut` in context, `choose` absent). `main.tsx` imports `msal-session.ts` only behind a literal `import.meta.env.VITE_AUTH_MODE === 'entra'` check so local builds drop MSAL (keeps the precache budget); `@azure/msal-browser` is the one dependency outside the CLAUDE.md list, added by S7b because the item names it
 - Tests of signed-in states pass a fake `Session` to `<App session={...} />` (`web/src/auth/sign-in.test.tsx`); MSAL itself is mocked with `vi.mock` in `msal-session.test.ts`
 - Playwright runs a third server: an `entra` build in `web/dist-entra` previewed on 4274 (`entraPreview`, `entraBuildEnv` in `web/e2e/context.ts`, fictional client and `caixa-e2e.ciamlogin.com` authority, routes stubbed in the spec)
+- New screenshot files must be added to the README table (`test/docs/readme.test.ts`); state screenshots live in their flow spec (`flow.spec.ts`, `goal.spec.ts`), not `screenshots.spec.ts`
+- Vitest tests that depend on today use `vi.useFakeTimers({ toFake: ['Date'] })`; downloads are tested by assigning `URL.createObjectURL` and spying `HTMLAnchorElement.prototype.click`
 - Forms: shared `CandidateForm` (`web/src/imports/candidate-form.tsx`) with optional `fields`
 - `docs/acceptance.md` must name every screen of `web/src/shell/nav.ts` as `**Title** (\`/path\`)` and every mockup file (test)
 

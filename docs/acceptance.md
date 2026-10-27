@@ -24,8 +24,8 @@ Compare with the mockups in `docs/mockups/` (layout, spacing, copy, palette) and
 - [ ] **Visão do mês** (`/`), mockups `Main.dc.html` and `MobileOverview.dc.html`: income, expenses and balance of October 2026; month switcher goes back and forth; recent activity card
 - [ ] **Contas do mês** (`/contas`), mockup `MobileBills.dc.html`: mark a bill as paid; the toast says "marcada como paga"
 - [ ] **Reversal of a payment**: press Desfazer on that toast; the bill returns to em aberto, the progress bar and "falta R$ …" go back, and Atividade shows both changes with the member as author
-- [ ] **Lançamentos** (`/lancamentos`), mockup `Entries.dc.html`: add an entry with the quick form; correct it with the pencil (Salvar correção) and see the old row replaced; cancel another one (Cancelar lançamento) and see it leave the month's totals
-- [ ] **Dívidas e reservas** (`/patrimonio`), mockup `MobileDebts.dc.html`: debts with remaining installments, reserves and goals with progress
+- [ ] **Lançamentos** (`/lancamentos`), mockup `Entries.dc.html`: add an entry with the quick form; correct it with the pencil (Salvar correção) and see the old row replaced; cancel another one (Cancelar lançamento) and see it leave the month's totals; filter Despesas and Exportar CSV, then open `lancamentos-YYYY-MM.csv` in Excel and see accents, one column per field and decimal commas
+- [ ] **Dívidas e reservas** (`/patrimonio`), mockup `MobileDebts.dc.html`: debts with remaining installments, reserves and goals with progress; + Nova meta creates a goal (optionally kept in a reserve) and a repeated name is refused in Portuguese
 - [ ] **Decisões** (`/decisoes`), mockup `MobileDecisions.dc.html`: Marcio proposes a decision; it stays proposta; Gabriela confirms it and only then it is confirmed; another one is rejected or withdrawn
 - [ ] **Atividade** (`/atividade`), mockup `Audit.dc.html`: every change above appears with author, before and after; the filter by author works
 - [ ] **Cadastros** (`/cadastros`): register a category, edit it (Editar), close it (Encerrar) and register the same name again

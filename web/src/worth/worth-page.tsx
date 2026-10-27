@@ -1,13 +1,19 @@
+import { useCallback, useRef, useState } from 'react'
 import { EmptyState } from '../components/empty-state.tsx'
 import { QueryView } from '../components/query-view.tsx'
 import { Skeleton } from '../components/skeleton.tsx'
+import { type Notice, Toast } from '../components/toast.tsx'
+import { useIdentity } from '../identity/identity-provider.tsx'
 import { formatBrl, today } from '../lib/format.ts'
 import { RecordScroll, useRecordHash } from '../lib/record.tsx'
+import { ApiFailure } from '../query/client.ts'
 import { screenOf } from '../shell/nav.ts'
 import { PageHeader } from '../shell/page-header.tsx'
 import { DebtCard } from './debt-card.tsx'
+import { goalFailure, type NewGoal } from './goal.ts'
+import { GoalForm } from './goal-form.tsx'
 import { debtView, formatSignedBrl, monthlyInstallments, savings } from './model.ts'
-import { useDebts, useNetWorth, useSavings } from './queries.ts'
+import { useCreateGoal, useDebts, useNetWorth, useSavings } from './queries.ts'
 import { SavingCard } from './saving-card.tsx'
 
 const CardsSkeleton = ({ height }: { height: string }) => (
@@ -52,6 +58,44 @@ const Debts = () => {
   )
 }
 
+const AddGoal = ({ reserves }: { reserves: string[] }) => {
+  const { member } = useIdentity()
+  const create = useCreateGoal()
+  const [open, setOpen] = useState(false)
+  const [failure, setFailure] = useState<string>()
+  const [notice, setNotice] = useState<Notice>()
+  const opener = useRef<HTMLButtonElement>(null)
+  const dismiss = useCallback(() => setNotice(undefined), [])
+  const close = () => {
+    setOpen(false)
+    setFailure(undefined)
+    requestAnimationFrame(() => opener.current?.focus())
+  }
+  const submit = (goal: NewGoal) => {
+    if (create.isPending) return
+    setFailure(undefined)
+    create.mutate(goal, {
+      onSuccess: (created) => {
+        close()
+        setNotice({ message: `Meta criada: ${created.name}` })
+      },
+      onError: (error) => setFailure(goalFailure(error instanceof ApiFailure ? error.status : undefined, error.message, goal.name)),
+    })
+  }
+  return (
+    <>
+      {open ? (
+        <GoalForm thisMonth={today().slice(0, 7)} reserves={reserves} member={member} pending={create.isPending} failure={failure} onSubmit={submit} onCancel={close} />
+      ) : (
+        <button ref={opener} type="button" onClick={() => setOpen(true)} className="min-h-11 rounded-field border border-dashed bg-transparent font-medium text-accent">
+          + Nova meta
+        </button>
+      )}
+      <Toast notice={notice} onClose={dismiss} />
+    </>
+  )
+}
+
 const Savings = () => {
   const query = useSavings()
   const hash = useRecordHash()
@@ -70,6 +114,7 @@ const Savings = () => {
           </>
         )}
       </QueryView>
+      <AddGoal reserves={(query.data?.reserves ?? []).map(({ name }) => name)} />
     </section>
   )
 }
