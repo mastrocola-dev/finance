@@ -20,7 +20,7 @@ import { findMember, listMembers, type Member } from '../ledger/members.ts'
 import { cancelEntry, confirmDecision, correctEntry, createEntry, markPaid, markUnpaid, type NewEntry, proposeDecision, rejectDecision, updateReserve, withdrawDecision } from '../ledger/record.ts'
 import { findReserve, listReserves } from '../ledger/reserves.ts'
 import { RuleError } from '../ledger/rule.ts'
-import { closeRecord, listSetup, registerRecord } from '../ledger/setup.ts'
+import { closeRecord, editRecord, listSetup, recordChanges, registerRecord } from '../ledger/setup.ts'
 import { monthSplit } from '../ledger/split.ts'
 import { compareMonths } from '../ledger/summary.ts'
 import { netWorth } from '../ledger/worth.ts'
@@ -165,6 +165,10 @@ export const routes: Route[] = [
   route({ method: 'POST', path: '/setup', operationId: 'registerRecord', summary: 'Register a category, account, reserve, income, recurring expense, debt or goal', body: newRecord, response: schemas.SetupRecord, status: 201 }, async (input) => {
     const created = String(await writing(input, (connection, actor) => registerRecord(connection, actor, input.body.kind, input.body.payload)))
     return (await listSetup(input.client)).find((record) => record.kind === input.body.kind && record.id === created)
+  }),
+  route({ method: 'PATCH', path: '/setup/:kind/:id', operationId: 'editRecord', summary: 'Change the name, amount, day, account or category of a registered record; audited, history keeps the previous values', params: setupPath, body: recordChanges, response: schemas.SetupRecord }, async (input) => {
+    const edited = String(await writing(input, (connection, actor) => editRecord(connection, actor, input.params.kind, BigInt(input.params.id), input.body)))
+    return (await listSetup(input.client)).find((record) => record.kind === input.params.kind && record.id === edited)
   }),
   route({ method: 'POST', path: '/setup/:kind/:id/close', operationId: 'closeRecord', summary: 'Close a registered record; history keeps it, new entries can no longer use it', params: setupPath, response: schemas.Closed }, async (input) => {
     const closedId = await writing(input, (connection, actor) => closeRecord(connection, actor, input.params.kind, BigInt(input.params.id)))

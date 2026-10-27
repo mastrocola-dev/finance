@@ -1060,6 +1060,77 @@
         }
       }
     },
+    "/api/setup/{kind}/{id}": {
+      "patch": {
+        "operationId": "editRecord",
+        "summary": "Change the name, amount, day, account or category of a registered record; audited, history keeps the previous values",
+        "security": [
+          {
+            "member": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "kind",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "category",
+                "account",
+                "reserve",
+                "income",
+                "recurring_expense",
+                "debt",
+                "goal"
+              ]
+            }
+          },
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^\\d+$"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EditRecordBody"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SetupRecord"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/setup/{kind}/{id}/close": {
       "post": {
         "operationId": "closeRecord",
@@ -3693,6 +3764,50 @@
           "kind",
           "payload"
         ]
+      },
+      "EditRecordBody": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200,
+            "description": "New name, description, nickname or creditor"
+          },
+          "amountCents": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 100000000000,
+            "description": "New amount: monthly amount, balance of a reserve or debt, target of a goal, integer cents of BRL"
+          },
+          "dayOfMonth": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 31,
+            "description": "Day of the month it falls due"
+          },
+          "account": {
+            "anyOf": [
+              {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 200,
+                "description": "Account nickname"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Account nickname, null to clear"
+          },
+          "category": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200,
+            "description": "Category name"
+          }
+        },
+        "additionalProperties": false
       },
       "UpdateReserveBody": {
         "type": "object",

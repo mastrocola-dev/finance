@@ -52,15 +52,15 @@ const Control = ({ id, field, value, error, onChange }: FieldProps) => {
   return <input id={id} className={cn(input, ['money', 'balance'].includes(field.type) && 'amount')} autoComplete="off" list={field.names ? `${id}-names` : undefined} value={value} onChange={(event) => onChange(event.target.value)} {...kind} {...described} />
 }
 
-type Props = { candidate: Pick<Candidate, 'id' | 'kind' | 'payload'>; title: string; label?: string; saveLabel?: string; names: Record<Names, string[]>; busy: boolean; serverErrors?: Errors; onSave: (payload: Record<string, unknown>) => void; onCancel: () => void }
+type Props = { candidate: Pick<Candidate, 'id' | 'kind' | 'payload'>; fields?: Field[]; title: string; label?: string; saveLabel?: string; names: Record<Names, string[]>; busy: boolean; serverErrors?: Errors; onSave: (payload: Record<string, unknown>) => void; onCancel: () => void }
 
-export const CandidateForm = ({ candidate, title, label = `Editar ${title}`, saveLabel = 'Salvar', names, busy, serverErrors = {}, onSave, onCancel }: Props) => {
-  const [values, setValues] = useState<Values>(() => toValues(candidate))
+export const CandidateForm = ({ candidate, fields = fieldsOf[candidate.kind], title, label = `Editar ${title}`, saveLabel = 'Salvar', names, busy, serverErrors = {}, onSave, onCancel }: Props) => {
+  const [values, setValues] = useState<Values>(() => toValues(candidate, fields))
   const [errors, setErrors] = useState<Errors>({})
   const shown = { ...serverErrors, ...errors }
   const submit = (event: FormEvent) => {
     event.preventDefault()
-    const result = toPayload(candidate.kind, values)
+    const result = toPayload(candidate.kind, values, fields)
     setErrors(result.errors ?? {})
     if (result.payload) onSave(result.payload)
   }
@@ -68,7 +68,7 @@ export const CandidateForm = ({ candidate, title, label = `Editar ${title}`, sav
   return (
     <form aria-label={label} noValidate onSubmit={submit} className="flex flex-col gap-3 rounded-control bg-sunken p-3">
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
-        {fieldsOf[candidate.kind].map((field) => {
+        {fields.map((field) => {
           const id = `${prefix}-${field.key}`
           const error = shown[field.key]
           const control = <Control id={id} field={field} value={values[field.key] ?? ''} error={error} onChange={(value) => setValues((current) => ({ ...current, [field.key]: value }))} />

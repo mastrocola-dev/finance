@@ -73,10 +73,10 @@ const shown = (field: Field, value: unknown) => {
   return String(value)
 }
 
-export const toValues = ({ kind, payload }: Pick<Candidate, 'kind' | 'payload'>): Values => {
+export const toValues = ({ kind, payload }: Pick<Candidate, 'kind' | 'payload'>, fields = fieldsOf[kind]): Values => {
   const installment = (payload.installment ?? {}) as Record<string, unknown>
   const flat: Record<string, unknown> = { ...payload, installmentNumber: installment.number, installmentTotal: installment.total }
-  return Object.fromEntries(fieldsOf[kind].map((field) => [field.key, shown(field, flat[field.key])]))
+  return Object.fromEntries(fields.map((field) => [field.key, shown(field, flat[field.key])]))
 }
 
 const digitRun = /\d{5,}/
@@ -146,11 +146,11 @@ const crossChecks = (kind: Kind, payload: Record<string, unknown>, parts: Record
   return errors
 }
 
-export const toPayload = (kind: Kind, values: Values) => {
+export const toPayload = (kind: Kind, values: Values, fields = fieldsOf[kind]) => {
   const payload: Record<string, unknown> = {}
   const parts: Record<string, unknown> = {}
   const errors: Errors = {}
-  for (const field of fieldsOf[kind]) {
+  for (const field of fields) {
     const { value, error } = parse(field, values[field.key] ?? '')
     if (error) errors[field.key] = error
     else if (field.key.startsWith('installment') && kind === 'entry') parts[field.key] = value
@@ -168,22 +168,22 @@ const serverMessages: [RegExp, string][] = [
   [/installment number exceeds/, 'A parcela passa do total.'],
 ]
 
-const fieldOf = (kind: Kind, path: string, message: string) => {
+const fieldOf = (fields: Field[], path: string, message: string) => {
   if (path === 'installment.total') return 'installmentTotal'
   if (path.startsWith('installment')) return 'installmentNumber'
   if (/endsOn is before/.test(message)) return 'endsOn'
   if (/installmentsPaid exceeds/.test(message)) return 'installmentsPaid'
-  return fieldsOf[kind].some((field) => field.key === path) ? path : 'form'
+  return fields.some((field) => field.key === path) ? path : 'form'
 }
 
-export const serverErrors = (kind: Kind, message: string): Errors => {
+export const serverErrors = (kind: Kind, message: string, fields = fieldsOf[kind]): Errors => {
   const list = message.replace(/^invalid \w+ payload: /, '')
   if (list === message) return { form: 'Não foi possível salvar. Tente de novo.' }
   const errors: Errors = {}
   for (const issue of list.split('; ')) {
     const [path = '', ...rest] = issue.split(': ')
     const text = rest.join(': ')
-    const key = fieldOf(kind, path, text)
+    const key = fieldOf(fields, path, text)
     errors[key] ??= serverMessages.find(([pattern]) => pattern.test(text))?.[1] ?? `Valor recusado: ${text}`
   }
   return errors

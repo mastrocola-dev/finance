@@ -1,7 +1,8 @@
 import type { Client } from 'pg'
+import * as z from 'zod'
 import type { Queryable } from '../db/connection.ts'
-import { type Actor, write } from '../db/write.ts'
-import { type CandidateKind, payloads } from '../import/candidate.ts'
+import { type Actor, type Row, write } from '../db/write.ts'
+import { balance, type CandidateKind, dayOfMonth, payloads, text } from '../import/candidate.ts'
 import { resolver, rowOf } from '../import/commit.ts'
 import { RuleError } from './rule.ts'
 
@@ -11,28 +12,74 @@ export type SetupKind = (typeof setupKinds)[number]
 
 export type SetupRecord = { kind: SetupKind; id: string; name: string; detail: string | null; amount: bigint | null; day: number | null; member: string | null; category: string | null; account: string | null }
 
+const columns: Record<SetupKind, { name: string; amount?: string; day?: true; account?: true; category?: 'income' | 'expense' }> = {
+  category: { name: 'name' },
+  account: { name: 'nickname' },
+  reserve: { name: 'name', amount: 'balance_cents', account: true },
+  income: { name: 'description', amount: 'amount_cents', day: true, account: true, category: 'income' },
+  recurring_expense: { name: 'description', amount: 'amount_cents', day: true, account: true, category: 'expense' },
+  debt: { name: 'creditor', amount: 'balance_cents', account: true },
+  goal: { name: 'name', amount: 'target_cents' },
+}
+
+export const recordChanges = z
+  .strictObject({
+    name: text('New name, description, nickname or creditor'),
+    amountCents: balance('New amount: monthly amount, balance of a reserve or debt, target of a goal'),
+    dayOfMonth,
+    account: text('Account nickname').nullable().describe('Account nickname, null to clear'),
+    category: text('Category name'),
+  })
+  .partial()
+
+export type RecordChanges = z.output<typeof recordChanges>
+
+const label = (kind: SetupKind) => kind.replace('_', ' ')
+
 const uniqueViolation = (error: unknown) => typeof error === 'object' && error !== null && 'code' in error && error.code === '23505'
 
-const nameOf = (kind: SetupKind, payload: Record<string, unknown>) => String(payload[kind === 'debt' ? 'creditor' : kind === 'income' || kind === 'recurring_expense' ? 'description' : kind === 'account' ? 'nickname' : 'name'])
+const unique = async <T>(kind: SetupKind, name: string, work: () => Promise<T>) => {
+  try {
+    return await work()
+  } catch (error) {
+    if (uniqueViolation(error)) throw new RuleError(`${label(kind)} ${name} already exists`)
+    throw error
+  }
+}
+
+const invalid = (kind: SetupKind, issues: z.core.$ZodIssue[]) => new RuleError(`invalid ${kind} payload: ${issues.map((issue) => `${issue.path.join('.') || kind}: ${issue.message}`).join('; ')}`)
 
 export const registerRecord = (client: Client, actor: Actor, kind: SetupKind, input: unknown) =>
   write(client, actor, async (ledger) => {
     const parsed = payloads[kind].safeParse(input)
-    if (!parsed.success) throw new RuleError(`invalid ${kind} payload: ${parsed.error.issues.map((issue) => `${issue.path.join('.') || kind}: ${issue.message}`).join('; ')}`)
+    if (!parsed.success) throw invalid(kind, parsed.error.issues)
     const payload = parsed.data as Record<string, unknown>
-    if (kind === 'account') {
-      const taken = await client.query('select 1 from account where closed_at is null and lower(nickname) = lower($1)', [nameOf(kind, payload).trim()])
-      if (taken.rowCount) throw new RuleError(`account ${nameOf(kind, payload)} already exists`)
+    const name = String(payload[columns[kind].name])
+    const row = await rowOf(resolver(client), kind, payload)
+    return unique(kind, name, async () => (await ledger.create(kind, row)).id as bigint)
+  })
+
+export const editRecord = (client: Client, actor: Actor, kind: SetupKind, id: bigint, input: unknown) =>
+  write(client, actor, async (ledger) => {
+    const parsed = recordChanges.safeParse(input)
+    if (!parsed.success) throw invalid(kind, parsed.error.issues)
+    const changes = parsed.data
+    const fields = columns[kind]
+    const allowed = { name: true, amountCents: fields.amount, dayOfMonth: fields.day, account: fields.account, category: fields.category }
+    const refused = Object.keys(changes).filter((field) => !allowed[field as keyof RecordChanges])
+    if (refused.length) throw new RuleError(`${label(kind)} has no ${refused.join(', ')} to change`)
+    if (!Object.keys(changes).length) throw new RuleError('nothing to change')
+    const resolve = resolver(client)
+    const row: Row = {}
+    if (changes.name !== undefined) row[fields.name] = changes.name
+    if (changes.amountCents !== undefined && fields.amount) {
+      if (changes.amountCents === 0 && !fields.amount.startsWith('balance')) throw new RuleError(`${label(kind)} amount must be positive`)
+      row[fields.amount] = changes.amountCents
     }
-    try {
-      await client.query('savepoint register')
-      const row = await ledger.create(kind, await rowOf(resolver(client), kind, payload))
-      return row.id as bigint
-    } catch (error) {
-      if (!uniqueViolation(error)) throw error
-      await client.query('rollback to savepoint register')
-      throw new RuleError(`${kind.replace('_', ' ')} ${nameOf(kind, payload)} already exists`)
-    }
+    if (changes.dayOfMonth !== undefined) row.day_of_month = changes.dayOfMonth
+    if (changes.account !== undefined) row.account_id = changes.account === null ? null : await resolve.account(changes.account)
+    if (changes.category !== undefined && fields.category) row.category_id = await resolve.category(changes.category, fields.category)
+    return unique(kind, changes.name ?? '', async () => (await ledger.update(kind, id, row)).id as bigint)
   })
 
 export const closeRecord = (client: Client, actor: Actor, kind: SetupKind, id: bigint) =>

@@ -111,6 +111,7 @@ describe('openapi', () => {
       cancelEntry: { path: '/entries/ENTRY/cancel' },
       listSetup: { path: '/setup' },
       registerRecord: { path: '/setup', body: { kind: 'category', payload: { name: 'Pets', kind: 'expense' } } },
+      editRecord: { path: '/setup/category/RECORD', body: { name: 'Bichos' } },
       closeRecord: { path: '/setup/category/RECORD/close' },
       updateReserve: { path: '/reserves/Reserva%20de%20emerg%C3%AAncia', body: { target_cents: 3000000 } },
       proposeDecision: { path: '/decisions', body: { title: 'Bike', description: 'Commuting' } },

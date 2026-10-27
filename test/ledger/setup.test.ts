@@ -7,7 +7,7 @@ import { forecastMonth } from '../../src/ledger/forecast.ts'
 import { findMember } from '../../src/ledger/members.ts'
 import { cancelEntry, correctEntry, createEntry } from '../../src/ledger/record.ts'
 import { RuleError } from '../../src/ledger/rule.ts'
-import { closeRecord, listSetup, registerRecord } from '../../src/ledger/setup.ts'
+import { closeRecord, editRecord, listSetup, registerRecord } from '../../src/ledger/setup.ts'
 import { testDatabase } from '../db/database.ts'
 
 describe('setup and corrections', () => {
@@ -110,5 +110,73 @@ describe('setup and corrections', () => {
     await assert.rejects(closeRecord(client, actor, 'category', BigInt(pets.id)), /not found or closed/)
     const audit = await client.query<{ author: string }>("select author from audit_log where entity = 'category' and entity_id = $1 and action = 'close'", [pets.id])
     assert.deepEqual(audit.rows, [{ author: 'member' }])
+  })
+
+  const recordOf = async (kind: string, name: string) => {
+    const record = (await listSetup(client)).find((item) => item.kind === kind && item.name === name)
+    assert.ok(record, `${kind} ${name}`)
+    return record
+  }
+
+  test('edits a recurring expense in place, audited, and the forecast follows', async () => {
+    const internet = await recordOf('recurring_expense', 'Internet')
+    await editRecord(client, actor, 'recurring_expense', BigInt(internet.id), { name: 'Internet fibra', amountCents: 13500, dayOfMonth: 21, account: 'Conta Marcio', category: 'moradia' })
+    const edited = await recordOf('recurring_expense', 'Internet fibra')
+    assert.deepEqual(edited, { ...internet, name: 'Internet fibra', amount: 13500n, day: 21, account: 'Conta Marcio', category: 'Moradia' })
+    const audit = await client.query<{ action: string; before: { amount_cents: number }; after: { amount_cents: number } }>("select action, before, after from audit_log where entity = 'recurring_expense' and entity_id = $1 order by id desc limit 1", [internet.id])
+    assert.deepEqual(
+      audit.rows.map((row) => [row.action, row.before.amount_cents, row.after.amount_cents]),
+      [['update', 12000, 13500]],
+    )
+    await forecastMonth(client, actor, '2027-02')
+    const [planned] = (await listEntries(client, { month: '2027-02' }, '2027-02-01')).filter((entry) => entry.description === 'Internet fibra')
+    assert.deepEqual([planned?.amount, planned?.dueOn, planned?.account], [13500n, '2027-02-21', 'Conta Marcio'])
+    await editRecord(client, actor, 'recurring_expense', BigInt(internet.id), { account: null })
+    assert.equal((await recordOf('recurring_expense', 'Internet fibra')).account, null)
+  })
+
+  test('edits the amount each kind keeps: balance of a reserve or debt, target of a goal', async () => {
+    const reserve = await recordOf('reserve', 'Viagem')
+    const debt = await recordOf('debt', 'Loja Fictícia')
+    const goal = await recordOf('goal', 'Japão')
+    await editRecord(client, actor, 'reserve', BigInt(reserve.id), { amountCents: 0 })
+    await editRecord(client, actor, 'debt', BigInt(debt.id), { name: 'Loja Exemplo', amountCents: 260000 })
+    await editRecord(client, actor, 'goal', BigInt(goal.id), { amountCents: 2500000 })
+    assert.equal((await recordOf('reserve', 'Viagem')).amount, 0n)
+    assert.equal((await recordOf('debt', 'Loja Exemplo')).amount, 260000n)
+    assert.equal((await recordOf('goal', 'Japão')).amount, 2500000n)
+  })
+
+  test('refuses edits a kind does not have, duplicates, unknown references and closed records', async () => {
+    const lazer = await recordOf('category', 'Lazer')
+    const goal = await recordOf('goal', 'Japão')
+    const income = await recordOf('income', 'Salário Marcio')
+    await assert.rejects(editRecord(client, actor, 'category', BigInt(lazer.id), { amountCents: 100 }), /category has no amountCents to change/)
+    await assert.rejects(editRecord(client, actor, 'category', BigInt(lazer.id), {}), /nothing to change/)
+    await assert.rejects(editRecord(client, actor, 'category', BigInt(lazer.id), { name: 'saúde' }), /category saúde already exists/)
+    await assert.rejects(editRecord(client, actor, 'goal', BigInt(goal.id), { name: 'viagem a lisboa' }), /goal viagem a lisboa already exists/)
+    await assert.rejects(editRecord(client, actor, 'goal', BigInt(goal.id), { amountCents: 0 }), /goal amount must be positive/)
+    await assert.rejects(editRecord(client, actor, 'income', BigInt(income.id), { category: 'Moradia' }), /unknown income category Moradia/)
+    await assert.rejects(editRecord(client, actor, 'income', BigInt(income.id), { account: 'Inexistente' }), /unknown account Inexistente/)
+    await assert.rejects(editRecord(client, actor, 'income', BigInt(income.id), { name: 'Salário 123456' }), /invalid income payload: name/)
+    await assert.rejects(editRecord(client, actor, 'income', BigInt(income.id), { note: 'x' }), /invalid income payload/)
+    const pets = (await client.query<{ id: bigint }>("select id from category where name = 'Pets'")).rows[0]
+    assert.ok(pets)
+    await assert.rejects(editRecord(client, actor, 'category', pets.id, { name: 'Bichos' }), /not found or closed/)
+  })
+
+  test('a closed name can be registered again, an open one cannot in any case', async () => {
+    const again = await registerRecord(client, actor, 'category', { name: 'Pets', kind: 'expense' })
+    const { rows } = await client.query<{ id: bigint; open: boolean }>("select id, closed_at is null as open from category where name = 'Pets' order by id")
+    assert.deepEqual(
+      rows.map((row) => row.open),
+      [false, true],
+    )
+    assert.equal(rows[1]?.id, again)
+    await assert.rejects(registerRecord(client, actor, 'category', { name: 'pets', kind: 'expense' }), /category pets already exists/)
+    const viagem = await recordOf('reserve', 'Viagem')
+    await closeRecord(client, actor, 'reserve', BigInt(viagem.id))
+    await registerRecord(client, actor, 'reserve', { name: 'Viagem', balanceCents: 0 })
+    await assert.rejects(registerRecord(client, actor, 'account', { institution: 'Banco Aurora', nickname: 'Outra', lastFour: '0427', kind: 'checking' }), /account Outra already exists/)
   })
 })

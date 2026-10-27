@@ -56,6 +56,7 @@ describe('streamable http adapter', () => {
       'confirm_decision',
       'correct_entry',
       'create_entry',
+      'edit_record',
       'forecast_month',
       'list_debts',
       'list_decisions',

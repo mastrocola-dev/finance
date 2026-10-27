@@ -24,3 +24,11 @@ export const useCloseRecord = () => {
   const { api } = useIdentity()
   return useMutation({ mutationFn: async ({ kind, id }: { kind: SetupKind; id: string }) => unwrap(await api.POST('/api/setup/{kind}/{id}/close', { params: { path: { kind, id } } })), onSuccess: useRefresh() })
 }
+
+export const useEditRecord = () => {
+  const { api } = useIdentity()
+  return useMutation({
+    mutationFn: async ({ kind, id, changes }: { kind: SetupKind; id: string; changes: Record<string, unknown> }) => unwrap(await api.PATCH('/api/setup/{kind}/{id}', { params: { path: { kind, id } }, body: changes })),
+    onSuccess: useRefresh(),
+  })
+}

@@ -9,7 +9,7 @@ import { forecastMonth } from '../ledger/forecast.ts'
 import type { Member } from '../ledger/members.ts'
 import { cancelEntry, confirmDecision, correctEntry, createEntry, markPaid, type NewEntry, proposeDecision, rejectDecision, updateReserve, withdrawDecision } from '../ledger/record.ts'
 import { findReserve } from '../ledger/reserves.ts'
-import { closeRecord, listSetup, registerRecord, setupKinds } from '../ledger/setup.ts'
+import { closeRecord, editRecord, listSetup, recordChanges, registerRecord, setupKinds } from '../ledger/setup.ts'
 import { result } from './json.ts'
 import { registerReads } from './read.ts'
 import { date, id, month, today, writes } from './schema.ts'
@@ -102,6 +102,20 @@ export const createServer = (client: Database, member?: Member) => {
     async (input) => {
       const created = String(await writing((connection, actor) => registerRecord(connection, actor, input.kind, input.payload)))
       return result((await listSetup(client)).find((record) => record.kind === input.kind && record.id === created))
+    },
+  )
+
+  server.registerTool(
+    'edit_record',
+    {
+      title: 'Edit record',
+      description: 'Change the name, amount (integer cents), day of month, account nickname or category of a registered category, account, reserve, income, recurring expense, debt or goal. Only the fields given change; the previous values stay in the audit log.',
+      inputSchema: z.object({ kind: z.enum(setupKinds), id, changes: recordChanges }),
+      annotations: writes,
+    },
+    async (input) => {
+      const edited = String(await writing((connection, actor) => editRecord(connection, actor, input.kind, BigInt(input.id), input.changes)))
+      return result((await listSetup(client)).find((record) => record.kind === input.kind && record.id === edited))
     },
   )
 

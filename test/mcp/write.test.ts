@@ -132,12 +132,17 @@ describe('mcp write tools', () => {
     assert.equal((await call(anonymous, 'cancel_entry', { id: created.id })).isError, true)
   })
 
-  test('register_record and close_record manage the setup lists', async () => {
+  test('register_record, edit_record and close_record manage the setup lists', async () => {
     const pets = (await call(member, 'register_record', { kind: 'category', payload: { name: 'Pets', kind: 'expense' } })).json()
     assert.equal(pets.name, 'Pets')
     assert.ok((await call(member, 'list_setup', {})).json().some((record: { id: string; kind: string }) => record.kind === 'category' && record.id === pets.id))
     assert.equal((await call(member, 'register_record', { kind: 'account', payload: { institution: 'Banco', nickname: 'Z', lastFour: '123456', kind: 'checking' } })).isError, true)
+    const edited = (await call(member, 'edit_record', { kind: 'category', id: pets.id, changes: { name: 'Bichos' } })).json()
+    assert.deepEqual([edited.id, edited.name], [pets.id, 'Bichos'])
+    assert.equal((await call(member, 'edit_record', { kind: 'category', id: pets.id, changes: { amountCents: 100 } })).isError, true)
     assert.deepEqual((await call(member, 'close_record', { kind: 'category', id: pets.id })).json(), { id: pets.id })
+    const again = (await call(member, 'register_record', { kind: 'category', payload: { name: 'Bichos', kind: 'expense' } })).json()
+    assert.notEqual(again.id, pets.id)
   })
 
   test('forecast_month plans a month once, audited as claude for the member', async () => {
