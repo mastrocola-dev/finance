@@ -25,8 +25,8 @@ const lineage = (name: string): string[] => {
 
 test('the image is multi-stage on pinned bases, Node 24 slim for everything that runs node', () => {
   assert.ok(stages.length >= 4)
-  for (const { from } of stages) assert.match(from, /^(node:24-slim|ghcr\.io\/astral-sh\/uv:\d+\.\d+\.\d+|modules|ingest|base|uv)$/)
-  assert.equal(stage('base').from, 'node:24-slim')
+  for (const { from } of stages) assert.match(from, /^((node:24-slim|ghcr\.io\/astral-sh\/uv:\d+\.\d+\.\d+)(@sha256:[0-9a-f]{64})?|modules|ingest|base|uv)$/)
+  assert.match(stage('base').from, /^node:24-slim(@|$)/)
 })
 
 test('api and mcp run as a non-root user with an existing entry point', () => {

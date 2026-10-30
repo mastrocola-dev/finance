@@ -57,4 +57,4 @@ PostgreSQL is the floor cost (author, 2026-10-26). Stopping the server when unus
 - Before anything is exposed: L177 (allowed hosts and origins for the API), the static handler, the Entra sign-in and the member mapping; until then `allowed_ips` stays empty or lists only the author's address
 - `infra/` changes when this is approved: the Static Web App goes, the API app gets the web build and the auth settings in Key Vault
 - The import agent needs a home: either service-agent becomes a package installed in the API image, or imports stay on the author's machine at first
-- CI builds and smoke-tests both images (`images` job); publishing to GHCR needs `packages: write` and is a separate, approved change
+- CI builds and smoke-tests both images (`images` job) after the `test` job; on pushes to `poc` it publishes them to GHCR tagged with the commit (approved 2026-10-30, S12 E), with `packages: write` on that job only

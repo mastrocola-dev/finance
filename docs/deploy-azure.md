@@ -39,7 +39,11 @@ The token issuer is `https://<tenant ID>.ciamlogin.com/<tenant ID>/v2.0`: that i
 
 ## 3. Images
 
-The `Dockerfile` builds both images; CI's `images` job builds them on every push without pushing. Tag with the commit, never `latest`, so a rollback is a variable change.
+CI's `images` job builds both images after the tests pass and, on every push to `poc`, publishes `ghcr.io/mastrocola-dev/finance-api:<commit>` and `ghcr.io/mastrocola-dev/finance-mcp:<commit>` with the workflow's own token: the commit is the full SHA shown on the run. Tags are never `latest`, so a rollback is a variable change. The first push creates both packages as private; open each package on GitHub → **Package settings** and check that `finance` is listed under **Manage Actions access** with the **Write** role.
+
+The run summary also shows the `Dockerfile` diff that pins the base images by digest (`scripts/pin-bases.sh`); apply it in a commit to make the next builds reproducible.
+
+To publish by hand instead:
 
 ```sh
 docker build --target api -t ghcr.io/mastrocola-dev/finance-api:<commit> .

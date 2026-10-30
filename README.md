@@ -116,7 +116,7 @@ Copy `.env.example` to `.env` and adjust it; every script loads `.env` when pres
 
 ### Continuous integration
 
-`.github/workflows/ci.yml` runs on every push to `poc` and on pull requests to `main`, on Ubuntu 24.04 with a PostgreSQL 16 service, Node 24 and uv: `npm ci`, `npm run check`, `npm run ingest:check`, `npm run ingest:test`, `npm test`, `npm run web:build` and the first-load budget (`npx playwright test -g budget` in `web/`), in that order. Running the same commands locally reproduces it.
+`.github/workflows/ci.yml` runs on every push to `poc` and on pull requests to `main`, on Ubuntu 24.04 with a PostgreSQL 16 service, Node 24 and uv: `npm ci`, `npm run check`, `npm run ingest:check`, `npm run ingest:test`, `npm test`, `npm run web:build` and the first-load budget (`npx playwright test -g budget` in `web/`), in that order. Running the same commands locally reproduces it. When that `test` job passes, the `images` job builds and smoke-tests both images; on pushes to `poc` it publishes them as `ghcr.io/mastrocola-dev/finance-api:<commit>` and `finance-mcp:<commit>` (the only job with `packages: write`) and writes to the run summary the `Dockerfile` diff that `scripts/pin-bases.sh` makes to pin the base images by digest.
 
 A second job checks the Azure configuration in `infra/` with Terraform 1.16.4: `terraform fmt -check -recursive`, `terraform init -backend=false` and `terraform validate`. What it creates, the apply order and the rollback are in [infra/README.md](infra/README.md); the whole deploy (Entra tenant with Google, app registrations, images, migration job, members, web, Claude connector, smoke test and rollback) is the runbook [docs/deploy-azure.md](docs/deploy-azure.md).
 

@@ -14,7 +14,7 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  check:
+  test:
     runs-on: ubuntu-24.04
     timeout-minutes: 40
     services:
@@ -85,8 +85,12 @@ jobs:
           npx playwright test -g budget
 
   images:
+    needs: test
     runs-on: ubuntu-24.04
     timeout-minutes: 20
+    permissions:
+      contents: read
+      packages: write
     services:
       postgres:
         image: postgres:16
@@ -102,6 +106,8 @@ jobs:
           --health-retries 10
     env:
       DATABASE_URL: postgres://postgres:local@localhost:5432/finance
+      API_IMAGE: ghcr.io/mastrocola-dev/finance-api:${{ github.sha }}
+      MCP_IMAGE: ghcr.io/mastrocola-dev/finance-mcp:${{ github.sha }}
     defaults:
       run:
         shell: bash
@@ -110,8 +116,8 @@ jobs:
       - name: Build
         run: |
           set -euo pipefail
-          docker build --target api -t finance-api .
-          docker build --target mcp -t finance-mcp .
+          docker build --target api -t finance-api -t "$API_IMAGE" .
+          docker build --target mcp -t finance-mcp -t "$MCP_IMAGE" .
       - name: Smoke
         run: |
           set -euo pipefail
@@ -128,6 +134,21 @@ jobs:
           curl -sf http://localhost:3200/decisoes | grep -q '<div id="root">'
           test "$(curl -s -o /dev/null -w '%{http_code}' http://localhost:3200/api/nope)" = 404
           curl -sf -X POST http://localhost:3100/mcp -H 'content-type: application/json' -H 'accept: application/json, text/event-stream' -d '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-06-18","capabilities":{},"clientInfo":{"name":"ci","version":"0"}}}' | grep -q serverInfo
+      - name: Publish
+        if: github.event_name == 'push' && github.ref == 'refs/heads/poc'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          echo "$GH_TOKEN" | docker login ghcr.io -u "$GITHUB_ACTOR" --password-stdin
+          docker push "$API_IMAGE"
+          docker push "$MCP_IMAGE"
+          echo "Published \`$API_IMAGE\` and \`$MCP_IMAGE\`" >> "$GITHUB_STEP_SUMMARY"
+      - name: Base digests
+        run: |
+          set -euo pipefail
+          scripts/pin-bases.sh Dockerfile
+          { echo '### Base image digests'; echo '```diff'; git diff Dockerfile; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
       - name: Logs
         if: failure()
         run: |

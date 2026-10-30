@@ -37,6 +37,7 @@ WORKDIR /opt/service-agent
 RUN npm ci --omit=dev --ignore-scripts && npm cache clean --force
 
 FROM node:24-slim AS base
+LABEL org.opencontainers.image.source=https://github.com/mastrocola-dev/finance
 ENV NODE_ENV=production
 WORKDIR /app
 COPY --from=modules /app/node_modules node_modules
