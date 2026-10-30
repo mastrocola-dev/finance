@@ -92,15 +92,18 @@ test('the api app accepts its own Container Apps host', () => {
 
 test('the api app signs people in on its own origin with secrets from Key Vault', () => {
   const api = /\n {4}api = \{([\s\S]*?)\n {4}\}\n/.exec(all)?.[1] ?? ''
-  assert.match(api, /API_ALLOWED_ORIGINS = "https:\/\/\$\{local\.api_host\}"/)
+  assert.match(api, /API_ALLOWED_ORIGINS\s+= "https:\/\/\$\{local\.api_host\}"/)
   assert.match(api, /API_PUBLIC_URL\s+= "https:\/\/\$\{local\.api_host\}"/)
   assert.match(api, /ENTRA_CLIENT_ID\s+= var\.entra_web_client_id/)
   assert.match(api, /SESSION_KEY\s+= "session-key"/)
   assert.match(api, /ENTRA_CLIENT_SECRET = "finance-web-secret"/)
-  assert.doesNotMatch(all, /(SESSION_KEY|ENTRA_CLIENT_SECRET)\s+= var\./)
+  assert.match(api, /ANTHROPIC_API_KEY\s+= "anthropic-api-key"/)
+  assert.match(api, /IMPORT_DAILY_USD_CAP = tostring\(var\.import_daily_usd_cap\)/)
+  assert.doesNotMatch(all, /(SESSION_KEY|ENTRA_CLIENT_SECRET|ANTHROPIC_API_KEY)\s+= var\./)
+  assert.doesNotMatch(all, /sk-ant-/)
   const mcp = /\n {4}mcp = \{([\s\S]*?)\n {4}\}\n/.exec(all)?.[1] ?? ''
   assert.match(mcp, /secrets = \{\}/)
-  assert.doesNotMatch(mcp, /API_|ENTRA_CLIENT|SESSION_KEY/)
+  assert.doesNotMatch(mcp, /API_|ENTRA_CLIENT|SESSION_KEY|IMPORT_/)
   assert.match(all, /key_vault_secret_id = "\$\{azurerm_key_vault\.main\.vault_uri\}secrets\/\$\{secret\.value\}"/)
   assert.match(all, /for_each = each\.value\.secrets\n\n\s+content \{\n\s+name\s+= env\.key\n\s+secret_name = env\.value/)
 })

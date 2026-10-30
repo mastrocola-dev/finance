@@ -9,7 +9,7 @@ The POC runs locally: PostgreSQL 16, the HTTP API (port 3200), the MCP server (p
 - The API and the MCP server run as Container Apps on the consumption plan, zero to one replica, on internal ingress until `allowed_ips` lists the author's address, because `AUTH_MODE=local` trusts the `x-member` header until Entra ID exists
 - The Static Web App is on the Free plan in eastus2 (Static Web Apps are not offered in eastus). Free cannot link a backend, so `/api` on the web's origin does not reach the Container App: the web would have to call the API cross-origin (CORS plus `API_ALLOWED_ORIGINS`, backlog L177) or a host must serve both
 - The API accepts only localhost Host and Origin today (L177), so any Azure host needs that setting first
-- The API image ships the ingest runtime prebuilt (`ingest/.venv-runtime`, uv offline), so a cold start no longer waits for `uv sync` (L179); the import agent (`SERVICE_AGENT_CLI`) is not in the image yet
+- The API image ships the ingest runtime prebuilt (`ingest/.venv-runtime`, uv offline), so a cold start no longer waits for `uv sync` (L179); since S12 D2 it also carries service-agent at a pinned commit, with the model key from Key Vault and a daily spending cap
 - Entra ID comes with the Azure stage (ADR-008); the tenant kind is open
 
 ## Decision (proposed)

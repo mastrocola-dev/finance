@@ -63,6 +63,25 @@ test('the api image carries the web built for the entra sign-in and serves it fr
   assert.doesNotMatch(stage('modules').text, /web\/src/)
 })
 
+test('the api image carries service-agent at a pinned commit with production modules only', () => {
+  const { text } = stage('agent')
+  const sha = /^ARG SERVICE_AGENT_SHA=([0-9a-f]+)$/m.exec(text)?.[1] ?? ''
+  assert.match(sha, /^[0-9a-f]{40}$/)
+  assert.match(text, /^ADD https:\/\/github\.com\/mastrocola-dev\/service-agent\.git#\$\{SERVICE_AGENT_SHA\} \/opt\/service-agent$/m)
+  assert.match(text, /npm ci --omit=dev --ignore-scripts/)
+  assert.match(stage('api').text, /COPY --from=agent \/opt\/service-agent \/opt\/service-agent/)
+  assert.match(stage('api').text, /SERVICE_AGENT_CLI=\/opt\/service-agent\/src\/cli\.ts/)
+  assert.doesNotMatch(stage('mcp').text, /agent/)
+})
+
+test('CI runs the service-agent contract on the pinned commit beside the repository and in the api image', () => {
+  assert.match(workflow, /git -C \.\.\/service-agent checkout --detach "\$\(sed -n 's\/\^ARG SERVICE_AGENT_SHA=\/\/p' Dockerfile\)"/)
+  assert.match(workflow, /npm ci --prefix \.\.\/service-agent --omit=dev/)
+  assert.match(workflow, /SERVICE_AGENT_REQUIRED: 'true'/)
+  assert.match(workflow, /UV_PROJECT_ENVIRONMENT="\$PWD\/ingest\/\.venv-runtime" uv --directory ingest sync --no-dev --exact --locked/)
+  assert.match(workflow, /docker run --rm -e SERVICE_AGENT_REQUIRED=true .* finance-api node --test test\/import\/service-agent-contract\.test\.ts/)
+})
+
 test('the build context is an allow list that never sends secrets, state or local environments', () => {
   assert.equal(ignore[0], '*')
   const allowed = ignore.filter((line) => line.startsWith('!')).map((line) => line.slice(1))

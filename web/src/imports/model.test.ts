@@ -30,6 +30,7 @@ test('cost and refusals read in Portuguese', () => {
   expect(formatUsd('1.2345')).toBe('US$ 1,2345')
   expect(uploadFailure(new ApiFailure(413, 'Payload Too Large'))).toBe('O arquivo passa de 20 MB.')
   expect(uploadFailure(new ApiFailure(422, 'service-agent CLI not found at x, set SERVICE_AGENT_CLI'))).toBe('A leitura pelo Claude não está disponível neste ambiente.')
+  expect(uploadFailure(new ApiFailure(422, 'O limite diário de leitura pelo Claude (US$ 5,00) foi atingido. Tente de novo amanhã.'))).toBe('O limite diário de leitura pelo Claude (US$ 5,00) foi atingido. Tente de novo amanhã.')
   expect(uploadFailure(new Error('network'))).toBe('Não foi possível enviar o arquivo. Tente de novo.')
 })
 
@@ -41,6 +42,7 @@ test('retry is offered only for open batches with chunks to read and not while e
   expect(canRetry(batch({ status: 'committed', retryable: 1 }))).toBe(false)
   expect(retryFailure(new ApiFailure(409, 'import batch 2 is still extracting'))).toBe('A importação ainda está sendo lida. Espere terminar.')
   expect(retryFailure(new ApiFailure(422, 'import batch 2 is not open for a retry'))).toBe('Esta importação já foi gravada ou encerrada. A lista foi atualizada.')
+  expect(retryFailure(new ApiFailure(422, 'O limite diário de leitura pelo Claude (US$ 5,00) foi atingido. Tente de novo amanhã.'))).toBe('O limite diário de leitura pelo Claude (US$ 5,00) foi atingido. Tente de novo amanhã.')
   expect(retryFailure(new ApiFailure(401, 'writes need the x-member header'))).toBe('Escolha quem você é para ler de novo.')
 })
 

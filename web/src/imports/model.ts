@@ -103,6 +103,8 @@ export const fileIssue = (file: File) => {
   return undefined
 }
 
+const dailyCap = /^O limite diário de leitura pelo Claude/
+
 export const uploadFailure = (error: Error) => {
   if (!(error instanceof ApiFailure)) return 'Não foi possível enviar o arquivo. Tente de novo.'
   if (error.status === 401) return 'Escolha quem você é para importar.'
@@ -111,6 +113,7 @@ export const uploadFailure = (error: Error) => {
   if (/already in import batch/.test(error.message)) return 'Este arquivo já foi enviado. Veja o histórico.'
   if (/unsupported format/.test(error.message)) return `Formato não aceito. Use ${formats.join(', ')}.`
   if (/service-agent/.test(error.message)) return 'A leitura pelo Claude não está disponível neste ambiente.'
+  if (dailyCap.test(error.message)) return error.message
   return 'Não foi possível enviar o arquivo. Tente de novo.'
 }
 
@@ -126,6 +129,7 @@ export const retryFailure = (error: Error) => {
   if (error.status === 401) return 'Escolha quem você é para ler de novo.'
   if (error.status === 409) return 'A importação ainda está sendo lida. Espere terminar.'
   if (error.status === 503) return offline
+  if (dailyCap.test(error.message)) return error.message
   if (/no longer kept/.test(error.message)) return 'O arquivo não está mais guardado. Descarte a importação e envie o arquivo de novo.'
   if (/nothing to retry/.test(error.message)) return 'Não há trechos para ler de novo. A lista foi atualizada.'
   if (/not open for a retry/.test(error.message)) return 'Esta importação já foi gravada ou encerrada. A lista foi atualizada.'

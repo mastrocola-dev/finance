@@ -98,6 +98,17 @@ variable "log_daily_cap_gb" {
   default     = 0.1
 }
 
+variable "import_daily_usd_cap" {
+  type        = number
+  description = "Daily spend of the import agent in US$; new uploads and retries are refused past it"
+  default     = 2
+
+  validation {
+    condition     = var.import_daily_usd_cap > 0
+    error_message = "import_daily_usd_cap must be positive."
+  }
+}
+
 variable "budget_amount" {
   type        = number
   description = "Monthly budget of the resource group, in the billing currency of the subscription"

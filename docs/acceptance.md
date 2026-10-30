@@ -37,7 +37,7 @@ Compare with the mockups in `docs/mockups/` (layout, spacing, copy, palette) and
 
 ## 4. Import with a fictional file
 
-Use `evals/cases/bank-csv/extrato-conjunta.csv` (invented). With the real model: service-agent checked out next to this repository and `ANTHROPIC_API_KEY` set. Without the model: start the API with `SERVICE_AGENT_CLI=test/import/fake-agent.ts`, which answers with a fixed sample.
+Use `evals/cases/bank-csv/extrato-conjunta.csv` (invented). With the real model: on Azure the API image carries service-agent and reads `ANTHROPIC_API_KEY` from Key Vault; locally, service-agent checked out next to this repository and `ANTHROPIC_API_KEY` set. Without the model: start the API with `SERVICE_AGENT_CLI=test/import/fake-agent.ts`, which answers with a fixed sample.
 
 - [ ] Enviar is disabled until the consent box is checked; the history shows Extraindo, then Para revisar, with tokens and cost
 - [ ] Revisar: answer a question, edit one item, reject one, accept the rest; Aceitar stays disabled while an item has a blocking check

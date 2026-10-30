@@ -8,10 +8,10 @@ Terraform 1.16.4 for the Azure stage. Nothing here has been applied: the build a
 |---|---|
 | Resource group `rg-<name>` | every resource below, tagged `app = finance` |
 | Log Analytics `log-<name>` | PerGB2018, 30 days, daily cap `log_daily_cap_gb` (0.1 GB) |
-| Key Vault `kv-<name>-<suffix>` | RBAC, soft delete 7 days, no purge protection; holds `database-url`, the author's `session-key` and `finance-web-secret` and, for private images, `registry-password` |
+| Key Vault `kv-<name>-<suffix>` | RBAC, soft delete 7 days, no purge protection; holds `database-url`, the author's `session-key`, `finance-web-secret` and `anthropic-api-key` and, for private images, `registry-password` |
 | PostgreSQL Flexible Server `psql-<name>-<suffix>` | 16, B_Standard_B1ms, 32 GiB (P4), 7-day backups, no geo backup, database `finance`, firewall open to Azure services only |
 | Container Apps environment `cae-<name>` | consumption, logs to the workspace |
-| Container Apps `<name>-api` (3200, also serves the web from the image) and `<name>-mcp` (3100) | 0.25 vCPU, 0.5 GiB, zero to one replica, external ingress, `AUTH_MODE=entra` with `ENTRA_ISSUER` and `ENTRA_AUDIENCE`, `DATABASE_URL` from Key Vault through a user-assigned identity; the API app also signs people in (`ENTRA_CLIENT_ID`, `API_PUBLIC_URL`, `SESSION_KEY` and `ENTRA_CLIENT_SECRET` from Key Vault) |
+| Container Apps `<name>-api` (3200, also serves the web from the image) and `<name>-mcp` (3100) | 0.25 vCPU, 0.5 GiB, zero to one replica, external ingress, `AUTH_MODE=entra` with `ENTRA_ISSUER` and `ENTRA_AUDIENCE`, `DATABASE_URL` from Key Vault through a user-assigned identity; the API app also signs people in (`ENTRA_CLIENT_ID`, `API_PUBLIC_URL`, `SESSION_KEY` and `ENTRA_CLIENT_SECRET` from Key Vault) and imports files (`ANTHROPIC_API_KEY` from Key Vault, `IMPORT_DAILY_USD_CAP`) |
 | Container Apps job `<name>-migrate` | manual trigger, `npm run db:migrate` with `api_image` and the same `database-url` reference, 10 minutes, no retry |
 | Budget `budget-<name>` | `budget_amount` (25) per month on the resource group; e-mail at 80 percent actual and 100 percent forecast |
 
@@ -19,7 +19,7 @@ Terraform 1.16.4 for the Azure stage. Nothing here has been applied: the build a
 
 ## Secrets
 
-No secret is in this folder, in a variable or in the state. The database password is an ephemeral `random_password` sent once through write-only attributes (`administrator_password_wo` on the server, `value_wo` on the `database-url` secret); raise `db_password_version` to rotate it. The apps read `database-url` as a Key Vault reference; the API app also reads `session-key` and `finance-web-secret`, and a private registry needs `registry_server`, `registry_username` and `registry-password`. The author creates those three in the vault before the apps (step 3 of the runbook), because a reference to a missing secret fails the apply.
+No secret is in this folder, in a variable or in the state. The database password is an ephemeral `random_password` sent once through write-only attributes (`administrator_password_wo` on the server, `value_wo` on the `database-url` secret); raise `db_password_version` to rotate it. The apps read `database-url` as a Key Vault reference; the API app also reads `session-key`, `finance-web-secret` and `anthropic-api-key`, and a private registry needs `registry_server`, `registry_username` and `registry-password`. The author creates those in the vault before the apps (step 3 of the runbook), because a reference to a missing secret fails the apply.
 
 ## Exposure
 

@@ -2,13 +2,14 @@ import assert from 'node:assert/strict'
 import { existsSync } from 'node:fs'
 import { createServer } from 'node:http'
 import type { AddressInfo } from 'node:net'
-import { resolve } from 'node:path'
+import { dirname, resolve } from 'node:path'
 import { test } from 'node:test'
 import type { Task } from '../../src/import/agent.ts'
 import { run } from '../../src/import/service-agent.ts'
 
-const cli = resolve('../service-agent/src/cli.ts')
-const installed = existsSync(resolve('../service-agent/node_modules')) && existsSync('ingest/.venv-runtime/bin/python')
+const cli = resolve(process.env.SERVICE_AGENT_CLI ?? '../service-agent/src/cli.ts')
+const installed = existsSync(cli) && existsSync(resolve(dirname(cli), '../node_modules')) && existsSync('ingest/.venv-runtime/bin/python')
+const required = process.env.SERVICE_AGENT_REQUIRED === 'true'
 const usage = { input_tokens: 900, output_tokens: 100, cache_creation_input_tokens: 0, cache_read_input_tokens: 100 }
 const answer = { candidates: [], questions: [], totals: [] }
 
@@ -23,7 +24,7 @@ const reply = (step: number) => ({
   content: step === 0 ? [{ type: 'tool_use', id: 'toolu_1', name: 'ingest__list_segments', input: { file: 'extrato.csv' } }] : [{ type: 'text', text: JSON.stringify(answer) }],
 })
 
-test('the real service-agent CLI loads the import agent and reaches the ingest tools', { skip: !installed && 'no sibling service-agent checkout with modules' }, async () => {
+test('the real service-agent CLI loads the import agent and reaches the ingest tools', { skip: !installed && !required && 'no sibling service-agent checkout with modules' }, async () => {
   const requests: { tools: { name: string }[]; messages: { content: unknown }[] }[] = []
   const server = createServer((request, response) => {
     let body = ''

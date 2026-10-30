@@ -2,10 +2,10 @@
 
 ## State
 
-- S12 (go live) is one item in parts; A1, A2, B, C and D1 (real service-agent contract) done 2026-10-30; next is D2 (service-agent and the key in the image, daily cap), then E, F. Schedule stops after F
-- Tests after S12 D1: 338 node, 199 web, 282 Playwright (only `import.spec.ts` rerun in D1: 74), 63 pytest; `npm test` and `npm run check` green; failing-test run streak 0
+- S12 (go live) is one item in parts; A1 to D2 done 2026-10-30; next is E (publish images to GHCR), then F (runbook and acceptance). Schedule stops after F
+- Tests after S12 D2: 342 node, 199 web, 282 Playwright (not rerun in D2), 63 pytest; `npm test` and `npm run check` green; failing-test run streak 0
 - Do not run Playwright and `npm test` at the same time: vitest `findByText` times out under load (L213)
-- Next free backlog number: L216
+- Next free backlog number: L217
 
 ## Session setup (cloud container, each run, one command per Bash call)
 
@@ -17,7 +17,7 @@
 - `./node_modules/.bin/biome check --write <paths>`, never `npx biome`. `curl` to local servers needs `--noproxy '*'`; stop servers by pid (node processes show as `MainThread` in `pgrep`, so `pgrep node` misses them)
 - `npm run openapi` after any route change
 - Never `pkill -f` a pattern that appears in the Bash command itself: it kills the shell (exit 144). Stop servers by pid
-- service-agent is public: `git clone --depth 1 https://github.com/mastrocola-dev/service-agent ../service-agent` then `npm ci` there (read only, never commit to it); with it `test/import/service-agent-contract.test.ts` runs instead of skipping
+- service-agent is public: `git clone --depth 1 https://github.com/mastrocola-dev/service-agent ../service-agent` then `npm ci` there (read only, never commit to it). The contract test also needs `ingest/.venv-runtime`: `UV_PROJECT_ENVIRONMENT="$PWD/ingest/.venv-runtime" uv --directory ingest sync --no-dev --exact --locked`; it honours `SERVICE_AGENT_CLI` and fails instead of skipping with `SERVICE_AGENT_REQUIRED=true` (set in CI)
 - Docker: `setsid dockerd &` starts a daemon, but Docker Hub and ghcr.io answer 403 through the proxy, so no image can be built. To check the image layout, copy the files the `Dockerfile` copies to a folder outside `/tmp/claude-0` (mode 700), `npm ci --omit=dev --workspaces=false`, sync the runtime venv, and run as `nobody` with a writable `HOME`
 - Terraform cannot be downloaded; `test/infra/terraform.test.ts` stands in for `fmt -check`
 
@@ -36,6 +36,7 @@
 - New API route: `route({...}, handler)` in `src/http/api.ts`, schemas in `contract.ts`, a sample in `test/http/openapi.test.ts`. New MCP write tools: `src/mcp/server.ts` plus tool lists in `test/mcp/server.test.ts` and `test/mcp/http.test.ts`
 - Seed time from `setClock`/`FINANCE_CLOCK`; Playwright contexts use `openContext` from `web/e2e/context.ts`
 - Import agent (S12 D1): service-agent's `agent.json` is strict and MCP servers get no env and no placeholders; finance renders a temp copy per run (`renderAgent`: `{IMPORT_FOLDER}` substituted, `maxRunTokens` capped), spawns with cwd = repo root (relative paths in `agent.json`), `TRACE_DIR` in the temp folder; usage from trace `run.end`; ingest started by `ingest/.venv-runtime/bin/python ingest/serve.py <folder>` (the project is `package = false`, so `python -m ingest` only works with `ingest/` on the path). Tool names seen by the model are `ingest__<tool>`
+- Pinned service-agent: `ARG SERVICE_AGENT_SHA` in the `agent` stage of the `Dockerfile` is the single source; CI greps it with `sed`. Daily cap: `dailyCapOf`/`withinCap` in `src/import/uploads.ts` (API only, not the CLI); the web shows the 422 text as is (`dailyCap` regex in `web/src/imports/model.ts`)
 - Images: `Dockerfile` targets `api` (uv, Python 3.13 in `/opt/python`, `ingest/.venv-runtime`, `UV_OFFLINE=1`, uploads `/app/.imports`) and `mcp`; `.dockerignore` is an allow list, so a new runtime folder must be added there and in `test/infra/docker.test.ts`. `ingestRuntime` passes only `UV_SYSTEM_CERTS`, `UV_OFFLINE` and `UV_PROJECT_ENVIRONMENT` to uv
 - Infra env per app lives in `local.apps` of `infra/main.tf` (`env` values and a `secrets` map env name → Key Vault secret name, referenced by `vault_uri`; author-created secrets: `session-key`, `finance-web-secret`, `registry-password`), merged with `local.entra` (AUTH_MODE entra, ENTRA_*) in the `env` dynamic block (a `merge(x, {` literal breaks the fmt stand-in test); migration job `azurerm_container_app_job.migrate`; `test/infra/terraform.test.ts` requires every variable to appear in backticks in `docs/deploy-azure.md`. CI jobs: `check`, `images`, `infra`
 

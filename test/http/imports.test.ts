@@ -9,7 +9,7 @@ import { seed } from '../../src/db/seed.ts'
 import { serveApi } from '../../src/http/api.ts'
 import type { IngestReadiness } from '../../src/import/ingest.ts'
 import { serviceAgentExtractor } from '../../src/import/service-agent.ts'
-import { Busy, fileNameIssue, importUploads } from '../../src/import/uploads.ts'
+import { Busy, dailyCapOf, fileNameIssue, importUploads } from '../../src/import/uploads.ts'
 import { testDatabase } from '../db/database.ts'
 import { sample } from '../import/sample.ts'
 
@@ -250,5 +250,36 @@ describe('import api', () => {
       await uploads.warm()
     }
     assert.deepEqual((await get('/imports/runtime')).body, { ready: true, cause: null, warming: false })
+  })
+  test('refuses uploads and retries past the daily cap of batches started today in São Paulo', async () => {
+    const spent = async () => Number((await pool.query<{ total: string }>("select coalesce(sum(cost_usd_micros), 0)::text as total from import_batch where (created_at at time zone 'America/Sao_Paulo')::date = (ledger_now() at time zone 'America/Sao_Paulo')::date")).rows[0]?.total)
+    const cap = (await spent()) + 1
+    const capped = importUploads(pool, { folder, segments, extractor: (at) => serviceAgentExtractor({ folder: at, cli: 'test/import/fake-agent.ts' }), warm: async () => ({ ready: true }), dailyCapUsdMicros: cap })
+    const at = await serveApi(pool, 0, '127.0.0.1', capped)
+    const send = (path: string, init: RequestInit) => fetch(`${at.url}/api${path}`, init).then(async (response) => ({ status: response.status, body: await response.json() }))
+    const post = (name: string) => send('/imports?consent=true', { method: 'POST', headers: { 'content-type': 'application/octet-stream', 'x-file-name': name, 'x-member': 'Marcio' }, body: `${name}\n` })
+    const refusal = { status: 422, body: { error: `O limite diário de leitura pelo Claude (US$ ${(cap / 1_000_000).toFixed(2).replace('.', ',')}) foi atingido. Tente de novo amanhã.` } }
+    try {
+      const first = await post('limite.txt')
+      assert.equal(first.status, 202)
+      await capped.settled()
+      const before = await readdir(folder)
+      assert.deepEqual(await post('acima.txt'), refusal)
+      assert.deepEqual(await readdir(folder), before)
+      assert.deepEqual(await send(`/imports/${first.body.id}/retry`, { method: 'POST', headers: { 'x-member': 'Marcio' } }), refusal)
+      await pool.query("update import_batch set created_at = created_at - interval '1 day'")
+      assert.equal((await post('amanha.txt')).status, 202)
+      await capped.settled()
+    } finally {
+      await at.close()
+    }
+  })
+
+  test('reads the daily cap from IMPORT_DAILY_USD_CAP in US$', () => {
+    assert.equal(dailyCapOf(undefined), Number.POSITIVE_INFINITY)
+    assert.equal(dailyCapOf(''), Number.POSITIVE_INFINITY)
+    assert.equal(dailyCapOf('5'), 5_000_000)
+    assert.equal(dailyCapOf('0.25'), 250_000)
+    for (const value of ['0', '-1', 'abc', '1e3']) assert.throws(() => dailyCapOf(value), /IMPORT_DAILY_USD_CAP must be a positive amount/)
   })
 })

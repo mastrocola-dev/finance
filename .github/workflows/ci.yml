@@ -36,6 +36,7 @@ jobs:
       IMPORT_TOKEN_CAP: '400000'
       IMPORT_UPLOADS: .imports
       AUTH_MODE: local
+      SERVICE_AGENT_REQUIRED: 'true'
     defaults:
       run:
         shell: bash
@@ -52,6 +53,10 @@ jobs:
         run: |
           set -euo pipefail
           npm ci
+          git clone --filter=blob:none https://github.com/mastrocola-dev/service-agent ../service-agent
+          git -C ../service-agent checkout --detach "$(sed -n 's/^ARG SERVICE_AGENT_SHA=//p' Dockerfile)"
+          npm ci --prefix ../service-agent --omit=dev --ignore-scripts
+          UV_PROJECT_ENVIRONMENT="$PWD/ingest/.venv-runtime" uv --directory ingest sync --no-dev --exact --locked
           npm exec -w web -- playwright install --with-deps chromium
       - name: Check
         run: |
@@ -113,6 +118,7 @@ jobs:
           test "$(docker run --rm finance-api id -u)" != 0
           test "$(docker run --rm finance-mcp id -u)" != 0
           docker run --rm --network host -e DATABASE_URL finance-api node src/db/migrate.ts
+          docker run --rm -e SERVICE_AGENT_REQUIRED=true -v "$PWD/test:/app/test:ro" -v "$PWD/ingest/tests/fixtures:/app/ingest/tests/fixtures:ro" finance-api node --test test/import/service-agent-contract.test.ts
           docker run -d --name api --network host -e DATABASE_URL -e API_HOST=127.0.0.1 finance-api
           docker run -d --name mcp --network host -e DATABASE_URL -e MCP_HOST=127.0.0.1 finance-mcp
           for _ in $(seq 60); do curl -sf http://localhost:3200/api/imports/runtime > runtime.json && break; sleep 1; done

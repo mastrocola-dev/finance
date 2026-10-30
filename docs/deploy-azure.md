@@ -63,11 +63,12 @@ The apps read their secrets as Key Vault references, so the secrets must exist b
    openssl rand -base64 32 > session-key.txt
    az keyvault secret set --vault-name <vault> --name session-key --file session-key.txt
    az keyvault secret set --vault-name <vault> --name finance-web-secret --file <file holding the finance-web secret>
+   az keyvault secret set --vault-name <vault> --name anthropic-api-key --file <file holding the Anthropic key>
    az keyvault secret set --vault-name <vault> --name registry-password --file <file holding the token>
    rm session-key.txt
    ```
 
-   `session-key` seals the session cookie (32 random bytes in base64); replacing it signs everyone out. `registry-password` is only for private images
+   `session-key` seals the session cookie (32 random bytes in base64); replacing it signs everyone out. `anthropic-api-key` is the key the import agent uses to call Claude: create it in the Anthropic Console in a workspace with its own spend limit, and keep `import_daily_usd_cap` below that limit. `registry-password` is only for private images
 
 ## 4. Terraform
 
@@ -93,8 +94,9 @@ The apps read their secrets as Key Vault references, so the secrets must exist b
 | `db_password_version` | no, `1` | raise to rotate the database password |
 | `log_daily_cap_gb` | no, `0.1` | Log Analytics daily cap |
 | `budget_amount` | no, `25` | monthly budget in the billing currency |
+| `import_daily_usd_cap` | no, `2` | US$ the import agent may spend per day (São Paulo time); uploads and retries are refused past it |
 
-2. Terraform sets on both apps `AUTH_MODE=entra`, `ENTRA_ISSUER` and `ENTRA_AUDIENCE`. On the API app: `API_ALLOWED_HOSTS` (`<name>-api.<environment domain>`), `API_ALLOWED_ORIGINS` and `API_PUBLIC_URL` (both `https://<name>-api.<environment domain>`, its own origin: browser writes and the sign-in redirect use it) and `ENTRA_CLIENT_ID`. On the MCP app: `MCP_ALLOWED_HOSTS`, `MCP_PUBLIC_URL` (`https://<name>-mcp.<environment domain>`) and `MCP_SCOPES`. Key Vault references, never values: `DATABASE_URL` (`database-url`) on both apps, `SESSION_KEY` (`session-key`) and `ENTRA_CLIENT_SECRET` (`finance-web-secret`) on the API app
+2. Terraform sets on both apps `AUTH_MODE=entra`, `ENTRA_ISSUER` and `ENTRA_AUDIENCE`. On the API app: `API_ALLOWED_HOSTS` (`<name>-api.<environment domain>`), `API_ALLOWED_ORIGINS` and `API_PUBLIC_URL` (both `https://<name>-api.<environment domain>`, its own origin: browser writes and the sign-in redirect use it) `ENTRA_CLIENT_ID` and `IMPORT_DAILY_USD_CAP`. On the MCP app: `MCP_ALLOWED_HOSTS`, `MCP_PUBLIC_URL` (`https://<name>-mcp.<environment domain>`) and `MCP_SCOPES`. Key Vault references, never values: `DATABASE_URL` (`database-url`) on both apps, `SESSION_KEY` (`session-key`), `ENTRA_CLIENT_SECRET` (`finance-web-secret`) and `ANTHROPIC_API_KEY` (`anthropic-api-key`) on the API app
 3. Note the outputs: `terraform output` (`api_url`, `mcp_url`, `web_url`, `migrate_job`, `resource_group`, `key_vault_uri`)
 4. In Entra, `finance-web` → **Authentication** → **Web** → add the redirect URI `<api_url>/auth/callback` exactly
 
@@ -153,7 +155,7 @@ In Claude, **Settings** → **Connectors** → **Add custom connector**: URL `<m
 
 ## 12. Smoke test
 
-Walk through [docs/acceptance.md](acceptance.md) against Azure with an empty ledger instead of the seed: section 2 (both members, signed in with Google instead of the picker), section 3 (every screen, registering the first accounts and categories under Cadastros) and section 5 (Claude connector). Never type real financial data during the POC. Imports do not work in the container yet (backlog L181).
+Walk through [docs/acceptance.md](acceptance.md) against Azure with an empty ledger instead of the seed: section 2 (both members, signed in with Google instead of the picker), section 3 (every screen, registering the first accounts and categories under Cadastros) and section 5 (Claude connector). Never type real financial data during the POC. Then section 4 (import) with `evals/cases/bank-csv/extrato-conjunta.csv`: the image carries service-agent, so the file is read by the real model and the batch shows its cost.
 
 ## Rollback
 
