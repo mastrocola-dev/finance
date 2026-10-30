@@ -19,7 +19,7 @@
     "mcp:stdio": "node --env-file-if-exists=.env src/mcp/stdio.ts",
     "mcp:demo": "node --env-file-if-exists=.env src/mcp/demo.ts",
     "typecheck": "tsc",
-    "check": "biome ci && tsc && tsc -p web",
+    "check": "biome ci && tsc && tsc -p web && node scripts/runbook.ts",
     "fix": "biome check --write",
     "test": "node --env-file-if-exists=.env --test 'test/**/*.test.ts' && npm test -w web",
     "test:coverage": "node --env-file-if-exists=.env --test --experimental-test-coverage --test-coverage-exclude='test/**' 'test/**/*.test.ts' && npm test -w web",

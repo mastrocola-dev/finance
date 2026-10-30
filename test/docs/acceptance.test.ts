@@ -19,7 +19,7 @@ test('the checklist names every mockup', () => {
   for (const name of mockups) assert.ok(checklist.includes(`\`${name}\``), name)
 })
 
-test('the checklist covers both members, a fictional import and the reversal of a payment', () => {
-  for (const text of ['Marcio', 'Gabriela', 'Desfazer', 'evals/cases/bank-csv/extrato-conjunta.csv', 'docker build --target api']) assert.ok(checklist.includes(text), text)
+test('the checklist covers both members, a fictional import, the reversal of a payment and Azure with Google and an empty ledger', () => {
+  for (const text of ['Marcio', 'Gabriela', 'Desfazer', 'evals/cases/bank-csv/extrato-conjunta.csv', 'docker build --target api', '## 8. On Azure with an empty ledger', 'Entrar com Google', 'Esta conta Google não está cadastrada na casa', 'import_daily_usd_cap']) assert.ok(checklist.includes(text), text)
   assert.doesNotMatch(checklist, /- \[x\]/)
 })

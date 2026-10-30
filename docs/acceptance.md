@@ -60,3 +60,31 @@ The build agent's session cannot pull base images (Docker Hub and ghcr.io are bl
 ## 7. Decisions to take
 
 - [ ] Read `docs/adr-010-azure-hosting.md` and answer the items under **Needs author** in `BACKLOG.md`
+
+## 8. On Azure with an empty ledger
+
+After steps 1 to 13 of [docs/deploy-azure.md](deploy-azure.md), at `web_url`, from a phone and a desktop. The ledger starts empty: no seed. Type only invented values.
+
+Sign-in by Google:
+
+- [ ] Signed out, `web_url` shows only Entrar; Entrar com Google goes through Entra to Google's account chooser and back to the screen that was opened, signed in as Marcio; the browser holds a `finance.session` cookie marked `HttpOnly`, `Secure` and `SameSite=Lax`, and nothing in `localStorage` but the theme
+- [ ] Gabriela does the same in another browser; both see the same household, and the desktop side bar shows each one's own name under Você é
+- [ ] A Google account that is not linked (step 10 of the runbook) sees "Esta conta Google não está cadastrada na casa. Entre com outra conta." and no data
+- [ ] Sair returns to Entrar; Entrar signs in again without asking for the password while the Google session lasts
+- [ ] Removing the `finance.session` cookie by hand and then opening another screen (no reload) shows "Sua sessão terminou. Entre de novo para continuar."
+
+Empty ledger:
+
+- [ ] **Visão do mês** (`/`) says there is no entry in the current month, and Contas, Lançamentos, Dívidas e reservas, Decisões and Atividade show their empty states without errors
+- [ ] Under Cadastros, register one joint account and two categories; Atividade shows them with the member as author
+
+Import with the real model:
+
+- [ ] Importar `evals/cases/bank-csv/extrato-conjunta.csv`: Extraindo, then Para revisar within a few minutes, with tokens and the cost in US$
+- [ ] Revisar asks about the accounts and categories the ledger does not have; answering with the existing ones or Nova … clears the blocking checks; Gravar no livro writes the accepted items, which appear in Lançamentos with the Importado chip and the new names under Cadastros
+- [ ] Encerrar closes the batch; a second upload of the same file flags the entries as possible duplicates
+- [ ] With `import_daily_usd_cap` set below the day's spend, a new upload is refused with the daily limit message, and the rest of the app keeps working
+
+Claude connector:
+
+- [ ] Section 5 again through the connector of runbook step 13 instead of `x-member`: the answer about this month's bills matches Contas, and a write appears in Atividade with author `claude` on behalf of the member who connected

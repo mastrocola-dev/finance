@@ -19,7 +19,7 @@ Terraform 1.16.4 for the Azure stage. Nothing here has been applied: the build a
 
 ## Secrets
 
-No secret is in this folder, in a variable or in the state. The database password is an ephemeral `random_password` sent once through write-only attributes (`administrator_password_wo` on the server, `value_wo` on the `database-url` secret); raise `db_password_version` to rotate it. The apps read `database-url` as a Key Vault reference; the API app also reads `session-key`, `finance-web-secret` and `anthropic-api-key`, and a private registry needs `registry_server`, `registry_username` and `registry-password`. The author creates those in the vault before the apps (step 3 of the runbook), because a reference to a missing secret fails the apply.
+No secret is in this folder, in a variable or in the state. The database password is an ephemeral `random_password` sent once through write-only attributes (`administrator_password_wo` on the server, `value_wo` on the `database-url` secret); raise `db_password_version` to rotate it. The apps read `database-url` as a Key Vault reference; the API app also reads `session-key`, `finance-web-secret` and `anthropic-api-key`, and a private registry needs `registry_server`, `registry_username` and `registry-password`. The author creates those in the vault before the apps (step 4 of the runbook), because a reference to a missing secret fails the apply.
 
 ## Exposure
 
@@ -42,7 +42,7 @@ Both apps have external ingress and run `AUTH_MODE=entra`: every route but `/api
 4. `az login` with an identity that may assign roles (Owner or User Access Administrator on the subscription)
 5. `terraform init -backend-config=backend.hcl`
 6. `terraform fmt -check && terraform validate`
-7. Before the first full apply, create the vault alone and its secrets (runbook step 3, "Secrets before the apps"); then `terraform plan -out=finance.tfplan`, review it, `terraform apply finance.tfplan`. Role assignments take a few minutes to reach Key Vault; if the first apply fails reading or writing a secret, run plan and apply again
+7. Before the first full apply, create the vault alone and its secrets (runbook step 4, "State, vault and secrets"); then `terraform plan -out=finance.tfplan`, review it, `terraform apply finance.tfplan`. Role assignments take a few minutes to reach Key Vault; if the first apply fails reading or writing a secret, run plan and apply again
 8. Start the `migrate_job` output (`az containerapp job start`) and wait for `Succeeded`; it runs inside Azure, so no firewall rule is needed. Never run the seed there
 9. Open the `web_url` output: the API image serves the web on its own origin, nothing else to deploy
 

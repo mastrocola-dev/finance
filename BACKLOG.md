@@ -4,24 +4,13 @@ Ordered. The agent takes the first unblocked item under **Next**. Items marked *
 
 ## Next
 
-**S12 Ir ao ar: BFF, front servido pela API, importação na imagem e publicação das imagens** (approved by the author 2026-10-30, as one item). The author's answers: BFF with a cookie session (ADR-010 option 1); item 2 OK; item 3 no IP restriction, login only; item 4 OK; item 5 import works in Azure; item 6 images published to GHCR; item 7 the author gets the step-by-step in chat and in `docs/deploy-azure.md`; item 8 OK (Claude connector OAuth). The agent does not apply Terraform, does not push images from here and does not change Azure, Cloudflare or GitHub settings.
-
-This item is larger than one run. Each run finishes one part below, commits it, moves its line to **Done** and leaves the next part here, marked `[x]` when done. Parts are in order.
-
-- [x] **A1. Server side of the BFF login** (done 2026-10-30, see **Done**)
-- [x] **A2. The web signs in through the BFF** (done 2026-10-30, see **Done**)
-- [x] **B. The API serves the web** (done 2026-10-30, see **Done**)
-- [x] **C. Origins and infrastructure** (done 2026-10-30, see **Done**)
-- [x] **D1. The import agent speaks the real service-agent contract** (done 2026-10-30, see **Done**)
-- [x] **D2. Import in the Azure image** (done 2026-10-30, see **Done**)
-- [x] **E. Publication of the images** (done 2026-10-30, see **Done**)
-- [ ] **F. Runbook and acceptance** (author's item 7): `docs/deploy-azure.md` is rewritten as the single order for the author, from an empty account to the smoke test, with every variable and secret name the Terraform reads, the one-time steps in the Entra and Google portals, and the rollback. `docs/acceptance.md` gains the sign-in by Google and the import with an empty ledger. Done when: each variable in the runbook exists in `infra/variables.tf` and each one in `variables.tf` is in the runbook (a script checks both, committed under `scripts/`)
-
-Verification at the end of every part: `npm run check`, `npm test`, `npm run ingest:test`. Part A and B also run Playwright in `entra` mode.
-
-Decisions the agent cannot make are under **Needs author** with the default it built. The schedule stops itself when part F is done.
+Nothing unblocked. S12 is done (A1 to F); the schedule stopped itself after F. The author walks through `docs/deploy-azure.md` and section 8 of `docs/acceptance.md`, answers **Needs author**, and picks the next items from **Later**.
 
 ## Later
+
+- **L219 Migrate before the new revision takes traffic**: `docs/deploy-azure.md` applies the new `api_image` and then runs the migration job, so for a few minutes the new revision may run against the old schema. Start the job with `--image <new api image>` before the apply (the runbook's member steps already override the image), or make the job a Terraform-triggered pre-step, and say so in the runbook
+- **L220 Runbook check reads more than names**: `scripts/runbook.ts` compares variable and secret names only; it could also compare the Required column with variables that have no `default`, and the env names in step 5 with `local.apps` in `infra/main.tf`
+- **L221 Acceptance on Azure recorded**: section 8 of `docs/acceptance.md` is walked by hand; once the deploy exists, a Playwright project against `web_url` (opt-in, never in CI, a test Google account) could cover the sign-in and empty-ledger steps
 
 - **L216 Daily cap by spend date, not batch start**: `IMPORT_DAILY_USD_CAP` sums `cost_usd_micros` of batches created today (São Paulo), as the item asked; a retry today of an older batch adds its cost to that older batch and escapes today's sum, and two uploads at the same moment both pass the check (each still bounded by `IMPORT_TOKEN_CAP`). A `spent_on` per run (an `import_run` row with date and cost, written by `stageChunk`) would count spend by day exactly; also lets the history show what each retry cost
 
@@ -273,6 +262,10 @@ Decisions the agent cannot make are under **Needs author** with the default it b
 - **I04 agent contract** (answered by reading service-agent in S12 D1: the assumed contract was wrong and was replaced, see **S12 D1 service-agent contract** above; `ANTHROPIC_API_KEY` is right, the Anthropic SDK reads it)
 
 ## Done
+
+- **S12 Ir ao ar: BFF, front servido pela API, importação na imagem e publicação das imagens** (approved by the author 2026-10-30, as one item; all parts A1 to F done 2026-10-30). The author's answers: BFF with a cookie session (ADR-010 option 1); item 2 OK; item 3 no IP restriction, login only; item 4 OK; item 5 import works in Azure; item 6 images published to GHCR; item 7 the author gets the step-by-step in chat and in `docs/deploy-azure.md`; item 8 OK (Claude connector OAuth). The agent does not apply Terraform, does not push images from here and does not change Azure, Cloudflare or GitHub settings.
+
+- **S12 F Runbook e aceite** (2026-10-30): `docs/deploy-azure.md` rewritten as the single order from an empty account (tools, Entra External ID with Google consent screen and OAuth client, three registrations, images, state storage and `backend.hcl` inline, vault and a table of the five Key Vault secrets, variables table, redirect URI, migrations, members, links, checks, web, Claude connector, smoke test, deploy of a new commit, rollback including the import cap); stale "imports do not work yet" removed. `docs/acceptance.md` gains section 8, Azure with an empty ledger: Google sign-in for both members, unlinked account, sign-out and expired session, empty states, import with the real model and the daily cap, connector. `scripts/runbook.ts` (`drift`) checks both ways that every variable of `infra/variables.tf` is a row of the runbook table and every Key Vault secret `infra/main.tf` reads but does not create is set by the runbook; it runs in `npm run check` (`tsconfig` includes `scripts`); 5 tests in `test/infra/runbook.test.ts`, acceptance test extended. `infra/README.md` step references updated
 
 - **S12 E Publicação das imagens** (2026-10-30): CI job `check` renamed `test`; `images` now `needs: test`, gets `packages: write` on that job only, tags both builds `ghcr.io/mastrocola-dev/finance-{api,mcp}:${{ github.sha }}` and pushes them after the smoke test only on pushes to `poc` (login with `GITHUB_TOKEN` via env, no `latest`). `LABEL org.opencontainers.image.source` in the `base` stage links the packages to the repository. `scripts/pin-bases.sh <Dockerfile>` pins every external `FROM` by digest (idempotent, fails without a digest); the job writes its diff to the run summary because the bases cannot be pulled here (L182 stays). README, ADR-010 and runbook step 3 updated. `test/infra/publish.test.ts` checks job order, permissions, tags, push condition and the script with a fake `docker`. Tests: node 348 (+6), web 199, pytest 63; Playwright not rerun (no screen changed)
 
