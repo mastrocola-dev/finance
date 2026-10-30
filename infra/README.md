@@ -11,9 +11,8 @@ Terraform 1.16.4 for the Azure stage. Nothing here has been applied: the build a
 | Key Vault `kv-<name>-<suffix>` | RBAC, soft delete 7 days, no purge protection; holds `database-url` and, for private images, `registry-password` |
 | PostgreSQL Flexible Server `psql-<name>-<suffix>` | 16, B_Standard_B1ms, 32 GiB (P4), 7-day backups, no geo backup, database `finance`, firewall open to Azure services only |
 | Container Apps environment `cae-<name>` | consumption, logs to the workspace |
-| Container Apps `<name>-api` (3200) and `<name>-mcp` (3100) | 0.25 vCPU, 0.5 GiB, zero to one replica, external ingress, `AUTH_MODE=entra` with `ENTRA_ISSUER` and `ENTRA_AUDIENCE`, `DATABASE_URL` from Key Vault through a user-assigned identity |
+| Container Apps `<name>-api` (3200, also serves the web from the image) and `<name>-mcp` (3100) | 0.25 vCPU, 0.5 GiB, zero to one replica, external ingress, `AUTH_MODE=entra` with `ENTRA_ISSUER` and `ENTRA_AUDIENCE`, `DATABASE_URL` from Key Vault through a user-assigned identity |
 | Container Apps job `<name>-migrate` | manual trigger, `npm run db:migrate` with `api_image` and the same `database-url` reference, 10 minutes, no retry |
-| Static Web App `swa-<name>` | Free, in `web_location` (eastus2: Static Web Apps are not offered in eastus) |
 | Budget `budget-<name>` | `budget_amount` (25) per month on the resource group; e-mail at 80 percent actual and 100 percent forecast |
 
 `<suffix>` is the first six hex digits of `sha1("<subscription>-<name>")`, stable per subscription, because Key Vault and PostgreSQL names are global.
@@ -45,7 +44,7 @@ Both apps have external ingress and run `AUTH_MODE=entra`: every route but `/api
 6. `terraform fmt -check && terraform validate`
 7. `terraform plan -out=finance.tfplan`, review it, `terraform apply finance.tfplan`. Role assignments take a few minutes to reach Key Vault; if the first apply fails reading or writing a secret, run plan and apply again
 8. Start the `migrate_job` output (`az containerapp job start`) and wait for `Succeeded`; it runs inside Azure, so no firewall rule is needed. Never run the seed there
-9. Deploy the web build with the `web_deployment_token` output (`terraform output -raw web_deployment_token`); the runbook has the build variables
+9. Open the `web_url` output: the API image serves the web on its own origin, nothing else to deploy
 
 ## Rollback
 

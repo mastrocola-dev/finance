@@ -20,12 +20,6 @@ variable "location" {
   default     = "eastus"
 }
 
-variable "web_location" {
-  type        = string
-  description = "Region of the Static Web App, which is not offered in eastus"
-  default     = "eastus2"
-}
-
 variable "api_image" {
   type        = string
   description = "Full image reference of the HTTP API, built from the S5 Dockerfile"

@@ -213,6 +213,7 @@ One `identify(request)` (`src/http/identity.ts`) resolves the calling member for
 | `ENTRA_AUDIENCE` | none | Value the token's `aud` must contain: the application ID URI or client ID of the API registration |
 | `API_ALLOWED_HOSTS` | `localhost,127.0.0.1,[::1]` | Host header hostnames the HTTP API accepts, for example `finance-api.<environment domain>` |
 | `API_ALLOWED_ORIGINS` | `localhost,127.0.0.1,[::1]` | Origin hostnames the HTTP API accepts (requests without Origin pass) |
+| `WEB_ROOT` | unset | Folder of a web build (`web/dist`) the API serves outside `/api` and `/auth`, with `index.html` for deep links, `immutable` caching for `/assets/`, `no-cache` with an ETag for the rest, and `nosniff`, `DENY` framing and `same-origin` referrer headers; the API image sets `/app/web/dist` |
 | `MCP_ALLOWED_HOSTS` | `localhost,127.0.0.1,[::1]` | Host header hostnames the MCP HTTP server accepts |
 | `MCP_ALLOWED_ORIGINS` | `localhost,127.0.0.1,[::1]` | Origin hostnames the MCP HTTP server accepts (requests without Origin pass) |
 | `MCP_PUBLIC_URL` | the request's origin | Public origin of the MCP server behind a proxy, for example `https://mcp.example.com`; the protected resource metadata names `<origin>/mcp` as the resource |

@@ -308,15 +308,6 @@ resource "azurerm_container_app_job" "migrate" {
   depends_on = [azurerm_role_assignment.apps_secrets]
 }
 
-resource "azurerm_static_web_app" "web" {
-  name                = "swa-${var.name}"
-  resource_group_name = azurerm_resource_group.main.name
-  location            = var.web_location
-  sku_tier            = "Free"
-  sku_size            = "Free"
-  tags                = local.tags
-}
-
 resource "azurerm_consumption_budget_resource_group" "monthly" {
   name              = "budget-${var.name}"
   resource_group_id = azurerm_resource_group.main.id

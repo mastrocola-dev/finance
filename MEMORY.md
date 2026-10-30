@@ -2,8 +2,9 @@
 
 ## State
 
-- S12 (go live) is one item in parts; A1 and A2 (cookie sign-in through the BFF) done 2026-10-30; next is B (API serves `web/dist`), then C–F. Schedule stops after F
-- Tests after S12 A2: 326 node, 199 web, 282 Playwright, 63 pytest; `npm test` and `npm run check` green; failing-test run streak 0
+- S12 (go live) is one item in parts; A1, A2 and B (API serves `web/dist`) done 2026-10-30; next is C (origins and API app settings in `infra/`), then D–F. Schedule stops after F
+- Tests after S12 B: 333 node, 199 web, 282 Playwright (entra project 145 rerun), 63 pytest; `npm test` and `npm run check` green; failing-test run streak 0
+- Do not run Playwright and `npm test` at the same time: vitest `findByText` times out under load (L208)
 
 ## Session setup (cloud container, each run, one command per Bash call)
 
@@ -14,6 +15,7 @@
 - Playwright: the full run takes about 8 min, too close to the Bash limit: start it in the background (`timeout 1200 npx playwright test > log 2>&1; echo exit $? >> log` with `&`) and poll the log with `sleep`; `--project=local` alone is about 4 min. Own `finance_e2e`, reuses servers on 3290/3291/3292/4273/4274 outside CI. PNGs are byte-stable; a changed PNG is a real change
 - `./node_modules/.bin/biome check --write <paths>`, never `npx biome`. `curl` to local servers needs `--noproxy '*'`; stop servers by pid (node processes show as `MainThread` in `pgrep`, so `pgrep node` misses them)
 - `npm run openapi` after any route change
+- Never `pkill -f` a pattern that appears in the Bash command itself: it kills the shell (exit 144). Stop servers by pid
 - Docker: `setsid dockerd &` starts a daemon, but Docker Hub and ghcr.io answer 403 through the proxy, so no image can be built. To check the image layout, copy the files the `Dockerfile` copies to a folder outside `/tmp/claude-0` (mode 700), `npm ci --omit=dev --workspaces=false`, sync the runtime venv, and run as `nobody` with a writable `HOME`
 - Terraform cannot be downloaded; `test/infra/terraform.test.ts` stands in for `fmt -check`
 
@@ -23,6 +25,7 @@
 - Nothing is deleted (triggers raise); lifecycle is `closed_at`; corrected entries close with `replaced_by`. Names unique only among open rows, case-insensitive (migration 007)
 - Setup records: `src/ledger/setup.ts`; payload schemas from `src/import/candidate.ts`, rows from `rowOf` in `src/import/commit.ts` (Later P04 moves them)
 - MCP OAuth (S8a): `mcpHttp` options `publicUrl` (`MCP_PUBLIC_URL`) and `scopes` (`MCP_SCOPES`); metadata and the 401 challenge exist only when `verify.issuer` is set (entra). Route handlers get `verify` in their input (the OpenAPI route uses it for the bearer scheme). Goals are created through `createGoal` (wraps `registerRecord('goal', …)`)
+- Web serving (S12 B): `site(WEB_ROOT)` in `src/http/site.ts`, 6th arg of `api()`, runs before identity for paths outside `/api` and `/auth`; the image builds the web in the `web` stage with `VITE_AUTH_MODE=entra`. Web sources the build needs must be in `.dockerignore` and the `web` stage `COPY`s. `web_url` output = API fqdn
 - BFF session (S12 A1/A2): `src/http/session.ts` `session(config)` gives `handle` (`/auth/login|callback|logout`), `oidOf`, `carries`; any callback failure redirects to `signInFailed` (`/?entrada=falhou`). `verifierFor(mode, signIn)`: `api()` passes `signIn` true (entra then requires `ENTRA_CLIENT_ID` and `SESSION_KEY`), MCP passes nothing (bearer only). `api()` routes `/auth/*` to the session and refuses cookie writes without `Origin`. Tests stub the provider with a `fetcher` and sign id tokens (`test/http/session.test.ts` `provider`, `idToken`, `seal`)
 - Identity: `identify(client, request, verify)` in `src/http/identity.ts`; `verifierFor(AUTH_MODE)` gives `localVerifier` or `entraVerifier(rules)` (`src/http/auth.ts`: `bearerOf`, `verifyToken`, `jwksOf`). A `Verifier` carries `credential` used in the 401 text. Writes and `identified: true` routes need a member (401); in `entra` every route but `open: true` ones (openapi, health) does (`Verifier.openReads` false); unknown/closed 403. API 3200, MCP 3100; `RuleError` 422
 - Entra tests sign RS256 tokens with `generateKeyPairSync` and a stub key source (`test/http/auth.test.ts`); reuse `tokenOf` there for S7/S8 route tests. `member.external_id` is set only by `linkMember` (`src/db/link-member.ts`)

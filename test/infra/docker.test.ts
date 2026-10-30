@@ -52,6 +52,15 @@ test('only production dependencies and a prebuilt ingest runtime reach the image
   assert.doesNotMatch(stage('mcp').text, /ingest|uv/)
 })
 
+test('the api image carries the web built for the entra sign-in and serves it from WEB_ROOT', () => {
+  assert.match(stage('web').text, /npm ci --workspace web/)
+  assert.match(stage('web').text, /VITE_AUTH_MODE=entra npm run build -w web/)
+  assert.match(stage('api').text, /COPY --from=web \/app\/web\/dist web\/dist/)
+  assert.match(stage('api').text, /WEB_ROOT=\/app\/web\/dist/)
+  assert.doesNotMatch(stage('mcp').text, /web/)
+  assert.doesNotMatch(stage('modules').text, /web\/src/)
+})
+
 test('the build context is an allow list that never sends secrets, state or local environments', () => {
   assert.equal(ignore[0], '*')
   const allowed = ignore.filter((line) => line.startsWith('!')).map((line) => line.slice(1))
@@ -64,4 +73,6 @@ test('CI builds both images and smoke-tests them', () => {
   assert.match(workflow, /docker build --target api/)
   assert.match(workflow, /docker build --target mcp/)
   assert.match(workflow, /id -u\)" != 0/)
+  assert.match(workflow, /curl -sf http:\/\/localhost:3200\/decisoes/)
+  assert.match(workflow, /localhost:3200\/api\/nope\)" = 404/)
 })

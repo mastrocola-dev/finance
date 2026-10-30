@@ -58,6 +58,7 @@ import { listOf } from './hosts.ts'
 import { identify, type Verifier, verifierFor } from './identity.ts'
 import { listen } from './node.ts'
 import { openApi } from './openapi.ts'
+import { type Site, site } from './site.ts'
 
 export const apiPrefix = '/api'
 
@@ -270,11 +271,13 @@ const failure = (caught: unknown) => {
 
 const safeMethods = new Set(['GET', 'HEAD', 'OPTIONS'])
 
+const reserved = /^\/(api|auth)(\/|$)/
+
 export const apiHosts = (env = process.env) => listOf(env.API_ALLOWED_HOSTS, localhostAllowedHostnames())
 export const apiOrigins = (env = process.env) => listOf(env.API_ALLOWED_ORIGINS, localhostAllowedOrigins())
 
 export const api =
-  (client: Database, imports = importUploads(client), verify: Verifier = verifierFor(process.env.AUTH_MODE, true), hosts = apiHosts(), origins = apiOrigins()) =>
+  (client: Database, imports = importUploads(client), verify: Verifier = verifierFor(process.env.AUTH_MODE, true), hosts = apiHosts(), origins = apiOrigins(), web: Site | undefined = site(process.env.WEB_ROOT)) =>
   async (request: Request) => {
     const rejected = hostHeaderValidationResponse(request, hosts) ?? originValidationResponse(request, origins)
     if (rejected) return rejected
@@ -283,6 +286,10 @@ export const api =
     if (verify.session && url.pathname.startsWith('/auth/')) {
       const answered = await verify.session.handle(request).catch(failure)
       if (answered) return answered
+    }
+    if (web && !reserved.test(url.pathname)) {
+      const page = await web(request)
+      if (page) return page
     }
     const matches = routes.flatMap((candidate) => {
       const match = candidate.pattern.exec(url)

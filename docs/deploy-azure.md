@@ -6,7 +6,7 @@ The exact order for the author to put the finance POC on Azure behind sign-in wi
 
 One gap remains between this runbook and a working deploy:
 
-- **Web origin** (Needs author, ADR-010): the web calls `/api` on its own origin, and the Free Static Web App cannot forward `/api` to the API container. Until the author picks an option of ADR-010 (API serving the web, SWA Standard with a linked backend, or cross-origin calls), step 10 publishes a web app that signs in but cannot load data. Claude through the MCP connector works without it
+- **Sign-in settings of the API app** (S12 part C): `API_PUBLIC_URL`, `ENTRA_CLIENT_ID`, `SESSION_KEY` and `ENTRA_CLIENT_SECRET` are not in `infra/` yet, so `/auth/login` answers an error until part C lands. The web itself is served by the API (S12 part B) on `web_url`, the same origin as `api_url`
 
 Tools on the author's machine: Azure CLI (`az`), Terraform 1.16.4, Docker, Node 24 and npm.
 
@@ -70,8 +70,7 @@ Steps 1 to 7 of [infra/README.md](../infra/README.md) (state storage, `backend.h
 | `registry_server` | no, `null` | `ghcr.io` for private images |
 | `registry_username` | no, `null` | the GitHub user for private images |
 | `name` | no, `finance` | prefix of every resource |
-| `location` | no, `eastus` | region of everything but the web |
-| `web_location` | no, `eastus2` | region of the Static Web App |
+| `location` | no, `eastus` | region of every resource |
 | `db_admin_login` | no, `finance_admin` | PostgreSQL administrator |
 | `db_password_version` | no, `1` | raise to rotate the database password |
 | `log_daily_cap_gb` | no, `0.1` | Log Analytics daily cap |
@@ -122,13 +121,7 @@ Each execution prints `linked <name>`. An unlinked person who signs in gets 403 
 
 ## 10. Web app
 
-Blocked by the web origin decision; the build and upload are:
-
-```sh
-cd web
-VITE_AUTH_MODE=entra npm run build
-npx @azure/static-web-apps-cli deploy dist --deployment-token "$(terraform -chdir=../infra output -raw web_deployment_token)" --env production
-```
+The API image carries the web, built with `VITE_AUTH_MODE=entra` in its `web` stage and served from `WEB_ROOT` on the API's own origin: there is nothing to build or upload. `web_url` is the same address as `api_url`.
 
 Open `web_url`: the screen says Entrar; Entrar com Google goes to `/auth/login` on the API, which needs `SESSION_KEY` and `ENTRA_CLIENT_ID` (S12 part C adds them to `infra/`).
 
@@ -144,7 +137,7 @@ Walk through [docs/acceptance.md](acceptance.md) against Azure with an empty led
 
 - **Bad image**: set `api_image` or `mcp_image` back to the previous commit tag, `terraform apply`; each app keeps a single revision. Do not run the job with the old image after a newer migration ran: migrations are forward-only, so write a forward migration that reverts the change instead
 - **Bad data or migration**: restore PostgreSQL to a point in time (7 days) into a new server, point the `database-url` secret at it, restart both apps
-- **Bad web build**: deploy the previous `dist` again with the same command
+- **Bad web build**: the web ships inside the API image, so set `api_image` back to the previous commit tag as for a bad image
 - **Sign-in broken**: the apps refuse every call without a valid token, so nothing leaks; fix the registration or set `entra_issuer`/`entra_audience` back and apply. Never switch `AUTH_MODE` to `local` on Azure: it trusts the `x-member` header
 - **Claude misbehaves**: remove the connector in Claude, or delete the `finance-claude` client secret in Entra; the web keeps working
 - **Everything**: `terraform destroy`, then purge the soft-deleted Key Vault (`az keyvault purge`) before applying again with the same name; delete the three app registrations and the external tenant last

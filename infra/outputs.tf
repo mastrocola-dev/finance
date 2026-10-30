@@ -15,12 +15,7 @@ output "resource_group" {
 }
 
 output "web_url" {
-  value = "https://${azurerm_static_web_app.web.default_host_name}"
-}
-
-output "web_deployment_token" {
-  value     = azurerm_static_web_app.web.api_key
-  sensitive = true
+  value = "https://${azurerm_container_app.app["api"].ingress[0].fqdn}"
 }
 
 output "database_host" {
