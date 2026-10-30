@@ -28,6 +28,7 @@ WORKDIR /app/ingest
 COPY ingest/pyproject.toml ingest/uv.lock ./
 RUN uv sync --no-dev --exact --locked
 COPY ingest/ingest ingest
+COPY ingest/serve.py ./
 
 FROM node:24-slim AS base
 ENV NODE_ENV=production

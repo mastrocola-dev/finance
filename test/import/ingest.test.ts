@@ -26,12 +26,21 @@ describe('ingest runtime', () => {
     assert.match(runtimeEnvironment, /ingest\/\.venv-runtime$/)
   })
 
-  test('gives the import agent the same ingest runtime', async () => {
+  test('gives the import agent the python of the same ingest runtime', async () => {
     const agent = JSON.parse(await readFile('agents/import/agent.json', 'utf8'))
-    const { args, env } = ingestServer('folder')
-    assert.deepEqual(agent.mcpServers.ingest.args.slice(2, -1), args?.slice(2, -1))
-    assert.deepEqual(agent.mcpServers.ingest.env, { UV_PROJECT_ENVIRONMENT: '.venv-runtime' })
-    assert.equal(env?.UV_PROJECT_ENVIRONMENT, resolve('ingest', agent.mcpServers.ingest.env.UV_PROJECT_ENVIRONMENT))
+    assert.equal(resolve(agent.mcpServers.ingest.command), join(runtimeEnvironment, 'bin', 'python'))
+    assert.deepEqual(agent.mcpServers.ingest.args, ['ingest/serve.py', '{IMPORT_FOLDER}'])
+  })
+
+  test('serves one folder through the launcher the agent starts', { skip: !hasUv && 'uv is not installed' }, () => {
+    const failed = (() => {
+      try {
+        execFileSync(join(runtimeEnvironment, 'bin', 'python'), ['ingest/serve.py', 'ingest/missing'], { encoding: 'utf8', stdio: 'pipe' })
+      } catch (error) {
+        return (error as { stderr: string }).stderr
+      }
+    })()
+    assert.equal(failed, 'ingest: ingest/missing is not a folder\n')
   })
 
   test('has the runtime dependencies and none of the dev tools', { skip: !hasUv && 'uv is not installed' }, () => {

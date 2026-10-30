@@ -1,20 +1,15 @@
 {
-  "name": "finance-import",
-  "description": "Turns segments of one household finance file into staging candidates. Read-only tools; never writes to the ledger.",
   "model": "claude-sonnet-4-5",
-  "systemPrompt": "system.md",
-  "outputSchema": "output.schema.json",
-  "budgets": {
-    "maxTurns": 12,
-    "maxInputTokens": 120000,
-    "maxOutputTokens": 16000
-  },
+  "maxSteps": 12,
+  "maxTokens": 16000,
+  "maxRunTokens": 136000,
+  "runTimeoutMs": 240000,
+  "toolTimeoutMs": 30000,
   "mcpServers": {
     "ingest": {
-      "command": "uv",
-      "args": ["--directory", "ingest", "run", "--no-dev", "--exact", "--locked", "--quiet", "python", "-m", "ingest", "serve", "${IMPORT_FOLDER}"],
-      "env": { "UV_PROJECT_ENVIRONMENT": ".venv-runtime" }
+      "command": "ingest/.venv-runtime/bin/python",
+      "args": ["ingest/serve.py", "{IMPORT_FOLDER}"],
+      "tools": ["list_segments", "read_segment", "apply_mapping"]
     }
-  },
-  "tools": ["ingest.list_segments", "ingest.read_segment", "ingest.apply_mapping"]
+  }
 }

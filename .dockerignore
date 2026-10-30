@@ -14,6 +14,7 @@
 !ingest/pyproject.toml
 !ingest/uv.lock
 !ingest/ingest/
+!ingest/serve.py
 **/__pycache__
 **/*.test.ts
 **/*.test.tsx

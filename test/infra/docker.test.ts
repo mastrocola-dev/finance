@@ -48,6 +48,8 @@ test('only production dependencies and a prebuilt ingest runtime reach the image
   assert.match(stage('modules').text, /npm ci --omit=dev/)
   assert.match(stage('ingest').text, /uv sync --no-dev --exact --locked/)
   assert.match(stage('ingest').text, /UV_PROJECT_ENVIRONMENT=\/app\/ingest\/\.venv-runtime/)
+  assert.match(stage('ingest').text, /COPY ingest\/serve.py \.\//)
+  assert.ok(ignore.includes('!ingest/serve.py'))
   assert.match(stage('api').text, /UV_OFFLINE=1/)
   assert.doesNotMatch(stage('mcp').text, /ingest|uv/)
 })
