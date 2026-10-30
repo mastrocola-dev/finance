@@ -268,6 +268,8 @@ const failure = (caught: unknown) => {
   return error('internal error', 500)
 }
 
+const safeMethods = new Set(['GET', 'HEAD', 'OPTIONS'])
+
 export const apiHosts = (env = process.env) => listOf(env.API_ALLOWED_HOSTS, localhostAllowedHostnames())
 export const apiOrigins = (env = process.env) => listOf(env.API_ALLOWED_ORIGINS, localhostAllowedOrigins())
 
@@ -277,6 +279,11 @@ export const api =
     const rejected = hostHeaderValidationResponse(request, hosts) ?? originValidationResponse(request, origins)
     if (rejected) return rejected
     const url = new URL(request.url)
+    if (!safeMethods.has(request.method) && verify.session?.carries(request) && !request.headers.has('origin')) return error('a signed-in write needs an Origin header', 403)
+    if (verify.session && url.pathname.startsWith('/auth/')) {
+      const answered = await verify.session.handle(request).catch(failure)
+      if (answered) return answered
+    }
     const matches = routes.flatMap((candidate) => {
       const match = candidate.pattern.exec(url)
       return match ? [{ ...candidate, groups: match.pathname.groups }] : []

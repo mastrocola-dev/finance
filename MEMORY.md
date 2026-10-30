@@ -2,8 +2,8 @@
 
 ## State
 
-- Sprint S6–S11 done; Next is empty, so S11's run stopped the schedule. Next work waits for the author: "S10 web origin" (then L180 and L203) or a new sprint
-- Tests after S11: 314 node, 199 web, 280 Playwright (not rerun since S9b: no web change), 63 pytest; `npm test` and `npm run check` green; failing-test run streak 0
+- S12 (go live) is one item in parts; A1 (server BFF login) done 2026-10-30; next is A2 (web drops MSAL, Playwright through the stubbed provider), then B–F. Schedule stops after F
+- Tests after S12 A1: 326 node, 199 web, 280 Playwright (not rerun since S9b: no web change), 63 pytest; `npm test` and `npm run check` green; failing-test run streak 0
 
 ## Session setup (cloud container, each run, one command per Bash call)
 
@@ -23,6 +23,7 @@
 - Nothing is deleted (triggers raise); lifecycle is `closed_at`; corrected entries close with `replaced_by`. Names unique only among open rows, case-insensitive (migration 007)
 - Setup records: `src/ledger/setup.ts`; payload schemas from `src/import/candidate.ts`, rows from `rowOf` in `src/import/commit.ts` (Later P04 moves them)
 - MCP OAuth (S8a): `mcpHttp` options `publicUrl` (`MCP_PUBLIC_URL`) and `scopes` (`MCP_SCOPES`); metadata and the 401 challenge exist only when `verify.issuer` is set (entra). Route handlers get `verify` in their input (the OpenAPI route uses it for the bearer scheme). Goals are created through `createGoal` (wraps `registerRecord('goal', …)`)
+- BFF session (S12 A1): `src/http/session.ts` `session(config)` gives `handle` (`/auth/login|callback|logout`), `oidOf`, `carries`; the `Verifier` carries it as `session`, and `api()` routes `/auth/*` to it and refuses cookie writes without `Origin`. Tests stub the provider with a `fetcher` and sign id tokens (`test/http/session.test.ts` `provider`, `idToken`, `seal`)
 - Identity: `identify(client, request, verify)` in `src/http/identity.ts`; `verifierFor(AUTH_MODE)` gives `localVerifier` or `entraVerifier(rules)` (`src/http/auth.ts`: `bearerOf`, `verifyToken`, `jwksOf`). A `Verifier` carries `credential` used in the 401 text. Writes and `identified: true` routes need a member (401); in `entra` every route but `open: true` ones (openapi, health) does (`Verifier.openReads` false); unknown/closed 403. API 3200, MCP 3100; `RuleError` 422
 - Entra tests sign RS256 tokens with `generateKeyPairSync` and a stub key source (`test/http/auth.test.ts`); reuse `tokenOf` there for S7/S8 route tests. `member.external_id` is set only by `linkMember` (`src/db/link-member.ts`)
 - Host and Origin checks: API from `API_ALLOWED_HOSTS`/`API_ALLOWED_ORIGINS` (`apiHosts`/`apiOrigins`, 4th and 5th args of `api()`), MCP from `MCP_ALLOWED_*`; both via `listOf` in `src/http/hosts.ts`, localhost fallback. Node `fetch` cannot set Host: tests use `node:http` `get`

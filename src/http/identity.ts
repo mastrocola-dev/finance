@@ -3,10 +3,11 @@ import { findMember, type Member, memberByExternalId } from '../ledger/members.t
 import { bearerOf, jwksOf, type TokenRules, verifyToken } from './auth.ts'
 import { HttpError } from './body.ts'
 import { memberHeader } from './contract.ts'
+import { type Session, session, sessionKeyOf } from './session.ts'
 
-export type Verifier = ((client: Database, request: Request) => Promise<Member | undefined>) & { credential: string; openReads: boolean; issuer?: string }
+export type Verifier = ((client: Database, request: Request) => Promise<Member | undefined>) & { credential: string; openReads: boolean; issuer?: string; session?: Session }
 
-const verifier = (credential: string, openReads: boolean, resolve: (client: Database, request: Request) => Promise<Member | undefined>, issuer?: string): Verifier => Object.assign(resolve, { credential, openReads, issuer })
+const verifier = (credential: string, openReads: boolean, resolve: (client: Database, request: Request) => Promise<Member | undefined>, issuer?: string, signedIn?: Session): Verifier => Object.assign(resolve, { credential, openReads, issuer, session: signedIn })
 
 export const localVerifier = verifier(`the ${memberHeader} header`, true, async (client, request) => {
   const name = request.headers.get(memberHeader)
@@ -16,20 +17,27 @@ export const localVerifier = verifier(`the ${memberHeader} header`, true, async 
   return member
 })
 
-export const entraVerifier = (rules: TokenRules) =>
+const oidOf = async (request: Request, rules: TokenRules, signedIn?: Session) => {
+  const token = bearerOf(request)
+  if (token === undefined) return signedIn?.oidOf(request)
+  const { oid } = await verifyToken(token, rules)
+  if (typeof oid !== 'string' || !oid) throw new HttpError(401, 'invalid token: oid')
+  return oid
+}
+
+export const entraVerifier = (rules: TokenRules, signedIn?: Session) =>
   verifier(
-    'a bearer token',
+    signedIn ? 'a signed-in session or a bearer token' : 'a bearer token',
     false,
     async (client, request) => {
-      const token = bearerOf(request)
-      if (token === undefined) return undefined
-      const { oid } = await verifyToken(token, rules)
-      if (typeof oid !== 'string' || !oid) throw new HttpError(401, 'invalid token: oid')
+      const oid = await oidOf(request, rules, signedIn)
+      if (oid === undefined) return undefined
       const member = await memberByExternalId(client, oid)
       if (!member) throw new HttpError(403, 'unknown member')
       return member
     },
     rules.issuer,
+    signedIn,
   )
 
 const required = (name: string) => {
@@ -42,7 +50,10 @@ const verifiers: Record<string, () => Verifier> = {
   local: () => localVerifier,
   entra: () => {
     const issuer = required('ENTRA_ISSUER')
-    return entraVerifier({ issuer, audience: required('ENTRA_AUDIENCE'), keys: jwksOf(issuer) })
+    const keys = jwksOf(issuer)
+    const key = process.env.SESSION_KEY?.trim()
+    const signedIn = key ? session({ issuer, clientId: required('ENTRA_CLIENT_ID'), clientSecret: process.env.ENTRA_CLIENT_SECRET?.trim() || undefined, scopes: process.env.ENTRA_SCOPES?.trim() || undefined, key: sessionKeyOf(key), keys, publicUrl: process.env.API_PUBLIC_URL?.trim() || undefined }) : undefined
+    return entraVerifier({ issuer, audience: required('ENTRA_AUDIENCE'), keys }, signedIn)
   },
 }
 
