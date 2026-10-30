@@ -57,6 +57,11 @@ variable "entra_audience" {
   description = "Audience of the access tokens: the application (client) ID of the API registration"
 }
 
+variable "entra_web_client_id" {
+  type        = string
+  description = "Application (client) ID of the web registration the API signs people in with; its secret is the Key Vault secret finance-web-secret"
+}
+
 variable "mcp_scopes" {
   type        = list(string)
   description = "Scopes the MCP server advertises to Claude, such as api://<API client id>/access"

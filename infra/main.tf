@@ -22,9 +22,17 @@ locals {
       port  = 3200
 
       env = {
-        API_HOST          = "0.0.0.0"
-        API_PORT          = "3200"
-        API_ALLOWED_HOSTS = local.api_host
+        API_HOST            = "0.0.0.0"
+        API_PORT            = "3200"
+        API_ALLOWED_HOSTS   = local.api_host
+        API_ALLOWED_ORIGINS = "https://${local.api_host}"
+        API_PUBLIC_URL      = "https://${local.api_host}"
+        ENTRA_CLIENT_ID     = var.entra_web_client_id
+      }
+
+      secrets = {
+        SESSION_KEY         = "session-key"
+        ENTRA_CLIENT_SECRET = "finance-web-secret"
       }
     }
 
@@ -40,6 +48,8 @@ locals {
         MCP_PUBLIC_URL      = "https://${local.mcp_host}"
         MCP_SCOPES          = join(",", var.mcp_scopes)
       }
+
+      secrets = {}
     }
   }
 }
@@ -176,6 +186,16 @@ resource "azurerm_container_app" "app" {
   }
 
   dynamic "secret" {
+    for_each = each.value.secrets
+
+    content {
+      name                = secret.value
+      identity            = azurerm_user_assigned_identity.apps.id
+      key_vault_secret_id = "${azurerm_key_vault.main.vault_uri}secrets/${secret.value}"
+    }
+  }
+
+  dynamic "secret" {
     for_each = var.registry_username == null ? [] : [1]
 
     content {
@@ -237,6 +257,15 @@ resource "azurerm_container_app" "app" {
         content {
           name  = env.key
           value = env.value
+        }
+      }
+
+      dynamic "env" {
+        for_each = each.value.secrets
+
+        content {
+          name        = env.key
+          secret_name = env.value
         }
       }
     }

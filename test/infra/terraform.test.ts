@@ -87,7 +87,22 @@ test('both apps verify Entra tokens and the MCP app advertises its public URL an
 
 test('the api app accepts its own Container Apps host', () => {
   assert.match(all, /api_host = "\$\{var\.name\}-api\.\$\{azurerm_container_app_environment\.main\.default_domain\}"/)
-  assert.match(all, /API_ALLOWED_HOSTS = local\.api_host/)
+  assert.match(all, /API_ALLOWED_HOSTS\s+= local\.api_host/)
+})
+
+test('the api app signs people in on its own origin with secrets from Key Vault', () => {
+  const api = /\n {4}api = \{([\s\S]*?)\n {4}\}\n/.exec(all)?.[1] ?? ''
+  assert.match(api, /API_ALLOWED_ORIGINS = "https:\/\/\$\{local\.api_host\}"/)
+  assert.match(api, /API_PUBLIC_URL\s+= "https:\/\/\$\{local\.api_host\}"/)
+  assert.match(api, /ENTRA_CLIENT_ID\s+= var\.entra_web_client_id/)
+  assert.match(api, /SESSION_KEY\s+= "session-key"/)
+  assert.match(api, /ENTRA_CLIENT_SECRET = "finance-web-secret"/)
+  assert.doesNotMatch(all, /(SESSION_KEY|ENTRA_CLIENT_SECRET)\s+= var\./)
+  const mcp = /\n {4}mcp = \{([\s\S]*?)\n {4}\}\n/.exec(all)?.[1] ?? ''
+  assert.match(mcp, /secrets = \{\}/)
+  assert.doesNotMatch(mcp, /API_|ENTRA_CLIENT|SESSION_KEY/)
+  assert.match(all, /key_vault_secret_id = "\$\{azurerm_key_vault\.main\.vault_uri\}secrets\/\$\{secret\.value\}"/)
+  assert.match(all, /for_each = each\.value\.secrets\n\n\s+content \{\n\s+name\s+= env\.key\n\s+secret_name = env\.value/)
 })
 
 test('a manual job runs the migrations with the api image and the database secret reference', () => {

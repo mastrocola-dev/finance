@@ -2,9 +2,10 @@
 
 ## State
 
-- S12 (go live) is one item in parts; A1, A2 and B (API serves `web/dist`) done 2026-10-30; next is C (origins and API app settings in `infra/`), then D–F. Schedule stops after F
-- Tests after S12 B: 333 node, 199 web, 282 Playwright (entra project 145 rerun), 63 pytest; `npm test` and `npm run check` green; failing-test run streak 0
-- Do not run Playwright and `npm test` at the same time: vitest `findByText` times out under load (L208)
+- S12 (go live) is one item in parts; A1, A2, B and C (API sign-in settings in `infra/`) done 2026-10-30; next is D (import in the Azure image), then E, F. Schedule stops after F
+- Tests after S12 C: 334 node, 199 web, 282 Playwright (not rerun in C: infra and docs only), 63 pytest; `npm test` and `npm run check` green; failing-test run streak 0
+- Do not run Playwright and `npm test` at the same time: vitest `findByText` times out under load (L213)
+- Backlog L-numbers had duplicates (L207/L208 twice); renumbered to L212/L213 in C. Next free number: L214
 
 ## Session setup (cloud container, each run, one command per Bash call)
 
@@ -34,7 +35,7 @@
 - New API route: `route({...}, handler)` in `src/http/api.ts`, schemas in `contract.ts`, a sample in `test/http/openapi.test.ts`. New MCP write tools: `src/mcp/server.ts` plus tool lists in `test/mcp/server.test.ts` and `test/mcp/http.test.ts`
 - Seed time from `setClock`/`FINANCE_CLOCK`; Playwright contexts use `openContext` from `web/e2e/context.ts`
 - Images: `Dockerfile` targets `api` (uv, Python 3.13 in `/opt/python`, `ingest/.venv-runtime`, `UV_OFFLINE=1`, uploads `/app/.imports`) and `mcp`; `.dockerignore` is an allow list, so a new runtime folder must be added there and in `test/infra/docker.test.ts`. `ingestRuntime` passes only `UV_SYSTEM_CERTS`, `UV_OFFLINE` and `UV_PROJECT_ENVIRONMENT` to uv
-- Infra env per app lives in `local.apps` of `infra/main.tf`, merged with `local.entra` (AUTH_MODE entra, ENTRA_*) in the `env` dynamic block (a `merge(x, {` literal breaks the fmt stand-in test); migration job `azurerm_container_app_job.migrate`; `test/infra/terraform.test.ts` requires every variable to appear in backticks in `docs/deploy-azure.md`. CI jobs: `check`, `images`, `infra`
+- Infra env per app lives in `local.apps` of `infra/main.tf` (`env` values and a `secrets` map env name → Key Vault secret name, referenced by `vault_uri`; author-created secrets: `session-key`, `finance-web-secret`, `registry-password`), merged with `local.entra` (AUTH_MODE entra, ENTRA_*) in the `env` dynamic block (a `merge(x, {` literal breaks the fmt stand-in test); migration job `azurerm_container_app_job.migrate`; `test/infra/terraform.test.ts` requires every variable to appear in backticks in `docs/deploy-azure.md`. CI jobs: `check`, `images`, `infra`
 
 ## Web conventions
 

@@ -8,10 +8,10 @@ Terraform 1.16.4 for the Azure stage. Nothing here has been applied: the build a
 |---|---|
 | Resource group `rg-<name>` | every resource below, tagged `app = finance` |
 | Log Analytics `log-<name>` | PerGB2018, 30 days, daily cap `log_daily_cap_gb` (0.1 GB) |
-| Key Vault `kv-<name>-<suffix>` | RBAC, soft delete 7 days, no purge protection; holds `database-url` and, for private images, `registry-password` |
+| Key Vault `kv-<name>-<suffix>` | RBAC, soft delete 7 days, no purge protection; holds `database-url`, the author's `session-key` and `finance-web-secret` and, for private images, `registry-password` |
 | PostgreSQL Flexible Server `psql-<name>-<suffix>` | 16, B_Standard_B1ms, 32 GiB (P4), 7-day backups, no geo backup, database `finance`, firewall open to Azure services only |
 | Container Apps environment `cae-<name>` | consumption, logs to the workspace |
-| Container Apps `<name>-api` (3200, also serves the web from the image) and `<name>-mcp` (3100) | 0.25 vCPU, 0.5 GiB, zero to one replica, external ingress, `AUTH_MODE=entra` with `ENTRA_ISSUER` and `ENTRA_AUDIENCE`, `DATABASE_URL` from Key Vault through a user-assigned identity |
+| Container Apps `<name>-api` (3200, also serves the web from the image) and `<name>-mcp` (3100) | 0.25 vCPU, 0.5 GiB, zero to one replica, external ingress, `AUTH_MODE=entra` with `ENTRA_ISSUER` and `ENTRA_AUDIENCE`, `DATABASE_URL` from Key Vault through a user-assigned identity; the API app also signs people in (`ENTRA_CLIENT_ID`, `API_PUBLIC_URL`, `SESSION_KEY` and `ENTRA_CLIENT_SECRET` from Key Vault) |
 | Container Apps job `<name>-migrate` | manual trigger, `npm run db:migrate` with `api_image` and the same `database-url` reference, 10 minutes, no retry |
 | Budget `budget-<name>` | `budget_amount` (25) per month on the resource group; e-mail at 80 percent actual and 100 percent forecast |
 
@@ -19,11 +19,11 @@ Terraform 1.16.4 for the Azure stage. Nothing here has been applied: the build a
 
 ## Secrets
 
-No secret is in this folder, in a variable or in the state. The database password is an ephemeral `random_password` sent once through write-only attributes (`administrator_password_wo` on the server, `value_wo` on the `database-url` secret); raise `db_password_version` to rotate it. The apps read `database-url` (and `registry-password`) as Key Vault references. A private registry needs `registry_server`, `registry_username` and a `registry-password` secret created in the vault before the apps.
+No secret is in this folder, in a variable or in the state. The database password is an ephemeral `random_password` sent once through write-only attributes (`administrator_password_wo` on the server, `value_wo` on the `database-url` secret); raise `db_password_version` to rotate it. The apps read `database-url` as a Key Vault reference; the API app also reads `session-key` and `finance-web-secret`, and a private registry needs `registry_server`, `registry_username` and `registry-password`. The author creates those three in the vault before the apps (step 3 of the runbook), because a reference to a missing secret fails the apply.
 
 ## Exposure
 
-Both apps have external ingress and run `AUTH_MODE=entra`: every route but `/api/health`, `/api/openapi.json` and the MCP metadata needs a bearer token from `entra_issuer` for `entra_audience`, linked to a member. `allowed_ips` restricts both apps to the listed CIDR ranges; leave it empty while Claude's connector is used, since Claude calls from Anthropic's servers. Never set `AUTH_MODE=local` here: it trusts the `x-member` header. The API accepts the Host `<name>-api.<environment domain>` (`API_ALLOWED_HOSTS`); its allowed origins stay on the localhost default until ADR-010 decides the web origin.
+Both apps have external ingress and run `AUTH_MODE=entra`: every route but `/api/health`, `/api/openapi.json`, the web files and the MCP metadata needs a bearer token from `entra_issuer` for `entra_audience` or, on the API, the session cookie set by `/auth/callback`, linked to a member. `allowed_ips` restricts both apps to the listed CIDR ranges; leave it empty while Claude's connector is used, since Claude calls from Anthropic's servers. Never set `AUTH_MODE=local` here: it trusts the `x-member` header. The API accepts the Host `<name>-api.<environment domain>` (`API_ALLOWED_HOSTS`); and the Origin of its own https address only (`API_ALLOWED_ORIGINS`), since the web is served from it.
 
 ## Apply order
 
@@ -38,11 +38,11 @@ Both apps have external ingress and run `AUTH_MODE=entra`: every route but `/api
    use_azuread_auth     = true
    ```
 
-3. Put the values in an untracked `terraform.tfvars`: `subscription_id`, `api_image`, `mcp_image`, `entra_issuer`, `entra_audience`, `budget_emails` and any default to change (every variable is listed in the runbook)
+3. Put the values in an untracked `terraform.tfvars`: `subscription_id`, `api_image`, `mcp_image`, `entra_issuer`, `entra_audience`, `entra_web_client_id`, `budget_emails` and any default to change (every variable is listed in the runbook)
 4. `az login` with an identity that may assign roles (Owner or User Access Administrator on the subscription)
 5. `terraform init -backend-config=backend.hcl`
 6. `terraform fmt -check && terraform validate`
-7. `terraform plan -out=finance.tfplan`, review it, `terraform apply finance.tfplan`. Role assignments take a few minutes to reach Key Vault; if the first apply fails reading or writing a secret, run plan and apply again
+7. Before the first full apply, create the vault alone and its secrets (runbook step 3, "Secrets before the apps"); then `terraform plan -out=finance.tfplan`, review it, `terraform apply finance.tfplan`. Role assignments take a few minutes to reach Key Vault; if the first apply fails reading or writing a secret, run plan and apply again
 8. Start the `migrate_job` output (`az containerapp job start`) and wait for `Succeeded`; it runs inside Azure, so no firewall rule is needed. Never run the seed there
 9. Open the `web_url` output: the API image serves the web on its own origin, nothing else to deploy
 

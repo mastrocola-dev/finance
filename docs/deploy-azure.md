@@ -1,12 +1,10 @@
 # Deploy to Azure
 
-The exact order for the author to put the finance POC on Azure behind sign-in with Google. The build agent never runs any of these steps: it cannot reach Azure, the Terraform registry or the image registries. Every value below is a placeholder in `<angle brackets>`; keep real values in untracked files (`terraform.tfvars`, `backend.hcl`, `web/.env.production.local`) or in Key Vault, never in the repository.
+The exact order for the author to put the finance POC on Azure behind sign-in with Google. The build agent never runs any of these steps: it cannot reach Azure, the Terraform registry or the image registries. Every value below is a placeholder in `<angle brackets>`; keep real values in untracked files (`terraform.tfvars`, `backend.hcl`) or in Key Vault, never in the repository.
 
 ## Before you start
 
-One gap remains between this runbook and a working deploy:
-
-- **Sign-in settings of the API app** (S12 part C): `API_PUBLIC_URL`, `ENTRA_CLIENT_ID`, `SESSION_KEY` and `ENTRA_CLIENT_SECRET` are not in `infra/` yet, so `/auth/login` answers an error until part C lands. The web itself is served by the API (S12 part B) on `web_url`, the same origin as `api_url`
+The web is served by the API on its own origin: `web_url` and `api_url` are the same address, and people sign in through the API (`/auth/login`, a server-side code flow with PKCE and a session cookie). Imports do not work in the container yet (S12 part D).
 
 Tools on the author's machine: Azure CLI (`az`), Terraform 1.16.4, Docker, Node 24 and npm.
 
@@ -27,9 +25,10 @@ All three live in the external tenant.
 1. **API** (`finance-api`): **App registrations** → **New registration**, single tenant, no redirect URI. Write down its **application (client) ID**: that is `entra_audience`
    - **Manifest**: set `requestedAccessTokenVersion` (`api.requestedAccessTokenVersion` in the Microsoft Graph manifest) to `2`, so tokens carry the v2 issuer and the client ID as audience
    - **Expose an API**: accept the default Application ID URI `api://<API client ID>` and add the delegated scope `access` (admins and users, display name "Usar o finance"). The full scope is `api://<API client ID>/access`
-2. **Web** (`finance-web`): new registration, platform **Single-page application**, redirect URI the `web_url` output of step 4, added once it exists (the web redirects to its own origin, no path); add `http://localhost:4173` only if you want to try the `entra` build locally
+2. **Web** (`finance-web`): new registration, platform **Web** (the API exchanges the code on the server, so not Single-page application), no redirect URI yet: it is `<api_url>/auth/callback`, added in step 4.4 once `api_url` exists
+   - **Certificates & secrets** → new client secret; keep it in a file for step 3.3, it goes only into Key Vault as `finance-web-secret`
    - **API permissions** → **Add** → **My APIs** → `finance-api` → `access`, then **Grant admin consent**
-   - Its client ID is the API's `ENTRA_CLIENT_ID`: the API signs people in with it (server-side code flow with PKCE and a session cookie); the web build carries no Entra setting
+   - Its **application (client) ID** is `entra_web_client_id`; Terraform sets it as the API's `ENTRA_CLIENT_ID`. The web build carries no Entra setting
 3. **Claude** (`finance-claude`): the client Claude's connector uses, because Entra does not offer dynamic client registration
    - Platform **Web**, redirect URI `https://claude.ai/api/mcp/auth_callback`
    - **Certificates & secrets** → new client secret with the shortest expiry you accept; it goes only into Claude's connector form in step 11
@@ -50,11 +49,29 @@ docker push ghcr.io/mastrocola-dev/finance-api:<commit>
 docker push ghcr.io/mastrocola-dev/finance-mcp:<commit>
 ```
 
-Public packages need nothing else. Private packages need `registry_server = "ghcr.io"`, `registry_username` and a Key Vault secret `registry-password` (a token with `read:packages` only) before the apps exist: apply the vault first with `terraform apply -target=azurerm_key_vault.main -target=azurerm_role_assignment.deployer_secrets`, then `az keyvault secret set --vault-name <vault> --name registry-password --file <file holding the token>`, then the full apply of step 4.
+Public packages need nothing else. Private packages need `registry_server = "ghcr.io"`, `registry_username` and a Key Vault secret `registry-password` (a token with `read:packages` only), set in step 3.3.
+
+### Secrets before the apps
+
+The apps read their secrets as Key Vault references, so the secrets must exist before the apps are created. Terraform never holds their values.
+
+1. Steps 1 to 6 of [infra/README.md](../infra/README.md) (state storage, `backend.hcl`, `terraform.tfvars`, `az login`, `init`, `fmt -check`, `validate`)
+2. Create only the vault: `terraform apply -target=azurerm_key_vault.main -target=azurerm_role_assignment.deployer_secrets`, then note its name, the first label of `terraform output -raw key_vault_uri` (`kv-<name>-<suffix>`)
+3. Set the secrets from files, never on the command line:
+
+   ```sh
+   openssl rand -base64 32 > session-key.txt
+   az keyvault secret set --vault-name <vault> --name session-key --file session-key.txt
+   az keyvault secret set --vault-name <vault> --name finance-web-secret --file <file holding the finance-web secret>
+   az keyvault secret set --vault-name <vault> --name registry-password --file <file holding the token>
+   rm session-key.txt
+   ```
+
+   `session-key` seals the session cookie (32 random bytes in base64); replacing it signs everyone out. `registry-password` is only for private images
 
 ## 4. Terraform
 
-Steps 1 to 7 of [infra/README.md](../infra/README.md) (state storage, `backend.hcl`, `az login`, `init`, `fmt -check`, `validate`, `plan`, `apply`). `terraform.tfvars` sets these variables; names only here:
+1. Step 7 of [infra/README.md](../infra/README.md): `plan` and `apply` everything. `terraform.tfvars` sets these variables; names only here:
 
 | Variable | Required | Value |
 |---|---|---|
@@ -63,6 +80,7 @@ Steps 1 to 7 of [infra/README.md](../infra/README.md) (state storage, `backend.h
 | `mcp_image` | yes | `ghcr.io/mastrocola-dev/finance-mcp:<commit>` |
 | `entra_issuer` | yes | `https://<tenant ID>.ciamlogin.com/<tenant ID>/v2.0` |
 | `entra_audience` | yes | the `finance-api` client ID |
+| `entra_web_client_id` | yes | the `finance-web` client ID |
 | `budget_emails` | yes | the addresses for budget alerts |
 | `mcp_scopes` | no, `[]` | `["api://<API client ID>/access"]`, so Claude asks for the right scope |
 | `mcp_allowed_origins` | no, `[]` | extra browser origins for MCP clients (Claude calls server side and needs none) |
@@ -76,7 +94,9 @@ Steps 1 to 7 of [infra/README.md](../infra/README.md) (state storage, `backend.h
 | `log_daily_cap_gb` | no, `0.1` | Log Analytics daily cap |
 | `budget_amount` | no, `25` | monthly budget in the billing currency |
 
-Terraform sets on both apps `AUTH_MODE=entra`, `ENTRA_ISSUER` and `ENTRA_AUDIENCE`, on the API app `API_ALLOWED_HOSTS` (`<name>-api.<environment domain>`), and on the MCP app `MCP_ALLOWED_HOSTS`, `MCP_PUBLIC_URL` (`https://<name>-mcp.<environment domain>`) and `MCP_SCOPES`. `DATABASE_URL` is a Key Vault reference, never a value. Note the outputs: `terraform output` (`api_url`, `mcp_url`, `web_url`, `migrate_job`, `resource_group`, `key_vault_uri`).
+2. Terraform sets on both apps `AUTH_MODE=entra`, `ENTRA_ISSUER` and `ENTRA_AUDIENCE`. On the API app: `API_ALLOWED_HOSTS` (`<name>-api.<environment domain>`), `API_ALLOWED_ORIGINS` and `API_PUBLIC_URL` (both `https://<name>-api.<environment domain>`, its own origin: browser writes and the sign-in redirect use it) and `ENTRA_CLIENT_ID`. On the MCP app: `MCP_ALLOWED_HOSTS`, `MCP_PUBLIC_URL` (`https://<name>-mcp.<environment domain>`) and `MCP_SCOPES`. Key Vault references, never values: `DATABASE_URL` (`database-url`) on both apps, `SESSION_KEY` (`session-key`) and `ENTRA_CLIENT_SECRET` (`finance-web-secret`) on the API app
+3. Note the outputs: `terraform output` (`api_url`, `mcp_url`, `web_url`, `migrate_job`, `resource_group`, `key_vault_uri`)
+4. In Entra, `finance-web` → **Authentication** → **Web** → add the redirect URI `<api_url>/auth/callback` exactly
 
 ## 5. Migrations
 
@@ -118,12 +138,14 @@ Each execution prints `linked <name>`. An unlinked person who signs in gets 403 
 - `curl <mcp_url>/.well-known/oauth-protected-resource/mcp` returns `resource` `<mcp_url>/mcp`, `authorization_servers` with `entra_issuer` and the scopes of `mcp_scopes`
 - `curl -i -X POST <mcp_url>/mcp` returns 401 with `WWW-Authenticate: Bearer resource_metadata=…`
 - `curl <api_url>/api/health` returns 200, and `curl -i <api_url>/api/members` returns 401 without a token
+- `curl -i <api_url>/auth/login` returns 302 to `https://<tenant ID>.ciamlogin.com/…/authorize` with `redirect_uri=<api_url>/auth/callback` (URL-encoded) and sets a `Secure` cookie. If the API app does not start, its log says `AUTH_MODE entra needs <name>` or `SESSION_KEY must be 32 bytes in base64`: check the secrets of step 3.3
+- `curl -i -H 'Origin: https://example.com' <api_url>/api/members` returns 403 (a foreign origin), and the same call with `-H 'Origin: <api_url>'` returns 401 (its own origin, no session)
 
 ## 10. Web app
 
 The API image carries the web, built with `VITE_AUTH_MODE=entra` in its `web` stage and served from `WEB_ROOT` on the API's own origin: there is nothing to build or upload. `web_url` is the same address as `api_url`.
 
-Open `web_url`: the screen says Entrar; Entrar com Google goes to `/auth/login` on the API, which needs `SESSION_KEY` and `ENTRA_CLIENT_ID` (S12 part C adds them to `infra/`).
+Open `web_url`: the screen says Entrar; Entrar com Google goes to `/auth/login` on the API, then to Entra and Google, and back to `<api_url>/auth/callback`, which sets the session cookie and returns to the web signed in. A return to `/?entrada=falhou` means the callback failed: check the redirect URI of step 4.4 and the `finance-web-secret` value (an expired client secret fails the same way).
 
 ## 11. Claude connector
 
