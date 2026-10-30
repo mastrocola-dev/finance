@@ -274,7 +274,7 @@ export const apiHosts = (env = process.env) => listOf(env.API_ALLOWED_HOSTS, loc
 export const apiOrigins = (env = process.env) => listOf(env.API_ALLOWED_ORIGINS, localhostAllowedOrigins())
 
 export const api =
-  (client: Database, imports = importUploads(client), verify: Verifier = verifierFor(), hosts = apiHosts(), origins = apiOrigins()) =>
+  (client: Database, imports = importUploads(client), verify: Verifier = verifierFor(process.env.AUTH_MODE, true), hosts = apiHosts(), origins = apiOrigins()) =>
   async (request: Request) => {
     const rejected = hostHeaderValidationResponse(request, hosts) ?? originValidationResponse(request, origins)
     if (rejected) return rejected

@@ -46,21 +46,22 @@ const required = (name: string) => {
   return value
 }
 
-const verifiers: Record<string, () => Verifier> = {
+const verifiers: Record<string, (signIn: boolean) => Verifier> = {
   local: () => localVerifier,
-  entra: () => {
+  entra: (signIn) => {
     const issuer = required('ENTRA_ISSUER')
     const keys = jwksOf(issuer)
-    const key = process.env.SESSION_KEY?.trim()
-    const signedIn = key ? session({ issuer, clientId: required('ENTRA_CLIENT_ID'), clientSecret: process.env.ENTRA_CLIENT_SECRET?.trim() || undefined, scopes: process.env.ENTRA_SCOPES?.trim() || undefined, key: sessionKeyOf(key), keys, publicUrl: process.env.API_PUBLIC_URL?.trim() || undefined }) : undefined
-    return entraVerifier({ issuer, audience: required('ENTRA_AUDIENCE'), keys }, signedIn)
+    const audience = required('ENTRA_AUDIENCE')
+    if (!signIn) return entraVerifier({ issuer, audience, keys })
+    const signedIn = session({ issuer, clientId: required('ENTRA_CLIENT_ID'), clientSecret: process.env.ENTRA_CLIENT_SECRET?.trim() || undefined, scopes: process.env.ENTRA_SCOPES?.trim() || undefined, key: sessionKeyOf(required('SESSION_KEY')), keys, publicUrl: process.env.API_PUBLIC_URL?.trim() || undefined })
+    return entraVerifier({ issuer, audience, keys }, signedIn)
   },
 }
 
-export const verifierFor = (mode = process.env.AUTH_MODE) => {
+export const verifierFor = (mode = process.env.AUTH_MODE, signIn = false) => {
   const chosen = mode || 'local'
   if (!Object.hasOwn(verifiers, chosen)) throw new Error(`AUTH_MODE ${chosen} is not enabled; use ${Object.keys(verifiers).join(', ')}`)
-  return verifiers[chosen]?.() as Verifier
+  return verifiers[chosen]?.(signIn) as Verifier
 }
 
 export const identify = (client: Database, request: Request, verify: Verifier) => verify(client, request)

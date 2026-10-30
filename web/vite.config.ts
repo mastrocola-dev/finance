@@ -30,7 +30,7 @@ export const pwa: Partial<VitePWAOptions> = {
   workbox: {
     globPatterns: ['**/*.{js,css,html,svg,png}', '**/*-latin-wght-normal-*.woff2'],
     navigateFallback: '/index.html',
-    navigateFallbackDenylist: [/^\/api\//],
+    navigateFallbackDenylist: [/^\/api\//, /^\/auth\//],
     runtimeCaching: [
       {
         urlPattern: isApiRead,
@@ -54,11 +54,13 @@ export default defineConfig({
   server: {
     proxy: {
       '/api': { target: apiTarget },
+      '/auth': { target: apiTarget },
     },
   },
   preview: {
     proxy: {
       '/api': { target: apiTarget },
+      '/auth': { target: apiTarget },
     },
   },
   test: {

@@ -169,7 +169,7 @@ for (const [state, prepare] of [
   })
 
 const batchId = async (page: Page) => {
-  const batches: { id: string; fileName: string }[] = await (await page.request.get('/api/imports', { headers: await memberHeaders(page) })).json()
+  const batches: { id: string; fileName: string }[] = await (await page.request.get('/api/imports', { headers: memberHeaders() })).json()
   return batches.find((batch) => batch.fileName === statement.name)?.id
 }
 

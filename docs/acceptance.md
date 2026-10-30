@@ -15,6 +15,7 @@ The author walks through this list on the author's machine before the POC is cal
 Do every screen below once as **Marcio** and the joint steps again as **Gabriela**, switching under "Você é". Check the desktop at 1440 px, the phone at 390 px (browser device mode) and both themes.
 
 - [ ] The identity picker remembers the member after a reload
+- [ ] Cookie sign-in (`entra` build against an API with `AUTH_MODE=entra`, `ENTRA_CLIENT_ID` and `SESSION_KEY`): opening `/decisoes` signed out shows only Entrar; Entrar com Google goes through `/auth/login` to the provider and back to `/decisoes`, the browser holds an `HttpOnly` `finance.session` cookie and no token in `localStorage`; Sair returns to Entrar; a forged `/auth/callback?code=x&state=y` shows "Não foi possível concluir a entrada. Tente de novo."
 - [ ] The Casa / Marcio / Gabriela filter changes the totals on Visão do mês and Lançamentos
 
 ## 3. Every screen

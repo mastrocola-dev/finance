@@ -28,12 +28,9 @@ test('sends the member header on writes', async () => {
   expect(await requests[0]?.json()).toEqual({ paid_on: '2026-10-20' })
 })
 
-test('sends the bearer token on every request when signed in', async () => {
+test('sends the session cookie of this origin only', async () => {
   const { requests, fetch } = recording()
-  const tokens = ['first', undefined]
-  const api = createApi({ baseUrl: 'http://localhost:5173', token: async () => tokens.shift(), fetch })
-  await api.GET('/api/debts')
-  await api.GET('/api/debts')
-  expect(requests.map(({ headers }) => headers.get('authorization'))).toEqual(['Bearer first', null])
-  expect(requests[0]?.headers.has('x-member')).toBe(false)
+  await createApi({ baseUrl: 'http://localhost:5173', fetch }).GET('/api/debts')
+  expect(requests[0]?.credentials).toBe('same-origin')
+  expect(requests[0]?.headers.has('authorization')).toBe(false)
 })

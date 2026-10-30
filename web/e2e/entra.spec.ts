@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test'
 import { screens } from '../src/shell/nav.ts'
-import { entraPreview, linkMembers, openContext, reseed, signIn } from './context.ts'
+import { chooseMember, entraPreview, linkMembers, openContext, reseed, signIn } from './context.ts'
 
 const base = `http://127.0.0.1:${entraPreview.port}`
 
@@ -11,13 +11,13 @@ test.beforeAll(() => {
 })
 test.afterAll(reseed)
 
-test('entra API refuses calls without a bearer token', async ({ request }) => {
+test('entra API refuses calls without a session or a bearer token', async ({ request }) => {
   const answer = await request.get(`${base}/api/members`)
   expect(answer.status()).toBe(401)
   expect((await request.get(`${base}/api/health`)).status()).toBe(200)
 })
 
-test('entra signs in through the authority and opens every screen with a bearer token', async ({ browser }) => {
+test('entra signs in through the API and opens every screen with the session cookie', async ({ browser }) => {
   const context = await openContext(browser, { viewport: { width: 1440, height: 1000 } })
   const page = await signIn(context, 'Marcio')
   await expect(page.getByRole('complementary').getByText('Marcio', { exact: true })).toBeVisible()
@@ -61,10 +61,25 @@ test('entra names the second member and confirms a decision as the first', async
   await context.close()
 })
 
-test('entra signs out back to the sign-in screen', async ({ browser }) => {
+test('entra signs out back to the sign-in screen and drops the session cookie', async ({ browser }) => {
   const context = await openContext(browser, { viewport: { width: 1440, height: 1000 } })
   const page = await signIn(context, 'Marcio')
   await page.getByRole('complementary').getByRole('button', { name: 'Sair' }).click()
   await expect(page.getByRole('heading', { level: 1, name: 'Entrar' })).toBeVisible()
+  expect((await context.cookies(base)).map(({ name }) => name)).not.toContain('finance.session')
+  expect((await page.request.get(`${base}/api/me`)).status()).toBe(401)
+  await context.close()
+})
+
+test('entra comes back to the screen that asked for the sign-in', async ({ browser }) => {
+  const context = await openContext(browser, { viewport: { width: 390, height: 844 } })
+  await chooseMember(context, 'Gabriela')
+  const page = await context.newPage()
+  await page.goto(`${base}/decisoes`)
+  await page.getByRole('button', { name: 'Entrar com Google' }).click()
+  await expect(page.getByRole('heading', { level: 1, name: 'Decisões' })).toBeVisible({ timeout: 15_000 })
+  expect(new URL(page.url()).pathname).toBe('/decisoes')
+  const session = (await context.cookies(base)).find(({ name }) => name === 'finance.session')
+  expect(session).toMatchObject({ httpOnly: true, sameSite: 'Lax', path: '/' })
   await context.close()
 })

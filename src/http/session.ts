@@ -25,6 +25,7 @@ type Endpoints = { authorization_endpoint: string; token_endpoint: string; end_s
 export const sessionCookie = 'finance.session'
 export const loginCookie = 'finance.login'
 export const sessionMs = 8 * 60 * 60 * 1000
+export const signInFailed = '/?entrada=falhou'
 const loginMs = 10 * 60 * 1000
 const localHosts = new Set(['localhost', '127.0.0.1', '[::1]'])
 
@@ -113,6 +114,7 @@ export const session = ({ issuer, clientId, clientSecret, scopes = 'openid profi
       response_mode: 'query',
       redirect_uri: `${originOf(request)}/auth/callback`,
       scope: scopes,
+      prompt: 'select_account',
       state,
       nonce,
       code_challenge: createHash('sha256').update(verifier).digest('base64url'),
@@ -122,7 +124,7 @@ export const session = ({ issuer, clientId, clientSecret, scopes = 'openid profi
     return redirect(target.href, cookie(request, loginCookie, seal(key, loginCookie, { state, nonce, verifier, to, exp: now() + loginMs }), '/auth', loginMs / 1000))
   }
 
-  const callback = async (request: Request) => {
+  const exchange = async (request: Request) => {
     const params = new URL(request.url).searchParams
     const pending = opened(request, loginCookie)
     if (!pending) throw failed('no sign-in in progress')
@@ -142,6 +144,8 @@ export const session = ({ issuer, clientId, clientSecret, scopes = 'openid profi
     if (typeof claims.oid !== 'string' || !claims.oid) throw failed('oid')
     return redirect(pending.to, cookie(request, sessionCookie, seal(key, sessionCookie, { oid: claims.oid, exp: now() + sessionMs }), '/', sessionMs / 1000), cookie(request, loginCookie, '', '/auth', 0))
   }
+
+  const callback = (request: Request) => exchange(request).catch(() => redirect(signInFailed, cookie(request, loginCookie, '', '/auth', 0)))
 
   const logout = async (request: Request) => {
     const { end_session_endpoint } = await discover().catch(() => ({ end_session_endpoint: undefined }))

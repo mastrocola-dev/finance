@@ -13,7 +13,6 @@ const budgets = [
 const timing = { fcp: 1800, lcp: 2500 }
 const fonts = 60 * kB
 const precache = 1100 * 1024
-const msal = { script: 60 * kB, precache: 300 * 1024 }
 
 type Load = { fcp: number; lcp: number; resources: { name: string; type: string; bytes: number }[] }
 
@@ -50,7 +49,7 @@ for (const budget of budgets)
     test.info().annotations.push({ type: 'budget', description: JSON.stringify({ width: budget.width, fcp: Math.round(load.fcp), lcp: Math.round(load.lcp), script, font }) })
     expect(load.fcp).toBeLessThan(timing.fcp)
     expect(load.lcp).toBeLessThan(timing.lcp)
-    expect(script).toBeLessThan(entraMode() ? budget.script + msal.script : budget.script)
+    expect(script).toBeLessThan(budget.script)
     expect(font).toBeLessThan(fonts)
     expect(assets.some(({ name }) => name.includes('/flow-bars-'))).toBe(budget.chart)
     await context.close()
@@ -64,5 +63,5 @@ test('budget service worker precache', async () => {
   const total = sizes.reduce((sum, size) => sum + size, 0)
   test.info().annotations.push({ type: 'budget', description: JSON.stringify({ entries: urls.length, total }) })
   expect(urls.filter((url) => url.endsWith('.woff2')).every((url) => url.includes('-latin-wght-normal-'))).toBe(true)
-  expect(total).toBeLessThan(entraMode() ? precache + msal.precache : precache)
+  expect(total).toBeLessThan(precache)
 })

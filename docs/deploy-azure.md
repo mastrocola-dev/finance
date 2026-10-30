@@ -29,7 +29,7 @@ All three live in the external tenant.
    - **Expose an API**: accept the default Application ID URI `api://<API client ID>` and add the delegated scope `access` (admins and users, display name "Usar o finance"). The full scope is `api://<API client ID>/access`
 2. **Web** (`finance-web`): new registration, platform **Single-page application**, redirect URI the `web_url` output of step 4, added once it exists (the web redirects to its own origin, no path); add `http://localhost:4173` only if you want to try the `entra` build locally
    - **API permissions** → **Add** → **My APIs** → `finance-api` → `access`, then **Grant admin consent**
-   - Its client ID is `VITE_ENTRA_CLIENT_ID`
+   - Its client ID is the API's `ENTRA_CLIENT_ID`: the API signs people in with it (server-side code flow with PKCE and a session cookie); the web build carries no Entra setting
 3. **Claude** (`finance-claude`): the client Claude's connector uses, because Entra does not offer dynamic client registration
    - Platform **Web**, redirect URI `https://claude.ai/api/mcp/auth_callback`
    - **Certificates & secrets** → new client secret with the shortest expiry you accept; it goes only into Claude's connector form in step 11
@@ -126,11 +126,11 @@ Blocked by the web origin decision; the build and upload are:
 
 ```sh
 cd web
-VITE_AUTH_MODE=entra VITE_ENTRA_CLIENT_ID=<finance-web client ID> VITE_ENTRA_AUTHORITY=https://<subdomain>.ciamlogin.com/ VITE_ENTRA_SCOPE=api://<API client ID>/access npm run build
+VITE_AUTH_MODE=entra npm run build
 npx @azure/static-web-apps-cli deploy dist --deployment-token "$(terraform -chdir=../infra output -raw web_deployment_token)" --env production
 ```
 
-The build fails fast if any `VITE_ENTRA_*` is missing. Open `web_url`: the screen says Entrar; sign in with Google.
+Open `web_url`: the screen says Entrar; Entrar com Google goes to `/auth/login` on the API, which needs `SESSION_KEY` and `ENTRA_CLIENT_ID` (S12 part C adds them to `infra/`).
 
 ## 11. Claude connector
 

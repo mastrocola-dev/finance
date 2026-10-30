@@ -6,7 +6,7 @@ import { linkMember } from '../../src/db/link-member.ts'
 import { seed } from '../../src/db/seed.ts'
 import { api } from '../../src/http/api.ts'
 import { entraVerifier, localVerifier, verifierFor } from '../../src/http/identity.ts'
-import { cookiesOf, loginCookie, seal, session, sessionCookie, sessionKeyOf, sessionMs, unseal } from '../../src/http/session.ts'
+import { cookiesOf, loginCookie, seal, session, sessionCookie, sessionKeyOf, sessionMs, signInFailed, unseal } from '../../src/http/session.ts'
 import { testDatabase } from '../db/database.ts'
 
 const issuer = 'https://login.example.test/tenant/v2.0'
@@ -84,6 +84,7 @@ describe('authorization code flow', () => {
     assert.equal(query.response_type, 'code')
     assert.equal(query.redirect_uri, 'http://localhost:3200/auth/callback')
     assert.equal(query.scope, 'openid profile')
+    assert.equal(query.prompt, 'select_account')
     assert.equal(query.code_challenge_method, 'S256')
     const opened = unseal(key, loginCookie, pending)
     assert.equal(query.state, opened.state)
@@ -148,7 +149,7 @@ describe('signed-in API', () => {
 
   const call = (path: string, headers: Record<string, string>, init: RequestInit = {}) => api(pool, undefined, verify)(new Request(`http://localhost${path}`, { ...init, headers: { host: 'localhost', ...headers } }))
 
-  test('a bad state, a missing sign-in, a bad code, a wrong nonce or a foreign token is refused', async () => {
+  test('a bad state, a missing sign-in, a bad code, a wrong nonce or a foreign token goes back to the sign-in screen', async () => {
     const cases: [Record<string, unknown>, string, string, string][] = [
       [{}, 'wrong-state', 'good-code', 'state'],
       [{}, '', 'bad-code', 'token'],
@@ -161,13 +162,14 @@ describe('signed-in API', () => {
       const { location, pending } = await loginFlow(signedIn)
       const handle = api(pool, undefined, entraVerifier({ issuer, audience: 'api://finance', keys }, signedIn))
       const answer = await handle(new Request(`http://localhost/auth/callback?code=${code}&state=${state || location.searchParams.get('state')}`, { headers: { host: 'localhost', cookie: `${loginCookie}=${pending}` } }))
-      assert.equal(answer.status, reason.startsWith('invalid token') ? 401 : 400, reason)
-      assert.match((await answer.json()).error, new RegExp(reason))
+      assert.deepEqual([answer.status, answer.headers.get('location')], [302, signInFailed], reason)
       assert.equal(cookieOf(answer, sessionCookie), undefined)
+      assert.equal(cookieOf(answer, loginCookie), '')
     }
     const { fetcher } = provider()
     const signedIn = session({ issuer, clientId, key, keys, fetcher })
-    await assert.rejects(signedIn.handle(new Request('http://localhost/auth/callback?code=good-code&state=x')), /no sign-in in progress/)
+    const missing = (await signedIn.handle(new Request('http://localhost/auth/callback?code=good-code&state=x'))) as Response
+    assert.deepEqual([missing.status, missing.headers.get('location')], [302, '/?entrada=falhou'])
   })
 
   test('the session cookie identifies the member', async () => {
@@ -213,21 +215,22 @@ describe('signed-in API', () => {
   })
 })
 
-describe('AUTH_MODE entra with SESSION_KEY', () => {
+describe('AUTH_MODE entra needs the session', () => {
   const saved = { ...process.env }
   after(() => {
     process.env = saved
   })
 
-  test('the session needs a client id and a valid key', () => {
+  test('the entra API needs a client id and a valid session key, MCP does not', () => {
     Object.assign(process.env, { ENTRA_ISSUER: issuer, ENTRA_AUDIENCE: 'api://finance', SESSION_KEY: key.toString('base64') })
     delete process.env.ENTRA_CLIENT_ID
-    assert.throws(() => verifierFor('entra'), /AUTH_MODE entra needs ENTRA_CLIENT_ID/)
+    assert.throws(() => verifierFor('entra', true), /AUTH_MODE entra needs ENTRA_CLIENT_ID/)
     process.env.ENTRA_CLIENT_ID = clientId
-    assert.equal(verifierFor('entra').credential, 'a signed-in session or a bearer token')
+    assert.equal(verifierFor('entra', true).credential, 'a signed-in session or a bearer token')
     process.env.SESSION_KEY = 'c2hvcnQ='
-    assert.throws(() => verifierFor('entra'), /32 bytes/)
+    assert.throws(() => verifierFor('entra', true), /32 bytes/)
     delete process.env.SESSION_KEY
+    assert.throws(() => verifierFor('entra', true), /AUTH_MODE entra needs SESSION_KEY/)
     assert.equal(verifierFor('entra').session, undefined)
   })
 })

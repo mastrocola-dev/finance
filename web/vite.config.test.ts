@@ -4,10 +4,13 @@ import { expect, test } from 'vitest'
 import { publicDir } from './scripts/icons.ts'
 import config, { apiTarget, isApiRead, pwa } from './vite.config.ts'
 
-test('proxies /api to the local API on 3200', () => {
+test('proxies /api and /auth to the local API on 3200 and never answers them from the app shell', () => {
   expect(apiTarget).toBe(`http://127.0.0.1:${process.env.API_PORT ?? 3200}`)
-  expect(config.server?.proxy).toEqual({ '/api': { target: apiTarget } })
-  expect(config.preview?.proxy).toEqual({ '/api': { target: apiTarget } })
+  expect(config.server?.proxy).toEqual({ '/api': { target: apiTarget }, '/auth': { target: apiTarget } })
+  expect(config.preview?.proxy).toEqual({ '/api': { target: apiTarget }, '/auth': { target: apiTarget } })
+  const denied = pwa.workbox?.navigateFallbackDenylist ?? []
+  expect(['/api/me', '/auth/login', '/auth/callback'].every((path) => denied.some((pattern) => pattern.test(path)))).toBe(true)
+  expect(denied.some((pattern) => pattern.test('/decisoes'))).toBe(false)
 })
 
 test('caches API reads only', () => {
