@@ -1,6 +1,6 @@
 # Infrastructure
 
-Terraform 1.16.4 for the Azure stage, on the organization's shared platform. Privileged resources live in `bootstrap` of [mastrocola-dev/infra](https://github.com/mastrocola-dev/infra), applied by the author as Owner; this module creates only the finance workload and is meant to be applied by CI as `id-finance` through OIDC. Nothing here has been applied: the build agent cannot reach the Terraform registry, so `init`, `validate` and `plan` run on the author's machine or in CI. The whole deploy, from the Entra tenant to the smoke test and the rollback, is in [docs/deploy-azure.md](../docs/deploy-azure.md); this file covers Terraform only.
+Terraform 1.16.4 for the Azure stage, on the organization's shared platform. Privileged resources live in `bootstrap` of [mastrocola-dev/infra](https://github.com/mastrocola-dev/infra), applied by the author as Owner; this module creates only the finance workload and is meant to be applied by CI as `id-finance` through OIDC. Nothing here has been applied: the build agent cannot reach the Terraform registry, so `init`, `validate` and `plan` run in CI (`.github/workflows/deploy.yml`) or on the author's machine. The whole deploy, from the Entra tenant to the smoke test and the rollback, is in [docs/deploy-azure.md](../docs/deploy-azure.md); this file covers Terraform only.
 
 ## What bootstrap provides
 
@@ -53,7 +53,37 @@ No secret is in this folder, in a variable or in the state. The administrator pa
 
 Both apps have external ingress and run `AUTH_MODE=entra`: every route but `/api/health`, `/api/openapi.json`, the web files and the MCP metadata needs a bearer token from `entra_issuer` for `entra_audience` or, on the API, the session cookie set by `/auth/callback`, linked to a member. `allowed_ips` restricts both apps to the listed CIDR ranges; leave it empty while Claude's connector is used, since Claude calls from Anthropic's servers. Never set `AUTH_MODE=local` here: it trusts the `x-member` header. The API accepts the Host `<name>-api.<environment domain>` (`API_ALLOWED_HOSTS`) and the Origin of its own https address only (`API_ALLOWED_ORIGINS`), since the web is served from it.
 
+## Deploy pipeline
+
+`.github/workflows/deploy.yml` signs in as `id-finance` through OIDC (no secret in GitHub) and runs Terraform 1.16.4 against the `tfstate-finance` container, key `finance.tfstate`, waiting up to five minutes for the state lock:
+
+| Trigger | Images | What runs |
+|---|---|---|
+| Pull request to `main` | head commit of the pull request | `init` and `plan` |
+| `ci` completed with success for a push to `main` (its `images` job published both images) | the commit `ci` tested | `plan`, `apply`, then the migration job; the run fails unless the execution ends `Succeeded` |
+| Manual dispatch on `main` | the head of `main` | `plan`; with **apply** checked also `apply` and the migration job |
+
+Runs never cancel each other: one group per pull request and one for `main`. Before applying, the run checks that both images exist on GHCR. `id-finance` is federated with `main` and `pull_request` only, so a dispatch from another branch fails at sign-in. The `ci` workflow lints every workflow with actionlint in its `infra` job.
+
+## Repository variables
+
+Set in **Settings → Secrets and variables → Actions → Variables** of `mastrocola-dev/finance`. None is a secret.
+
+| Variable | Value | Source |
+|---|---|---|
+| `AZURE_CLIENT_ID` | client ID of `id-finance` | bootstrap output `ci_client_ids["finance"]` |
+| `AZURE_TENANT_ID` | the organization's tenant, where `id-finance` and the subscription live; not the External ID tenant of the sign-in (`caixafinance`) | bootstrap output `tenant_id` |
+| `AZURE_SUBSCRIPTION_ID` | subscription of `rg-finance-dev` | the author (`az account show --query id`) |
+| `TFSTATE_RESOURCE_GROUP` | resource group of the shared state account | bootstrap output `state_resource_group` |
+| `TFSTATE_STORAGE_ACCOUNT` | the shared state account | bootstrap output `state_storage_account` |
+| `ENTRA_ISSUER` | `https://<tenant id>.ciamlogin.com/<tenant id>/v2.0` of the External ID tenant | Entra (runbook step 1) |
+| `ENTRA_AUDIENCE` | application (client) ID of the API registration | Entra (runbook step 2) |
+| `ENTRA_WEB_CLIENT_ID` | application (client) ID of the web registration | Entra (runbook step 2) |
+| `MCP_SCOPES` | HCL list, such as `["api://<API client id>/access"]`; `[]` when unset | Entra (runbook step 2) |
+
 ## Apply order
+
+CI applies on every push to `main` once the repository variables are set. By hand, from the author's machine:
 
 1. Bootstrap applied and the four secret values set (runbook step 4)
 2. An untracked `backend.hcl` with the state account, container `tfstate-finance`, key `finance.tfstate` and `use_azuread_auth = true`, and an untracked `terraform.tfvars`

@@ -2,7 +2,7 @@ name: ci
 
 on:
   push:
-    branches: [poc]
+    branches: [poc, main]
   pull_request:
     branches: [main]
 
@@ -135,7 +135,7 @@ jobs:
           test "$(curl -s -o /dev/null -w '%{http_code}' http://localhost:3200/api/nope)" = 404
           curl -sf -X POST http://localhost:3100/mcp -H 'content-type: application/json' -H 'accept: application/json, text/event-stream' -d '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-06-18","capabilities":{},"clientInfo":{"name":"ci","version":"0"}}}' | grep -q serverInfo
       - name: Publish
-        if: github.event_name == 'push' && github.ref == 'refs/heads/poc'
+        if: github.event_name == 'push' && (github.ref == 'refs/heads/poc' || github.ref == 'refs/heads/main')
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
@@ -164,7 +164,7 @@ jobs:
         working-directory: infra
     steps:
       - uses: actions/checkout@v6
-      - uses: hashicorp/setup-terraform@v3
+      - uses: hashicorp/setup-terraform@v4
         with:
           terraform_version: 1.16.4
       - name: Format and validate
@@ -173,3 +173,8 @@ jobs:
           terraform fmt -check -recursive
           terraform init -backend=false
           terraform validate
+      - name: Lint workflows
+        working-directory: .
+        run: |
+          set -euo pipefail
+          docker run --rm -v "$PWD:/repo" --workdir /repo rhysd/actionlint:1.7.7 -color

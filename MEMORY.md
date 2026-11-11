@@ -2,9 +2,9 @@
 
 ## State
 
-- S13 (infra on the organization platform) in progress: A and B done 2026-11-11; C (deploy workflow), D (runbook) left, one per run. The schedule stops itself after D. Tests after S13 B: 359 node (1 skipped: service-agent contract without the sibling checkout), 199 web, 282 Playwright (not rerun since D1), 63 pytest; `npm test` and `npm run check` green; failing-test run streak 0
+- S13 (infra on the organization platform) in progress: A, B, C done 2026-11-11; D (runbook) left. The schedule stops itself after D. Tests after S13 C: 369 node (1 skipped: service-agent contract without the sibling checkout), 199 web, 282 Playwright (not rerun since D1), 63 pytest; `npm test` and `npm run check` green; failing-test run streak 0
 - Do not run Playwright and `npm test` at the same time: vitest `findByText` times out under load (L213)
-- Next free backlog number: L225
+- Next free backlog number: L227
 
 ## Session setup (cloud container, each run, one command per Bash call)
 
@@ -13,11 +13,11 @@
 - `export UV_SYSTEM_CERTS=1; unset UV_NATIVE_TLS` then `uv sync` in `ingest/` before any test (else ingest tests fail with `SdkError: Connection closed`)
 - `npm test` takes about 3 minutes: `timeout 590` with a 600000 ms Bash timeout, output to a log file, read exit codes from the log. Single file: `node --env-file=.env --test test/x.test.ts`; web: `cd web && npx vitest run src/setup`
 - Playwright: the full run takes about 8 min, too close to the Bash limit: start it in the background (`timeout 1200 npx playwright test > log 2>&1; echo exit $? >> log` with `&`) and poll the log with `sleep`; `--project=local` alone is about 4 min. Own `finance_e2e`, reuses servers on 3290/3291/3292/4273/4274 outside CI. PNGs are byte-stable; a changed PNG is a real change
-- `./node_modules/.bin/biome check --write <paths>`, never `npx biome`. `curl` to local servers needs `--noproxy '*'`; stop servers by pid (node processes show as `MainThread` in `pgrep`, so `pgrep node` misses them)
-- `npm run openapi` after any route change
+- `./node_modules/.bin/biome check --write <paths>`, never `npx biome`. `curl` to local servers needs `--noproxy '*'`; stop servers by pid (node processes show as `MainThread` in `pgrep`, so `pgrep node` misses them). `npm run openapi` after any route change
 - Never `pkill -f` a pattern that appears in the Bash command itself: it kills the shell (exit 144). Stop servers by pid
 - service-agent is public: `git clone --depth 1 https://github.com/mastrocola-dev/service-agent ../service-agent` then `npm ci` there (read only, never commit to it). The contract test also needs `ingest/.venv-runtime`: `UV_PROJECT_ENVIRONMENT="$PWD/ingest/.venv-runtime" uv --directory ingest sync --no-dev --exact --locked`; it honours `SERVICE_AGENT_CLI` and fails instead of skipping with `SERVICE_AGENT_REQUIRED=true` (set in CI)
 - Docker: `setsid dockerd &` starts a daemon, but Docker Hub and ghcr.io answer 403 through the proxy, so no image can be built. To check the image layout, copy the files the `Dockerfile` copies to a folder outside `/tmp/claude-0` (mode 700), `npm ci --omit=dev --workspaces=false`, sync the runtime venv, and run as `nobody` with a writable `HOME`
+- actionlint cannot be built here (refused by the permission check); CI's `infra` job runs it from Docker. Deploy workflow structure is tested as text in `test/infra/deploy.test.ts`, which also requires every `vars.*` of both workflows to be a row of `## Repository variables` in `infra/README.md` (part D's runbook should point there)
 - Terraform cannot be downloaded and the OpenTofu release download was refused by the session's permission check (S13 A); `test/infra/terraform.test.ts` stands in for `fmt -check`. `mastrocola-dev/infra` is public: `git clone --depth 1` into the scratchpad to read conventions (read only)
 
 ## Architecture facts the code does not make obvious
