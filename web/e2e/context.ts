@@ -79,7 +79,7 @@ export const signIn = async (context: BrowserContext, member: Member) => {
   const page = await context.newPage()
   await page.goto(`http://127.0.0.1:${entraPreview.port}/`)
   await page.getByRole('button', { name: 'Entrar com Google' }).click()
-  await expect(page.getByRole('heading', { level: 1, name: 'Outubro de 2026' })).toBeVisible({ timeout: 15_000 })
+  await expect(page.getByRole('heading', { level: 1, name: /^\p{L}+ de \d{4}$/u })).toBeVisible({ timeout: 15_000 })
   return page
 }
 
