@@ -83,7 +83,7 @@ Set in **Settings → Secrets and variables → Actions → Variables** of `mast
 
 ## Apply order
 
-CI applies on every push to `main` once the repository variables are set. By hand, from the author's machine:
+CI applies on every push to `main` once the repository variables are set (runbook steps 5 to 8). By hand, from the author's machine (runbook **Terraform by hand**):
 
 1. Bootstrap applied and the four secret values set (runbook step 4)
 2. An untracked `backend.hcl` with the state account, container `tfstate-finance`, key `finance.tfstate` and `use_azuread_auth = true`, and an untracked `terraform.tfvars`
