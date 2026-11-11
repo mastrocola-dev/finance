@@ -14,8 +14,8 @@ const runbook = '| `name` | no |\n| `location` | no |\n\naz keyvault secret set 
 
 test('the runbook and the terraform agree on every variable and secret', () => {
   assert.deepEqual(drift(sources), [])
-  for (const secret of ['session-key', 'finance-web-secret', 'anthropic-api-key', 'registry-password']) assert.match(sources.runbook, new RegExp(`--name ${secret} `), secret)
-  assert.doesNotMatch(sources.runbook, /--name database-url /)
+  for (const secret of ['finance-db-password', 'finance-session-key', 'finance-web-secret', 'anthropic-api-key-finance']) assert.match(sources.runbook, new RegExp(`--name ${secret} .*--expires `), secret)
+  assert.doesNotMatch(sources.runbook, /--name (database-url|registry-password|session-key|anthropic-api-key) /)
   assert.match(sources.runbook, /\[docs\/acceptance.md\]\(acceptance.md\) section 8/)
   assert.match(read('docs/acceptance.md'), /^## 8\. On Azure/m)
 })

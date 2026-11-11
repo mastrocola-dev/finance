@@ -1,8 +1,3 @@
-variable "subscription_id" {
-  type        = string
-  description = "Azure subscription that holds every resource"
-}
-
 variable "name" {
   type        = string
   description = "Prefix of every resource name"
@@ -14,32 +9,44 @@ variable "name" {
   }
 }
 
-variable "location" {
+variable "resource_group_name" {
   type        = string
-  description = "Region of the database, the Container Apps and the logs"
-  default     = "eastus"
+  description = "Resource group created by bootstrap where every finance resource lives"
+  default     = "rg-finance-dev"
+}
+
+variable "runtime_identity_name" {
+  type        = string
+  description = "User-assigned identity created by bootstrap that the apps and the job run as; it reads the four finance secrets"
+  default     = "id-run-finance"
+}
+
+variable "runtime_identity_resource_group" {
+  type        = string
+  description = "Resource group of the runtime identity"
+  default     = "rg-identity"
+}
+
+variable "key_vault_name" {
+  type        = string
+  description = "Shared Key Vault holding the finance secrets; Terraform builds its ID and URI and never reads the vault itself"
+  default     = "kv-mastrocola-dev"
+}
+
+variable "key_vault_resource_group" {
+  type        = string
+  description = "Resource group of the shared Key Vault"
+  default     = "rg-identity"
 }
 
 variable "api_image" {
   type        = string
-  description = "Full image reference of the HTTP API, built from the S5 Dockerfile"
+  description = "Public image of the HTTP API, ghcr.io/mastrocola-dev/finance-api:<commit>"
 }
 
 variable "mcp_image" {
   type        = string
-  description = "Full image reference of the MCP server, built from the S5 Dockerfile"
-}
-
-variable "registry_server" {
-  type        = string
-  description = "Registry of private images, such as ghcr.io; null for public images"
-  default     = null
-}
-
-variable "registry_username" {
-  type        = string
-  description = "Registry user; its password is the Key Vault secret registry-password"
-  default     = null
+  description = "Public image of the MCP server, ghcr.io/mastrocola-dev/finance-mcp:<commit>"
 }
 
 variable "entra_issuer" {
@@ -88,7 +95,7 @@ variable "db_admin_login" {
 
 variable "db_password_version" {
   type        = number
-  description = "Increase to rotate the generated database password"
+  description = "Increase after a new finance-db-password value so the server takes it"
   default     = 1
 }
 
@@ -107,15 +114,4 @@ variable "import_daily_usd_cap" {
     condition     = var.import_daily_usd_cap > 0
     error_message = "import_daily_usd_cap must be positive."
   }
-}
-
-variable "budget_amount" {
-  type        = number
-  description = "Monthly budget of the resource group, in the billing currency of the subscription"
-  default     = 25
-}
-
-variable "budget_emails" {
-  type        = list(string)
-  description = "Addresses notified at 80 percent actual and 100 percent forecast spend"
 }

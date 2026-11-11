@@ -6,12 +6,13 @@ The single order for the author to put the finance POC on Azure, from an empty a
 
 - One Container App `<name>-api` that serves the web and the HTTP API on one origin (`web_url` = `api_url`) and signs people in itself: `/auth/login` runs a server-side code flow with PKCE against Entra External ID, which federates Google, and keeps a sealed `HttpOnly` session cookie. It also imports files with the real model through service-agent, capped by `import_daily_usd_cap`
 - One Container App `<name>-mcp` for Claude's connector, which accepts only Entra bearer tokens
-- PostgreSQL 16, a Key Vault, Log Analytics, a migration job and a monthly budget. About US$ 17 a month, almost all of it PostgreSQL ([ADR-010](adr-010-azure-hosting.md))
+- PostgreSQL 16, Log Analytics and a migration job in `rg-finance-dev`. About US$ 17 a month, almost all of it PostgreSQL ([ADR-010](adr-010-azure-hosting.md)); the subscription budget of the organization covers it
+- The resource group, both identities, the state container and the four secrets come from `bootstrap` in `mastrocola-dev/infra` (infra PR #22), applied by the author; this configuration creates no role and no vault
 
 ## 0. Tools and accounts
 
 - Azure CLI (`az`), Terraform 1.16.4, `openssl`; Docker only to publish images by hand
-- An Azure subscription where you are Owner (or User Access Administrator plus Contributor)
+- An Azure subscription where `bootstrap` of `mastrocola-dev/infra` is applied with the `finance-bootstrap` resources; Contributor on `rg-finance-dev` is enough for this configuration
 - A Google account that may create OAuth clients in Google Cloud Console
 - An Anthropic Console account for the import key
 
@@ -34,7 +35,7 @@ All three live in the external tenant.
    - **Manifest**: set `requestedAccessTokenVersion` (`api.requestedAccessTokenVersion` in the Microsoft Graph manifest) to `2`, so tokens carry the v2 issuer and the client ID as audience
    - **Expose an API**: accept the default Application ID URI `api://<API client ID>` and add the delegated scope `access` (admins and users, display name "Usar o finance"). The full scope is `api://<API client ID>/access`
 2. **Web** (`finance-web`): new registration, platform **Web** (the API exchanges the code on the server, so not Single-page application), no redirect URI yet: it is `<api_url>/auth/callback`, added in step 6 once `api_url` exists
-   - **Certificates & secrets** → new client secret; save it to a file for step 4.4. It goes only into Key Vault as `finance-web-secret`
+   - **Certificates & secrets** → new client secret; save it to a file for step 4.3. It goes only into Key Vault as `finance-web-secret`
    - **API permissions** → **Add** → **My APIs** → `finance-api` → `access`, then **Grant admin consent**
    - Its **application (client) ID** is `entra_web_client_id`; Terraform sets it as the API's `ENTRA_CLIENT_ID`. The web build carries no Entra setting
 3. **Claude** (`finance-claude`): the client Claude's connector uses, because Entra does not offer dynamic client registration
@@ -61,85 +62,74 @@ docker push ghcr.io/mastrocola-dev/finance-api:<commit>
 docker push ghcr.io/mastrocola-dev/finance-mcp:<commit>
 ```
 
-Private packages (the default) need `registry_server = "ghcr.io"`, `registry_username` and the Key Vault secret `registry-password`: a classic token with `read:packages` only. Public packages need none of the three.
+Make both packages public (**Package settings** → **Change visibility**): the apps pull them without credentials, and this configuration has no registry settings.
 
-## 4. State, vault and secrets
+## 4. State and secrets
 
-The apps read their secrets as Key Vault references, so the secrets must exist before the apps are created. Terraform never holds their values.
+`bootstrap` creates the state container `tfstate-finance` in the shared state account and four placeholder secrets in the shared vault `kv-mastrocola-dev` (`rg-identity`), read by `id-run-finance` as Key Vault references. Terraform never holds their values; it reads only `finance-db-password`, ephemerally, to set the PostgreSQL administrator password.
 
-1. Create the state storage once, outside the configuration, and an untracked `infra/backend.hcl`:
-
-   ```sh
-   az login
-   az account set --subscription <subscription ID>
-   az group create -n <state resource group> -l eastus
-   az storage account create -n <state storage account> -g <state resource group> --sku Standard_LRS --allow-blob-public-access false
-   az storage container create -n tfstate --account-name <state storage account> --auth-mode login
-   ```
+1. Write an untracked `infra/backend.hcl`:
 
    ```hcl
    resource_group_name  = "<state resource group>"
    storage_account_name = "<state storage account>"
-   container_name       = "tfstate"
+   container_name       = "tfstate-finance"
    key                  = "finance.tfstate"
    use_azuread_auth     = true
    ```
 
-   Give yourself **Storage Blob Data Contributor** on the storage account, since the backend signs in with Entra
-2. Write `infra/terraform.tfvars` (untracked) with every required variable of the table in step 5 and any default you change, then in `infra/`:
+2. Write `infra/terraform.tfvars` (untracked) with every required variable of the table in step 5 and any default you change, then in `infra/`, with `ARM_SUBSCRIPTION_ID` set:
 
    ```sh
    terraform init -backend-config=backend.hcl
    terraform fmt -check && terraform validate
    ```
 
-3. Create only the vault: `terraform apply -target=azurerm_key_vault.main -target=azurerm_role_assignment.deployer_secrets`, then note its name, the first label of `terraform output -raw key_vault_uri` (`kv-<name>-<suffix>`)
-4. Set the secrets from files, never on the command line:
+3. Set the secret values from files, never on the command line, with an expiry:
 
    ```sh
+   openssl rand -base64 24 | tr -d '/+=' > db-password.txt
    openssl rand -base64 32 > session-key.txt
-   az keyvault secret set --vault-name <vault> --name session-key --file session-key.txt
-   az keyvault secret set --vault-name <vault> --name finance-web-secret --file <file holding the finance-web secret>
-   az keyvault secret set --vault-name <vault> --name anthropic-api-key --file <file holding the Anthropic key>
-   az keyvault secret set --vault-name <vault> --name registry-password --file <file holding the read:packages token>
-   rm session-key.txt
+   az keyvault secret set --vault-name <vault> --name finance-db-password --file db-password.txt --expires <date>
+   az keyvault secret set --vault-name <vault> --name finance-session-key --file session-key.txt --expires <date>
+   az keyvault secret set --vault-name <vault> --name finance-web-secret --file <file holding the finance-web secret> --expires <date>
+   az keyvault secret set --vault-name <vault> --name anthropic-api-key-finance --file <file holding the Anthropic key> --expires <date>
+   rm db-password.txt session-key.txt
    ```
 
-| Secret | Created by | Read by | Value |
-|---|---|---|---|
-| `database-url` | Terraform | both apps, migration job | connection string with a generated password; raise `db_password_version` to rotate |
-| `session-key` | you | API (`SESSION_KEY`) | 32 random bytes in base64; replacing it signs everyone out |
-| `finance-web-secret` | you | API (`ENTRA_CLIENT_SECRET`) | client secret of `finance-web`; renew it before it expires |
-| `anthropic-api-key` | you | API (`ANTHROPIC_API_KEY`) | key from an Anthropic Console workspace with its own spend limit above `import_daily_usd_cap` |
-| `registry-password` | you | both apps and the job, image pulls | GitHub token with `read:packages`; private images only |
+| Secret | Read by | Value |
+|---|---|---|
+| `finance-db-password` | Terraform (ephemeral), both apps and the job (`PGPASSWORD`) | PostgreSQL administrator password; after a new value raise `db_password_version` and apply |
+| `finance-session-key` | API (`SESSION_KEY`) | 32 random bytes in base64; replacing it signs everyone out |
+| `finance-web-secret` | API (`ENTRA_CLIENT_SECRET`) | client secret of `finance-web`; renew it before it expires |
+| `anthropic-api-key-finance` | API (`ANTHROPIC_API_KEY`) | key from an Anthropic Console workspace with its own spend limit above `import_daily_usd_cap` |
 
 ## 5. Terraform
 
-`terraform plan -out=finance.tfplan`, review it, `terraform apply finance.tfplan`. Role assignments take a few minutes to reach Key Vault; if the first apply fails reading or writing a secret, plan and apply again.
+`terraform plan -out=finance.tfplan`, review it, `terraform apply finance.tfplan`.
 
 | Variable | Required | Value |
 |---|---|---|
-| `subscription_id` | yes | the subscription |
 | `api_image` | yes | `ghcr.io/mastrocola-dev/finance-api:<commit>` |
 | `mcp_image` | yes | `ghcr.io/mastrocola-dev/finance-mcp:<commit>` |
 | `entra_issuer` | yes | `https://<tenant ID>.ciamlogin.com/<tenant ID>/v2.0` |
 | `entra_audience` | yes | the `finance-api` client ID |
 | `entra_web_client_id` | yes | the `finance-web` client ID |
-| `budget_emails` | yes | the addresses for budget alerts |
 | `mcp_scopes` | no, `[]` | `["api://<API client ID>/access"]`, so Claude asks for the right scope |
 | `mcp_allowed_origins` | no, `[]` | extra browser origins for MCP clients (Claude calls server side and needs none) |
 | `allowed_ips` | no, `[]` | CIDR ranges to restrict both apps to; empty lets any address in, behind Entra. Claude's connector calls from Anthropic's servers, so a list that leaves them out breaks it |
-| `registry_server` | no, `null` | `ghcr.io` for private images |
-| `registry_username` | no, `null` | the GitHub user for private images |
 | `name` | no, `finance` | prefix of every resource |
-| `location` | no, `eastus` | region of every resource |
+| `resource_group_name` | no, `rg-finance-dev` | resource group from bootstrap; its region is the region of every resource |
+| `runtime_identity_name` | no, `id-run-finance` | identity from bootstrap the apps and the job run as |
+| `runtime_identity_resource_group` | no, `rg-identity` | its resource group |
+| `key_vault_name` | no, `kv-mastrocola-dev` | shared vault of the four secrets; never read by Terraform as a resource |
+| `key_vault_resource_group` | no, `rg-identity` | its resource group |
 | `db_admin_login` | no, `finance_admin` | PostgreSQL administrator |
-| `db_password_version` | no, `1` | raise to rotate the database password |
+| `db_password_version` | no, `1` | raise after a new `finance-db-password` value |
 | `log_daily_cap_gb` | no, `0.1` | Log Analytics daily cap |
-| `budget_amount` | no, `25` | monthly budget in the billing currency |
 | `import_daily_usd_cap` | no, `2` | US$ the import agent may spend per day (São Paulo time); uploads and retries are refused past it |
 
-Terraform sets on both apps `AUTH_MODE=entra`, `ENTRA_ISSUER` and `ENTRA_AUDIENCE`. On the API app: `API_ALLOWED_HOSTS` (`<name>-api.<environment domain>`), `API_ALLOWED_ORIGINS` and `API_PUBLIC_URL` (both `https://<name>-api.<environment domain>`, its own origin), `ENTRA_CLIENT_ID` and `IMPORT_DAILY_USD_CAP`. On the MCP app: `MCP_ALLOWED_HOSTS`, `MCP_ALLOWED_ORIGINS`, `MCP_PUBLIC_URL` (`https://<name>-mcp.<environment domain>`) and `MCP_SCOPES`. Secrets arrive as the Key Vault references of step 4.
+Terraform sets on both apps `AUTH_MODE=entra`, `ENTRA_ISSUER` and `ENTRA_AUDIENCE`. On the API app: `API_ALLOWED_HOSTS` (`<name>-api.<environment domain>`), `API_ALLOWED_ORIGINS` and `API_PUBLIC_URL` (both `https://<name>-api.<environment domain>`, its own origin), `ENTRA_CLIENT_ID` and `IMPORT_DAILY_USD_CAP`. On the MCP app: `MCP_ALLOWED_HOSTS`, `MCP_ALLOWED_ORIGINS`, `MCP_PUBLIC_URL` (`https://<name>-mcp.<environment domain>`) and `MCP_SCOPES`. Both apps and the job get `PGHOST` (the server), `PGPORT`, `PGUSER`, `PGDATABASE` and `PGSSLMODE=require`. Secrets arrive as the Key Vault references of step 4, through `id-run-finance`.
 
 Note the outputs: `terraform output` (`api_url`, `mcp_url`, `web_url`, `migrate_job`, `resource_group`, `key_vault_uri`).
 
@@ -149,7 +139,7 @@ In Entra, `finance-web` → **Authentication** → **Web** → add the redirect 
 
 ## 7. Migrations
 
-The `<name>-migrate` Container Apps job runs `npm run db:migrate` with the `api` image and the `database-url` secret, inside Azure, so no firewall rule is needed. Run it after every apply that changes `api_image`:
+The `<name>-migrate` Container Apps job runs `npm run db:migrate` with the `api` image and the `finance-db-password` secret, inside Azure, so no firewall rule is needed. Run it after every apply that changes `api_image`:
 
 ```sh
 az containerapp job start -g "$(terraform output -raw resource_group)" -n "$(terraform output -raw migrate_job)"
@@ -185,7 +175,7 @@ Each execution prints `linked <name>`. An unlinked person who signs in gets 403 
 ## 11. Check the APIs
 
 - `curl <api_url>/api/health` returns 200, and `curl -i <api_url>/api/members` returns 401 without a session
-- `curl -i <api_url>/auth/login` returns 302 to `https://<tenant ID>.ciamlogin.com/…/authorize` with `redirect_uri=<api_url>/auth/callback` (URL-encoded) and sets a `Secure` cookie. If the API app does not start, its log says `AUTH_MODE entra needs <name>` or `SESSION_KEY must be 32 bytes in base64`: check the secrets of step 4.4
+- `curl -i <api_url>/auth/login` returns 302 to `https://<tenant ID>.ciamlogin.com/…/authorize` with `redirect_uri=<api_url>/auth/callback` (URL-encoded) and sets a `Secure` cookie. If the API app does not start, its log says `AUTH_MODE entra needs <name>` or `SESSION_KEY must be 32 bytes in base64`: check the secrets of step 4.3
 - `curl -i -H 'Origin: https://example.com' <api_url>/api/members` returns 403 (a foreign origin), and the same call with `-H 'Origin: <api_url>'` returns 401 (its own origin, no session)
 - `curl <mcp_url>/.well-known/oauth-protected-resource/mcp` returns `resource` `<mcp_url>/mcp`, `authorization_servers` with `entra_issuer` and the scopes of `mcp_scopes`
 - `curl -i -X POST <mcp_url>/mcp` returns 401 with `WWW-Authenticate: Bearer resource_metadata=…`
@@ -214,8 +204,8 @@ Walk through [docs/acceptance.md](acceptance.md) section 8 against `web_url`, wi
 
 - **Bad image or web build**: the web ships inside the API image, so set `api_image` (or `mcp_image`) back to the previous commit tag and apply; each app keeps a single revision. Do not run the job with the old image after a newer migration ran: migrations are forward-only, so write a forward migration that reverts the change instead
 - **Bad configuration**: check out the previous commit of `infra/`, plan and apply
-- **Bad data or migration**: restore PostgreSQL to a point in time (7 days) into a new server, point the `database-url` secret at it, restart both apps
+- **Bad data or migration**: restore PostgreSQL to a point in time (7 days) into a new server, switching the apps to it is a change in `infra/` (`PGHOST` comes from the server resource)
 - **Sign-in broken**: the apps refuse every call without a valid session or token, so nothing leaks; fix the registration, or set `entra_issuer`, `entra_audience` or `entra_web_client_id` back and apply. Never switch `AUTH_MODE` to `local` on Azure: it trusts the `x-member` header
 - **Import spending too much**: lower `import_daily_usd_cap` and apply, or disable the key in the Anthropic Console; the rest of the app keeps working
 - **Claude misbehaves**: remove the connector in Claude, or delete the `finance-claude` client secret in Entra; the web keeps working
-- **Everything**: `terraform destroy`, then purge the soft-deleted Key Vault (`az keyvault purge`) before applying again with the same name; delete the three app registrations, the Google OAuth client and the external tenant last
+- **Everything**: `terraform destroy` (the resource group, identities and secrets stay with `bootstrap`); delete the three app registrations, the Google OAuth client and the external tenant last
