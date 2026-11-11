@@ -1,7 +1,8 @@
 import { connect, databaseUrl } from './connection.ts'
 import { migrate } from './migrate.ts'
 
-const split = (url: string) => {
+const split = (url: string | undefined) => {
+  if (!url) throw new Error('reset needs DATABASE_URL')
   const target = new URL(url)
   const name = decodeURIComponent(target.pathname.slice(1))
   if (!name || name === 'postgres') throw new Error(`refusing to reset database '${name}'`)
