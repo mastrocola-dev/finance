@@ -63,13 +63,13 @@ The build agent's session cannot pull base images (Docker Hub and ghcr.io are bl
 
 ## 8. On Azure with an empty ledger
 
-After steps 1 to 13 of [docs/deploy-azure.md](deploy-azure.md), at `web_url`, from a phone and a desktop. The ledger starts empty: no seed. Type only invented values.
+After steps 1 to 14 of [docs/deploy-azure.md](deploy-azure.md), at `web_url`, from a phone and a desktop. The ledger starts empty: no seed. Type only invented values.
 
 Sign-in by Google:
 
 - [ ] Signed out, `web_url` shows only Entrar; Entrar com Google goes through Entra to Google's account chooser and back to the screen that was opened, signed in as Marcio; the browser holds a `finance.session` cookie marked `HttpOnly`, `Secure` and `SameSite=Lax`, and nothing in `localStorage` but the theme
 - [ ] Gabriela does the same in another browser; both see the same household, and the desktop side bar shows each one's own name under Você é
-- [ ] A Google account that is not linked (step 10 of the runbook) sees "Esta conta Google não está cadastrada na casa. Entre com outra conta." and no data
+- [ ] A Google account that is not linked (step 12 of the runbook) sees "Esta conta Google não está cadastrada na casa. Entre com outra conta." and no data
 - [ ] Sair returns to Entrar; Entrar signs in again without asking for the password while the Google session lasts
 - [ ] Removing the `finance.session` cookie by hand and then opening another screen (no reload) shows "Sua sessão terminou. Entre de novo para continuar."
 
@@ -87,4 +87,4 @@ Import with the real model:
 
 Claude connector:
 
-- [ ] Section 5 again through the connector of runbook step 13 instead of `x-member`: the answer about this month's bills matches Contas, and a write appears in Atividade with author `claude` on behalf of the member who connected
+- [ ] Section 5 again through the connector of runbook step 14 instead of `x-member`: the answer about this month's bills matches Contas, and a write appears in Atividade with author `claude` on behalf of the member who connected

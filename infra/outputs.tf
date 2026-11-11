@@ -11,7 +11,7 @@ output "migrate_job" {
 }
 
 output "resource_group" {
-  value = azurerm_resource_group.main.name
+  value = data.azurerm_resource_group.finance.name
 }
 
 output "web_url" {
@@ -23,5 +23,5 @@ output "database_host" {
 }
 
 output "key_vault_uri" {
-  value = azurerm_key_vault.main.vault_uri
+  value = local.key_vault_uri
 }

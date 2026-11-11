@@ -1,14 +1,44 @@
 data "azurerm_client_config" "current" {}
 
+data "azurerm_resource_group" "finance" {
+  name = var.resource_group_name
+}
+
+data "azurerm_user_assigned_identity" "runtime" {
+  name                = var.runtime_identity_name
+  resource_group_name = var.runtime_identity_resource_group
+}
+
+ephemeral "azurerm_key_vault_secret" "db_password" {
+  name         = "finance-db-password"
+  key_vault_id = local.key_vault_id
+}
+
 locals {
-  suffix   = substr(sha1("${var.subscription_id}-${var.name}"), 0, 6)
-  api_host = "${var.name}-api.${azurerm_container_app_environment.main.default_domain}"
-  mcp_host = "${var.name}-mcp.${azurerm_container_app_environment.main.default_domain}"
+  suffix        = substr(sha1("${data.azurerm_client_config.current.subscription_id}-${var.name}"), 0, 6)
+  location      = data.azurerm_resource_group.finance.location
+  key_vault_id  = "/subscriptions/${data.azurerm_client_config.current.subscription_id}/resourceGroups/${var.key_vault_resource_group}/providers/Microsoft.KeyVault/vaults/${var.key_vault_name}"
+  key_vault_uri = "https://${var.key_vault_name}.vault.azure.net/"
+  identity_id   = data.azurerm_user_assigned_identity.runtime.id
+  api_host      = "${var.name}-api.${azurerm_container_app_environment.main.default_domain}"
+  mcp_host      = "${var.name}-mcp.${azurerm_container_app_environment.main.default_domain}"
 
   entra = {
     AUTH_MODE      = "entra"
     ENTRA_ISSUER   = var.entra_issuer
     ENTRA_AUDIENCE = var.entra_audience
+  }
+
+  database = {
+    PGHOST     = azurerm_postgresql_flexible_server.main.fqdn
+    PGPORT     = "5432"
+    PGUSER     = var.db_admin_login
+    PGDATABASE = azurerm_postgresql_flexible_server_database.finance.name
+    PGSSLMODE  = "require"
+  }
+
+  database_secrets = {
+    PGPASSWORD = "finance-db-password"
   }
 
   tags = {
@@ -32,9 +62,9 @@ locals {
       }
 
       secrets = {
-        SESSION_KEY         = "session-key"
+        SESSION_KEY         = "finance-session-key"
         ENTRA_CLIENT_SECRET = "finance-web-secret"
-        ANTHROPIC_API_KEY   = "anthropic-api-key"
+        ANTHROPIC_API_KEY   = "anthropic-api-key-finance"
       }
     }
 
@@ -56,52 +86,20 @@ locals {
   }
 }
 
-resource "azurerm_resource_group" "main" {
-  name     = "rg-${var.name}"
-  location = var.location
-  tags     = local.tags
-}
-
 resource "azurerm_log_analytics_workspace" "main" {
   name                = "log-${var.name}"
-  resource_group_name = azurerm_resource_group.main.name
-  location            = var.location
+  resource_group_name = data.azurerm_resource_group.finance.name
+  location            = local.location
   sku                 = "PerGB2018"
   retention_in_days   = 30
   daily_quota_gb      = var.log_daily_cap_gb
   tags                = local.tags
 }
 
-resource "azurerm_key_vault" "main" {
-  name                       = "kv-${var.name}-${local.suffix}"
-  resource_group_name        = azurerm_resource_group.main.name
-  location                   = var.location
-  tenant_id                  = data.azurerm_client_config.current.tenant_id
-  sku_name                   = "standard"
-  rbac_authorization_enabled = true
-  soft_delete_retention_days = 7
-  purge_protection_enabled   = false
-  tags                       = local.tags
-}
-
-resource "azurerm_role_assignment" "deployer_secrets" {
-  scope                = azurerm_key_vault.main.id
-  role_definition_name = "Key Vault Secrets Officer"
-  principal_id         = data.azurerm_client_config.current.object_id
-}
-
-ephemeral "random_password" "db" {
-  length      = 32
-  special     = false
-  min_lower   = 2
-  min_upper   = 2
-  min_numeric = 2
-}
-
 resource "azurerm_postgresql_flexible_server" "main" {
   name                              = "psql-${var.name}-${local.suffix}"
-  resource_group_name               = azurerm_resource_group.main.name
-  location                          = var.location
+  resource_group_name               = data.azurerm_resource_group.finance.name
+  location                          = local.location
   version                           = "16"
   sku_name                          = "B_Standard_B1ms"
   storage_mb                        = 32768
@@ -110,7 +108,7 @@ resource "azurerm_postgresql_flexible_server" "main" {
   geo_redundant_backup_enabled      = false
   public_network_access_enabled     = true
   administrator_login               = var.db_admin_login
-  administrator_password_wo         = ephemeral.random_password.db.result
+  administrator_password_wo         = ephemeral.azurerm_key_vault_secret.db_password.value
   administrator_password_wo_version = var.db_password_version
   tags                              = local.tags
 
@@ -137,32 +135,10 @@ resource "azurerm_postgresql_flexible_server_firewall_rule" "azure_services" {
   end_ip_address   = "0.0.0.0"
 }
 
-resource "azurerm_key_vault_secret" "database_url" {
-  name             = "database-url"
-  key_vault_id     = azurerm_key_vault.main.id
-  value_wo         = "postgres://${var.db_admin_login}:${ephemeral.random_password.db.result}@${azurerm_postgresql_flexible_server.main.fqdn}:5432/${azurerm_postgresql_flexible_server_database.finance.name}?sslmode=require"
-  value_wo_version = var.db_password_version
-
-  depends_on = [azurerm_role_assignment.deployer_secrets]
-}
-
-resource "azurerm_user_assigned_identity" "apps" {
-  name                = "id-${var.name}-apps"
-  resource_group_name = azurerm_resource_group.main.name
-  location            = var.location
-  tags                = local.tags
-}
-
-resource "azurerm_role_assignment" "apps_secrets" {
-  scope                = azurerm_key_vault.main.id
-  role_definition_name = "Key Vault Secrets User"
-  principal_id         = azurerm_user_assigned_identity.apps.principal_id
-}
-
 resource "azurerm_container_app_environment" "main" {
   name                       = "cae-${var.name}"
-  resource_group_name        = azurerm_resource_group.main.name
-  location                   = var.location
+  resource_group_name        = data.azurerm_resource_group.finance.name
+  location                   = local.location
   log_analytics_workspace_id = azurerm_log_analytics_workspace.main.id
   tags                       = local.tags
 }
@@ -171,49 +147,23 @@ resource "azurerm_container_app" "app" {
   for_each = local.apps
 
   name                         = "${var.name}-${each.key}"
-  resource_group_name          = azurerm_resource_group.main.name
+  resource_group_name          = data.azurerm_resource_group.finance.name
   container_app_environment_id = azurerm_container_app_environment.main.id
   revision_mode                = "Single"
   tags                         = local.tags
 
   identity {
     type         = "UserAssigned"
-    identity_ids = [azurerm_user_assigned_identity.apps.id]
-  }
-
-  secret {
-    name                = "database-url"
-    identity            = azurerm_user_assigned_identity.apps.id
-    key_vault_secret_id = azurerm_key_vault_secret.database_url.versionless_id
+    identity_ids = [local.identity_id]
   }
 
   dynamic "secret" {
-    for_each = each.value.secrets
+    for_each = merge(local.database_secrets, each.value.secrets)
 
     content {
       name                = secret.value
-      identity            = azurerm_user_assigned_identity.apps.id
-      key_vault_secret_id = "${azurerm_key_vault.main.vault_uri}secrets/${secret.value}"
-    }
-  }
-
-  dynamic "secret" {
-    for_each = var.registry_username == null ? [] : [1]
-
-    content {
-      name                = "registry-password"
-      identity            = azurerm_user_assigned_identity.apps.id
-      key_vault_secret_id = "${azurerm_key_vault.main.vault_uri}secrets/registry-password"
-    }
-  }
-
-  dynamic "registry" {
-    for_each = var.registry_username == null ? [] : [1]
-
-    content {
-      server               = var.registry_server
-      username             = var.registry_username
-      password_secret_name = "registry-password"
+      identity            = local.identity_id
+      key_vault_secret_id = "${local.key_vault_uri}secrets/${secret.value}"
     }
   }
 
@@ -248,13 +198,8 @@ resource "azurerm_container_app" "app" {
       cpu    = 0.25
       memory = "0.5Gi"
 
-      env {
-        name        = "DATABASE_URL"
-        secret_name = "database-url"
-      }
-
       dynamic "env" {
-        for_each = merge(local.entra, each.value.env)
+        for_each = merge(local.entra, local.database, each.value.env)
 
         content {
           name  = env.key
@@ -263,7 +208,7 @@ resource "azurerm_container_app" "app" {
       }
 
       dynamic "env" {
-        for_each = each.value.secrets
+        for_each = merge(local.database_secrets, each.value.secrets)
 
         content {
           name        = env.key
@@ -272,14 +217,12 @@ resource "azurerm_container_app" "app" {
       }
     }
   }
-
-  depends_on = [azurerm_role_assignment.apps_secrets]
 }
 
 resource "azurerm_container_app_job" "migrate" {
   name                         = "${var.name}-migrate"
-  resource_group_name          = azurerm_resource_group.main.name
-  location                     = var.location
+  resource_group_name          = data.azurerm_resource_group.finance.name
+  location                     = local.location
   container_app_environment_id = azurerm_container_app_environment.main.id
   replica_timeout_in_seconds   = 600
   replica_retry_limit          = 0
@@ -292,32 +235,16 @@ resource "azurerm_container_app_job" "migrate" {
 
   identity {
     type         = "UserAssigned"
-    identity_ids = [azurerm_user_assigned_identity.apps.id]
-  }
-
-  secret {
-    name                = "database-url"
-    identity            = azurerm_user_assigned_identity.apps.id
-    key_vault_secret_id = azurerm_key_vault_secret.database_url.versionless_id
+    identity_ids = [local.identity_id]
   }
 
   dynamic "secret" {
-    for_each = var.registry_username == null ? [] : [1]
+    for_each = local.database_secrets
 
     content {
-      name                = "registry-password"
-      identity            = azurerm_user_assigned_identity.apps.id
-      key_vault_secret_id = "${azurerm_key_vault.main.vault_uri}secrets/registry-password"
-    }
-  }
-
-  dynamic "registry" {
-    for_each = var.registry_username == null ? [] : [1]
-
-    content {
-      server               = var.registry_server
-      username             = var.registry_username
-      password_secret_name = "registry-password"
+      name                = secret.value
+      identity            = local.identity_id
+      key_vault_secret_id = "${local.key_vault_uri}secrets/${secret.value}"
     }
   }
 
@@ -329,43 +256,23 @@ resource "azurerm_container_app_job" "migrate" {
       cpu     = 0.25
       memory  = "0.5Gi"
 
-      env {
-        name        = "DATABASE_URL"
-        secret_name = "database-url"
+      dynamic "env" {
+        for_each = local.database
+
+        content {
+          name  = env.key
+          value = env.value
+        }
+      }
+
+      dynamic "env" {
+        for_each = local.database_secrets
+
+        content {
+          name        = env.key
+          secret_name = env.value
+        }
       }
     }
-  }
-
-  depends_on = [azurerm_role_assignment.apps_secrets]
-}
-
-resource "azurerm_consumption_budget_resource_group" "monthly" {
-  name              = "budget-${var.name}"
-  resource_group_id = azurerm_resource_group.main.id
-  amount            = var.budget_amount
-  time_grain        = "Monthly"
-
-  time_period {
-    start_date = formatdate("YYYY-MM-01'T'00:00:00Z", plantimestamp())
-  }
-
-  notification {
-    enabled        = true
-    operator       = "GreaterThan"
-    threshold      = 80
-    threshold_type = "Actual"
-    contact_emails = var.budget_emails
-  }
-
-  notification {
-    enabled        = true
-    operator       = "GreaterThan"
-    threshold      = 100
-    threshold_type = "Forecasted"
-    contact_emails = var.budget_emails
-  }
-
-  lifecycle {
-    ignore_changes = [time_period]
   }
 }

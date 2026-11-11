@@ -47,14 +47,14 @@ test('only the images job may write packages', () => {
   assert.doesNotMatch(job('infra'), /packages/)
 })
 
-test('images are tagged with the commit and pushed to GHCR only on pushes to poc, after the smoke test', () => {
+test('images are tagged with the commit and pushed to GHCR only on pushes to poc and main, after the smoke test', () => {
   assert.match(job('images'), /API_IMAGE: ghcr\.io\/mastrocola-dev\/finance-api:\$\{\{ github\.sha \}\}/)
   assert.match(job('images'), /MCP_IMAGE: ghcr\.io\/mastrocola-dev\/finance-mcp:\$\{\{ github\.sha \}\}/)
   assert.doesNotMatch(workflow, /:latest/)
   assert.match(step('images', 'Build'), /docker build --target api -t finance-api -t "\$API_IMAGE" \./)
   assert.match(step('images', 'Build'), /docker build --target mcp -t finance-mcp -t "\$MCP_IMAGE" \./)
   const publish = step('images', 'Publish')
-  assert.match(publish, /if: github\.event_name == 'push' && github\.ref == 'refs\/heads\/poc'/)
+  assert.match(publish, /if: github\.event_name == 'push' && \(github\.ref == 'refs\/heads\/poc' \|\| github\.ref == 'refs\/heads\/main'\)/)
   assert.match(publish, /docker login ghcr\.io -u "\$GITHUB_ACTOR" --password-stdin/)
   assert.match(publish, /docker push "\$API_IMAGE"\n\s+docker push "\$MCP_IMAGE"/)
   assert.doesNotMatch(publish, /run: \|[\s\S]*\$\{\{/)
