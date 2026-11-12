@@ -116,7 +116,8 @@ The `deploy` workflow sets the required variables: the images from the commit it
 | `mcp_allowed_origins` | no, `[]` | extra browser origins for MCP clients (Claude calls server side and needs none) |
 | `allowed_ips` | no, `[]` | CIDR ranges to restrict both apps to; empty lets any address in, behind Entra. Claude's connector calls from Anthropic's servers, so a list that leaves them out breaks it |
 | `name` | no, `finance` | prefix of every resource |
-| `resource_group_name` | no, `rg-finance-dev` | resource group from bootstrap; its region is the region of every resource, and B1ms must be offered there |
+| `resource_group_name` | no, `rg-finance-dev` | resource group from bootstrap; it only groups the resources |
+| `location` | no, `eastus2` | region of every resource; B1ms must be offered there to the subscription (`az postgres flexible-server list-skus -l <region>`); `eastus` is restricted for this subscription |
 | `runtime_identity_name` | no, `id-run-finance` | identity from bootstrap the apps and the job run as |
 | `runtime_identity_resource_group` | no, `rg-identity` | its resource group |
 | `key_vault_name` | no, `kv-mastrocola-dev` | shared vault of the four secrets; Terraform reads only its management plane (`Reader`, infra PR #23) and `finance-db-password` |

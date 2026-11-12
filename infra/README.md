@@ -38,6 +38,7 @@ The vault is not managed here: its ID and URI are built from `key_vault_name` an
 | `mcp_scopes`, `mcp_allowed_origins`, `allowed_ips` | `[]` | Entra and the author |
 | `name` | `finance` | prefix of the names this module creates |
 | `resource_group_name` | `rg-finance-dev` | bootstrap |
+| `location` | `eastus2` | region of every resource; PostgreSQL B1ms is restricted for this subscription in `eastus` |
 | `runtime_identity_name`, `runtime_identity_resource_group` | `id-run-finance`, `rg-identity` | bootstrap |
 | `key_vault_name`, `key_vault_resource_group` | `kv-mastrocola-dev`, `rg-identity` | bootstrap |
 | `db_admin_login` | `finance_admin` | |
