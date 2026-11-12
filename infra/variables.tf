@@ -15,6 +15,12 @@ variable "resource_group_name" {
   default     = "rg-finance-dev"
 }
 
+variable "location" {
+  type        = string
+  description = "Region of every finance resource; PostgreSQL Flexible Server B1ms must be offered there to the subscription (eastus is restricted)"
+  default     = "eastus2"
+}
+
 variable "runtime_identity_name" {
   type        = string
   description = "User-assigned identity created by bootstrap that the apps and the job run as; it reads the four finance secrets"

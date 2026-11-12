@@ -16,7 +16,7 @@ ephemeral "azurerm_key_vault_secret" "db_password" {
 
 locals {
   suffix        = substr(sha1("${data.azurerm_client_config.current.subscription_id}-${var.name}"), 0, 6)
-  location      = data.azurerm_resource_group.finance.location
+  location      = var.location
   key_vault_id  = "/subscriptions/${data.azurerm_client_config.current.subscription_id}/resourceGroups/${var.key_vault_resource_group}/providers/Microsoft.KeyVault/vaults/${var.key_vault_name}"
   key_vault_uri = "https://${var.key_vault_name}.vault.azure.net/"
   identity_id   = data.azurerm_user_assigned_identity.runtime.id
