@@ -114,7 +114,7 @@ test('the api app accepts its own Container Apps host', () => {
 
 test('the api app signs people in on its own origin with secrets from Key Vault', () => {
   const api = /\n {4}api = \{([\s\S]*?)\n {4}\}\n/.exec(all)?.[1] ?? ''
-  assert.match(api, /API_ALLOWED_ORIGINS\s+= "https:\/\/\$\{local\.api_host\}"/)
+  assert.match(api, /API_ALLOWED_ORIGINS\s+= local\.api_host\n/)
   assert.match(api, /API_PUBLIC_URL\s+= "https:\/\/\$\{local\.api_host\}"/)
   assert.match(api, /ENTRA_CLIENT_ID\s+= var\.entra_web_client_id/)
   assert.match(api, /SESSION_KEY\s+= "finance-session-key"/)
@@ -148,4 +148,9 @@ test('the runbook names every variable terraform reads and the README links to i
   assert.ok(names.length > 10)
   for (const name of names) assert.match(runbook, new RegExp(`\`${name}\``), name)
   assert.match(readFileSync(new URL('README.md', folder), 'utf8'), /\[docs\/deploy-azure\.md\]\(\.\.\/docs\/deploy-azure\.md\)/)
+})
+
+test('the environment declares the Consumption workload profile Azure creates, and the apps and the job run on it', () => {
+  assert.match(all, /workload_profile \{\n\s+name\s+= "Consumption"\n\s+workload_profile_type = "Consumption"\n\s+\}/)
+  assert.equal(all.match(/workload_profile_name\s+= "Consumption"/g)?.length, 2)
 })

@@ -41,7 +41,8 @@ test('the runbook steps run in order and the other documents point at the right 
     '14. Claude connector',
     '15. Acceptance',
   ])
-  for (const text of ['infra PR #22', 'az provider register --namespace Microsoft.App', 'caixafinance', '<api_url>/auth/callback', 'member:add -- Marcio 50 Gabriela 50', 'member:link -- Gabriela']) assert.ok(sources.runbook.includes(text), text)
+  for (const text of ['infra PR #22', 'az provider register --namespace Microsoft.App', 'caixafinance', '<api_url>/auth/callback', '--env-vars $DB --command npm --args run member:add Marcio 50 Gabriela 50', '--env-vars $DB --command npm --args run member:link Gabriela', 'secretref:finance-db-password'])
+    assert.ok(sources.runbook.includes(text), text)
   const acceptance = read('docs/acceptance.md')
   for (const text of ['After steps 1 to 14 of', '(step 12 of the runbook)', 'connector of runbook step 14']) assert.ok(acceptance.includes(text), text)
   assert.match(read('infra/README.md'), /all four values before the first apply \(runbook step 4\)/)

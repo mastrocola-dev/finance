@@ -87,10 +87,18 @@ describe('http api', () => {
     assert.equal((await get('/debts', { origin: 'https://example.com' })).status, 403)
   })
 
+  test('a write from the app origin passes when the origin is configured as a URL', async () => {
+    const handle = api(pool, undefined, undefined, ['localhost'], apiOrigins({ API_ALLOWED_ORIGINS: 'https://finance-api.example' }))
+    const write = (origin: string) => handle(new Request('http://localhost/api/entries', { method: 'POST', headers: { host: 'localhost', origin, 'x-member': 'Marcio', 'content-type': 'application/json' }, body: '{}' }))
+    assert.equal((await write('https://finance-api.example')).status, 400)
+    assert.equal((await write('https://other.example')).status, 403)
+  })
+
   test('allowed hosts and origins come from the environment with localhost as fallback', async () => {
     assert.deepEqual(apiHosts({ API_ALLOWED_HOSTS: ' finance-api.example, other.example ' }), ['finance-api.example', 'other.example'])
     assert.ok(apiHosts({ API_ALLOWED_HOSTS: '' }).includes('localhost'))
-    assert.deepEqual(apiOrigins({ API_ALLOWED_ORIGINS: 'https://finance-web.example' }), ['https://finance-web.example'])
+    assert.deepEqual(apiOrigins({ API_ALLOWED_ORIGINS: 'https://finance-web.example' }), ['finance-web.example'])
+    assert.deepEqual(apiOrigins({ API_ALLOWED_ORIGINS: 'finance-web.example, http://localhost:5173' }), ['finance-web.example', 'localhost'])
     const previous = process.env.API_ALLOWED_HOSTS
     process.env.API_ALLOWED_HOSTS = 'finance-api.example'
     const hosted = await serveApi(pool, 0, '127.0.0.1')

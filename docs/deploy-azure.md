@@ -125,6 +125,7 @@ The `deploy` workflow sets the required variables: the images from the commit it
 | `db_admin_login` | no, `finance_admin` | PostgreSQL administrator |
 | `db_password_version` | no, `1` | raise after a new `finance-db-password` value |
 | `log_daily_cap_gb` | no, `0.1` | Log Analytics daily cap |
+| `api_min_replicas` | no, `1` | API replicas kept running: 1 avoids a cold start of about 30 seconds (measured 2026-11-12) for about US$ 4 to 6 a month at the idle rate; 0 scales to zero |
 | `import_daily_usd_cap` | no, `2` | US$ the import agent may spend per day (São Paulo time); uploads and retries are refused past it |
 
 Terraform sets on both apps `AUTH_MODE=entra`, `ENTRA_ISSUER` and `ENTRA_AUDIENCE`. On the API app: `API_ALLOWED_HOSTS` (`finance-api.<environment domain>`), `API_ALLOWED_ORIGINS` and `API_PUBLIC_URL` (both `https://finance-api.<environment domain>`), `ENTRA_CLIENT_ID` and `IMPORT_DAILY_USD_CAP`. On the MCP app: `MCP_ALLOWED_HOSTS`, `MCP_ALLOWED_ORIGINS`, `MCP_PUBLIC_URL` and `MCP_SCOPES`. Both apps and the job get `PGHOST`, `PGPORT`, `PGUSER`, `PGDATABASE` and `PGSSLMODE=require`; the secrets of step 4 arrive as Key Vault references through `id-run-finance`.
@@ -154,19 +155,36 @@ In Entra, `finance-web` → **Authentication** → **Web** → add `<api_url>/au
 
 ## 11. Members
 
-Migrations create an empty ledger; never run `db:seed` on Azure. Both members are created in one execution, because active shares must always add up to 100. The job runs any npm script with a command override (check the flags with `az containerapp job start --help` if your CLI differs); `<api image>` is the image of the last deploy:
+Migrations create an empty ledger; never run `db:seed` on Azure. Both members are created in one execution, because active shares must always add up to 100. The job runs any npm script with a command override, with two traps checked on 2026-11-12:
+
+- An override built from `--image` and `--command` replaces the whole container, so the job's database settings are lost and the script reaches for localhost: pass them again with `--env-vars`, the password as `secretref:` to the job's own secret
+- `--args` takes one argument per word: a quoted string arrives as a single argument (npm answers `Unknown command`), and a bare `--` is swallowed by the CLI, so leave it out (npm passes the words to the script without it)
+
+`<api image>` is the image of the last deploy and `<database host>` the `database_host` output:
 
 ```sh
-az containerapp job start -g rg-finance-dev -n finance-migrate --image <api image> --container-name migrate --command npm --args "run member:add -- Marcio 50 Gabriela 50"
+IMG=<api image>
+DB="PGHOST=<database host> PGPORT=5432 PGUSER=finance_admin PGDATABASE=finance PGSSLMODE=require PGPASSWORD=secretref:finance-db-password"
+az containerapp job start -g rg-finance-dev -n finance-migrate --image $IMG --container-name migrate \
+  --env-vars $DB --command npm --args run member:add Marcio 50 Gabriela 50
 ```
 
-The execution log prints `added Marcio, Gabriela`; it refuses a name that already exists or shares that do not add up to 100, and writes nothing then. `az containerapp job execution list -g rg-finance-dev -n finance-migrate -o table` shows the status; the log is in Log Analytics (`ContainerAppConsoleLogs_CL`).
+The execution log prints `added Marcio, Gabriela`; it refuses a name that already exists or shares that do not add up to 100, and writes nothing then. Wait for `Succeeded` before the next step: `az containerapp job execution list -g rg-finance-dev -n finance-migrate --query "[0].properties.status" -o tsv`. The log is in Log Analytics:
+
+```sh
+W=$(az monitor log-analytics workspace show -g rg-finance-dev -n log-finance-<location> --query customerId -o tsv)
+az monitor log-analytics query -w $W -o table --analytics-query "ContainerAppConsoleLogs_CL | where TimeGenerated > ago(30m) and ContainerName_s == 'migrate' | project TimeGenerated, Log_s | order by TimeGenerated asc"
+```
 
 ## 12. Link members to their sign-in
 
+One execution at a time, each after the previous one ends `Succeeded`:
+
 ```sh
-az containerapp job start -g rg-finance-dev -n finance-migrate --image <api image> --container-name migrate --command npm --args "run member:link -- Marcio <Marcio object ID>"
-az containerapp job start -g rg-finance-dev -n finance-migrate --image <api image> --container-name migrate --command npm --args "run member:link -- Gabriela <Gabriela object ID>"
+az containerapp job start -g rg-finance-dev -n finance-migrate --image $IMG --container-name migrate \
+  --env-vars $DB --command npm --args run member:link Marcio <Marcio object ID>
+az containerapp job start -g rg-finance-dev -n finance-migrate --image $IMG --container-name migrate \
+  --env-vars $DB --command npm --args run member:link Gabriela <Gabriela object ID>
 ```
 
 Each execution prints `linked <name>`. An unlinked person who signs in gets 403 `unknown member`.

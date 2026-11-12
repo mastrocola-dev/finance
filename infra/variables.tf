@@ -89,7 +89,7 @@ variable "allowed_ips" {
 
 variable "mcp_allowed_origins" {
   type        = list(string)
-  description = "Origins accepted by the MCP server besides its own host"
+  description = "Browser origin hostnames accepted by the MCP server besides its own host (a URL is reduced to its hostname)"
   default     = []
 }
 
@@ -120,4 +120,10 @@ variable "import_daily_usd_cap" {
     condition     = var.import_daily_usd_cap > 0
     error_message = "import_daily_usd_cap must be positive."
   }
+}
+
+variable "api_min_replicas" {
+  type        = number
+  description = "API replicas kept running; 1 avoids a cold start of about 30 seconds and bills the idle rate (about US$ 4 to 6 a month for 0.25 vCPU and 0.5 GiB), 0 scales to zero"
+  default     = 1
 }

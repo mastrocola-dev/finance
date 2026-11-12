@@ -23,7 +23,7 @@ The vault is not managed here: its ID and URI are built from `key_vault_name` an
 |---|---|
 | Log Analytics `log-<name>` | PerGB2018, 30 days, daily cap `log_daily_cap_gb` (0.1 GB) |
 | PostgreSQL Flexible Server `psql-<name>-<suffix>` | 16, B_Standard_B1ms, 32 GiB (P4), 7-day backups, no geo backup, database `finance`, firewall open to Azure services only; administrator password from `finance-db-password` |
-| Container Apps environment `cae-<name>` | consumption, logs to the workspace |
+| Container Apps environment `cae-<name>` | workload profiles environment with the `Consumption` profile Azure creates by default (declared, so plans show no drift); apps and job run on it; logs to the workspace |
 | Container Apps `<name>-api` (3200, also serves the web from the image) and `<name>-mcp` (3100) | 0.25 vCPU, 0.5 GiB, zero to one replica, external ingress, public images, `AUTH_MODE=entra` with `ENTRA_ISSUER` and `ENTRA_AUDIENCE`, `PGHOST`, `PGPORT`, `PGUSER`, `PGDATABASE`, `PGSSLMODE=require` and `PGPASSWORD` from Key Vault through `id-run-finance`; the API app also signs people in (`ENTRA_CLIENT_ID`, `API_PUBLIC_URL`, `SESSION_KEY` and `ENTRA_CLIENT_SECRET` from Key Vault) and imports files (`ANTHROPIC_API_KEY` from Key Vault, `IMPORT_DAILY_USD_CAP`) |
 | Container Apps job `<name>-migrate` | manual trigger, `npm run db:migrate` with `api_image`, the same identity and database settings, 10 minutes, no retry |
 
@@ -44,6 +44,7 @@ The vault is not managed here: its ID and URI are built from `key_vault_name` an
 | `db_admin_login` | `finance_admin` | |
 | `db_password_version` | `1` | raise after a new `finance-db-password` value |
 | `log_daily_cap_gb` | `0.1` | |
+| `api_min_replicas` | `1` | API replicas kept running; the MCP app always scales to zero |
 | `import_daily_usd_cap` | `2` | US$ per day for the import agent |
 
 ## Secrets

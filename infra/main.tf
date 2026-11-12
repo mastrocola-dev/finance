@@ -48,14 +48,15 @@ locals {
 
   apps = {
     api = {
-      image = var.api_image
-      port  = 3200
+      image        = var.api_image
+      port         = 3200
+      min_replicas = var.api_min_replicas
 
       env = {
         API_HOST             = "0.0.0.0"
         API_PORT             = "3200"
         API_ALLOWED_HOSTS    = local.api_host
-        API_ALLOWED_ORIGINS  = "https://${local.api_host}"
+        API_ALLOWED_ORIGINS  = local.api_host
         API_PUBLIC_URL       = "https://${local.api_host}"
         ENTRA_CLIENT_ID      = var.entra_web_client_id
         IMPORT_DAILY_USD_CAP = tostring(var.import_daily_usd_cap)
@@ -69,8 +70,9 @@ locals {
     }
 
     mcp = {
-      image = var.mcp_image
-      port  = 3100
+      image        = var.mcp_image
+      port         = 3100
+      min_replicas = 0
 
       env = {
         MCP_HOST            = "0.0.0.0"
@@ -141,6 +143,11 @@ resource "azurerm_container_app_environment" "main" {
   location                   = local.location
   log_analytics_workspace_id = azurerm_log_analytics_workspace.main.id
   tags                       = local.tags
+
+  workload_profile {
+    name                  = "Consumption"
+    workload_profile_type = "Consumption"
+  }
 }
 
 resource "azurerm_container_app" "app" {
@@ -149,6 +156,7 @@ resource "azurerm_container_app" "app" {
   name                         = "${var.name}-${each.key}"
   resource_group_name          = data.azurerm_resource_group.finance.name
   container_app_environment_id = azurerm_container_app_environment.main.id
+  workload_profile_name        = "Consumption"
   revision_mode                = "Single"
   tags                         = local.tags
 
@@ -189,7 +197,7 @@ resource "azurerm_container_app" "app" {
   }
 
   template {
-    min_replicas = 0
+    min_replicas = each.value.min_replicas
     max_replicas = 1
 
     container {
@@ -224,6 +232,7 @@ resource "azurerm_container_app_job" "migrate" {
   resource_group_name          = data.azurerm_resource_group.finance.name
   location                     = local.location
   container_app_environment_id = azurerm_container_app_environment.main.id
+  workload_profile_name        = "Consumption"
   replica_timeout_in_seconds   = 600
   replica_retry_limit          = 0
   tags                         = local.tags
