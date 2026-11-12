@@ -143,6 +143,11 @@ resource "azurerm_container_app_environment" "main" {
   location                   = local.location
   log_analytics_workspace_id = azurerm_log_analytics_workspace.main.id
   tags                       = local.tags
+
+  workload_profile {
+    name                  = "Consumption"
+    workload_profile_type = "Consumption"
+  }
 }
 
 resource "azurerm_container_app" "app" {
@@ -151,6 +156,7 @@ resource "azurerm_container_app" "app" {
   name                         = "${var.name}-${each.key}"
   resource_group_name          = data.azurerm_resource_group.finance.name
   container_app_environment_id = azurerm_container_app_environment.main.id
+  workload_profile_name        = "Consumption"
   revision_mode                = "Single"
   tags                         = local.tags
 
@@ -226,6 +232,7 @@ resource "azurerm_container_app_job" "migrate" {
   resource_group_name          = data.azurerm_resource_group.finance.name
   location                     = local.location
   container_app_environment_id = azurerm_container_app_environment.main.id
+  workload_profile_name        = "Consumption"
   replica_timeout_in_seconds   = 600
   replica_retry_limit          = 0
   tags                         = local.tags

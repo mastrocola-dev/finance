@@ -149,3 +149,8 @@ test('the runbook names every variable terraform reads and the README links to i
   for (const name of names) assert.match(runbook, new RegExp(`\`${name}\``), name)
   assert.match(readFileSync(new URL('README.md', folder), 'utf8'), /\[docs\/deploy-azure\.md\]\(\.\.\/docs\/deploy-azure\.md\)/)
 })
+
+test('the environment declares the Consumption workload profile Azure creates, and the apps and the job run on it', () => {
+  assert.match(all, /workload_profile \{\n\s+name\s+= "Consumption"\n\s+workload_profile_type = "Consumption"\n\s+\}/)
+  assert.equal(all.match(/workload_profile_name\s+= "Consumption"/g)?.length, 2)
+})
