@@ -5,3 +5,5 @@ export const listOf = (value: string | undefined, fallback: string[]) => {
     .filter(Boolean)
   return items.length ? items : fallback
 }
+
+export const originHostnamesOf = (value: string | undefined, fallback: string[]) => listOf(value, fallback).map((item) => (/^https?:\/\//i.test(item) ? new URL(item).hostname : item))

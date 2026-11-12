@@ -54,7 +54,7 @@ import {
   uploadHeaders,
   uploadQuery,
 } from './contract.ts'
-import { listOf } from './hosts.ts'
+import { listOf, originHostnamesOf } from './hosts.ts'
 import { identify, type Verifier, verifierFor } from './identity.ts'
 import { listen } from './node.ts'
 import { openApi } from './openapi.ts'
@@ -274,7 +274,7 @@ const safeMethods = new Set(['GET', 'HEAD', 'OPTIONS'])
 const reserved = /^\/(api|auth)(\/|$)/
 
 export const apiHosts = (env = process.env) => listOf(env.API_ALLOWED_HOSTS, localhostAllowedHostnames())
-export const apiOrigins = (env = process.env) => listOf(env.API_ALLOWED_ORIGINS, localhostAllowedOrigins())
+export const apiOrigins = (env = process.env) => originHostnamesOf(env.API_ALLOWED_ORIGINS, localhostAllowedOrigins())
 
 export const api =
   (client: Database, imports = importUploads(client), verify: Verifier = verifierFor(process.env.AUTH_MODE, true), hosts = apiHosts(), origins = apiOrigins(), web: Site | undefined = site(process.env.WEB_ROOT)) =>

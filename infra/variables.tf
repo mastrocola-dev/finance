@@ -89,7 +89,7 @@ variable "allowed_ips" {
 
 variable "mcp_allowed_origins" {
   type        = list(string)
-  description = "Origins accepted by the MCP server besides its own host"
+  description = "Browser origin hostnames accepted by the MCP server besides its own host (a URL is reduced to its hostname)"
   default     = []
 }
 

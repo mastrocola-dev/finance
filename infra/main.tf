@@ -56,7 +56,7 @@ locals {
         API_HOST             = "0.0.0.0"
         API_PORT             = "3200"
         API_ALLOWED_HOSTS    = local.api_host
-        API_ALLOWED_ORIGINS  = "https://${local.api_host}"
+        API_ALLOWED_ORIGINS  = local.api_host
         API_PUBLIC_URL       = "https://${local.api_host}"
         ENTRA_CLIENT_ID      = var.entra_web_client_id
         IMPORT_DAILY_USD_CAP = tostring(var.import_daily_usd_cap)

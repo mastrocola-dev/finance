@@ -114,7 +114,7 @@ test('the api app accepts its own Container Apps host', () => {
 
 test('the api app signs people in on its own origin with secrets from Key Vault', () => {
   const api = /\n {4}api = \{([\s\S]*?)\n {4}\}\n/.exec(all)?.[1] ?? ''
-  assert.match(api, /API_ALLOWED_ORIGINS\s+= "https:\/\/\$\{local\.api_host\}"/)
+  assert.match(api, /API_ALLOWED_ORIGINS\s+= local\.api_host\n/)
   assert.match(api, /API_PUBLIC_URL\s+= "https:\/\/\$\{local\.api_host\}"/)
   assert.match(api, /ENTRA_CLIENT_ID\s+= var\.entra_web_client_id/)
   assert.match(api, /SESSION_KEY\s+= "finance-session-key"/)
