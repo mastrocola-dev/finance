@@ -17,8 +17,8 @@ variable "resource_group_name" {
 
 variable "location" {
   type        = string
-  description = "Region of every finance resource; PostgreSQL Flexible Server B1ms must be offered there to the subscription (eastus is restricted)"
-  default     = "eastus2"
+  description = "Region of every finance resource; PostgreSQL Flexible Server B1ms must be creatable there by the subscription (eastus is restricted, eastus2 and westus3 had no capacity on 2026-11-12)"
+  default     = "centralus"
 }
 
 variable "runtime_identity_name" {
