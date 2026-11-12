@@ -29,7 +29,7 @@ variable "runtime_identity_resource_group" {
 
 variable "key_vault_name" {
   type        = string
-  description = "Shared Key Vault holding the finance secrets; Terraform builds its ID and URI and never reads the vault itself"
+  description = "Shared Key Vault holding the finance secrets; Terraform builds its ID and URI and never manages the vault"
   default     = "kv-mastrocola-dev"
 }
 

@@ -66,11 +66,11 @@ The run summary also shows the `Dockerfile` diff that pins the base images by di
    ```
 
 3. Apply bootstrap from your machine as its README says (`az login` as Owner, `terraform init -backend-config=backend.hcl`, `terraform plan -out=tfplan`, review, `terraform apply tfplan`), then note the outputs `tenant_id`, `ci_client_ids["finance"]`, `state_resource_group` and `state_storage_account` for step 5
-4. Set the four secret values from files, never on the command line, each with an expiry. A reference to an empty placeholder makes the app fail at start, so all four come before the first deploy:
+4. Set the four secret values from files, never on the command line, each with an expiry. A reference to an empty placeholder makes the app fail at start, so all four come before the first deploy. `--file` keeps a trailing newline as part of the value, so write pasted values with `read -rs V && printf '%s' "$V" > <file> && unset V`:
 
    ```sh
-   openssl rand -base64 24 | tr -d '/+=' > db-password.txt
-   openssl rand -base64 32 > session-key.txt
+   openssl rand -base64 24 | tr -d '/+=\n' > db-password.txt
+   openssl rand -base64 32 | tr -d '\n' > session-key.txt
    az keyvault secret set --vault-name kv-mastrocola-dev --name finance-db-password --file db-password.txt --expires <date>
    az keyvault secret set --vault-name kv-mastrocola-dev --name finance-session-key --file session-key.txt --expires <date>
    az keyvault secret set --vault-name kv-mastrocola-dev --name finance-web-secret --file <file holding the finance-web secret> --expires <date>
@@ -119,7 +119,7 @@ The `deploy` workflow sets the required variables: the images from the commit it
 | `resource_group_name` | no, `rg-finance-dev` | resource group from bootstrap; its region is the region of every resource, and B1ms must be offered there |
 | `runtime_identity_name` | no, `id-run-finance` | identity from bootstrap the apps and the job run as |
 | `runtime_identity_resource_group` | no, `rg-identity` | its resource group |
-| `key_vault_name` | no, `kv-mastrocola-dev` | shared vault of the four secrets; never read by Terraform as a resource |
+| `key_vault_name` | no, `kv-mastrocola-dev` | shared vault of the four secrets; Terraform reads only its management plane (`Reader`, infra PR #23) and `finance-db-password` |
 | `key_vault_resource_group` | no, `rg-identity` | its resource group |
 | `db_admin_login` | no, `finance_admin` | PostgreSQL administrator |
 | `db_password_version` | no, `1` | raise after a new `finance-db-password` value |

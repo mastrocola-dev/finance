@@ -15,7 +15,7 @@ Infra PR #22 (`finance-bootstrap`) creates, and this module reads but never chan
 | Secrets in `kv-mastrocola-dev` (`rg-identity`) | `finance-db-password`, `finance-session-key`, `finance-web-secret`, `anthropic-api-key-finance`, placeholders until the author sets their values |
 | Subscription budget and provider registration | the provider registers nothing (`resource_provider_registrations = "none"`) |
 
-The vault is not read as a resource (`id-finance` has no role on it): its ID and URI are built from `key_vault_name` and `key_vault_resource_group`. The subscription comes from `ARM_SUBSCRIPTION_ID`.
+The vault is not managed here: its ID and URI are built from `key_vault_name` and `key_vault_resource_group`. `id-finance` holds `Reader` on it (infra PR #23) because the provider resolves the vault URI through the management plane before reading `finance-db-password`; that role reads no secret values. The subscription comes from `ARM_SUBSCRIPTION_ID`.
 
 ## Resources
 
