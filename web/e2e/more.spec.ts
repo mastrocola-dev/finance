@@ -1,10 +1,10 @@
 import AxeBuilder from '@axe-core/playwright'
 import { type Browser, expect, test } from '@playwright/test'
-import { openContext } from './context.ts'
+import { memberContext } from './context.ts'
+import { shotPath } from './shot.ts'
 
 const openMenu = async (browser: Browser, theme: 'light' | 'dark') => {
-  const context = await openContext(browser, { viewport: { width: 390, height: 844 }, colorScheme: theme })
-  await context.addInitScript(() => localStorage.setItem('finance.member', 'Marcio'))
+  const context = await memberContext(browser, { viewport: { width: 390, height: 844 }, colorScheme: theme })
   const page = await context.newPage()
   await page.goto('/decisoes')
   await expect(page.getByRole('heading', { level: 1, name: 'Decisões' })).toBeVisible()
@@ -21,7 +21,7 @@ for (const theme of ['light', 'dark'] as const)
     await expect(menu.getByRole('link')).toHaveText(['Lançamentos', 'Atividade', 'Importar', 'Cadastros'])
     const { violations } = await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa']).analyze()
     expect(violations.map(({ id, nodes }) => ({ id, targets: nodes.map((node) => node.target.join(' ')) }))).toEqual([])
-    await page.screenshot({ path: `screenshots/more-390-${theme}.png` })
+    await page.screenshot({ path: shotPath(`screenshots/more-390-${theme}.png`) })
     await menu.getByRole('link', { name: 'Atividade' }).click()
     await expect(page.getByRole('heading', { level: 1, name: 'Atividade' })).toBeVisible()
     await expect(menu).toHaveCount(0)

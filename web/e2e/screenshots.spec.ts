@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test'
-import { openContext } from './context.ts'
+import { entraMode, memberContext, openContext } from './context.ts'
 import { fullShot } from './shot.ts'
 
 const routes = [
@@ -10,6 +10,7 @@ const routes = [
   { name: 'decisions', path: '/decisoes', heading: 'Decisões' },
   { name: 'activity', path: '/atividade', heading: 'Atividade' },
   { name: 'setup', path: '/cadastros', heading: 'Cadastros' },
+  { name: 'activity-guest', path: '/atividade', heading: 'Atividade', member: '' },
 ]
 
 const viewports = [
@@ -20,13 +21,13 @@ const viewports = [
 for (const theme of ['light', 'dark'] as const)
   for (const viewport of viewports)
     for (const route of routes)
-      test(`${route.name} ${viewport.width} ${theme}`, async ({ browser }) => {
-        const context = await openContext(browser, { viewport, colorScheme: theme })
-        await context.addInitScript(() => localStorage.setItem('finance.member', 'Marcio'))
+      test(`${route.name} ${viewport.width} ${theme}`, { tag: route.member === '' ? '@local' : [] }, async ({ browser }) => {
+        const options = { viewport, colorScheme: theme }
+        const context = route.member === '' ? await openContext(browser, options) : await memberContext(browser, options)
         const page = await context.newPage()
         await page.goto(route.path)
         await expect(page.getByRole('heading', { level: 1, name: route.heading })).toBeVisible()
-        await expect(page.getByLabel('Você é').locator('visible=true')).toHaveValue('Marcio')
+        if (!entraMode()) await expect(page.getByLabel('Você é').locator('visible=true')).toHaveValue(route.member ?? 'Marcio')
         await expect(page.locator('[aria-busy="true"]')).toHaveCount(0)
         await page.evaluate(() => document.fonts.ready)
         await fullShot(page, `screenshots/${route.name}-${viewport.width}-${theme}.png`)

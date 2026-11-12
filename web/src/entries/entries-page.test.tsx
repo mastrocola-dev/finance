@@ -125,3 +125,37 @@ test('marks the record named in the link from the activity log', async () => {
   expect(within(table).getByText('Car financing').closest('tr')?.getAttribute('aria-current')).toBe('true')
   expect(within(table).getByText('Rent').closest('tr')?.hasAttribute('aria-current')).toBe(false)
 })
+
+test('exports the filtered rows of the month as CSV', async () => {
+  const blobs: Blob[] = []
+  const names: string[] = []
+  const create = vi.fn((blob: Blob) => {
+    blobs.push(blob)
+    return 'blob:csv'
+  })
+  Object.assign(URL, { createObjectURL: create, revokeObjectURL: vi.fn() })
+  const click = vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(function (this: HTMLAnchorElement) {
+    names.push(this.download)
+  })
+  onTestFinished(() => {
+    click.mockRestore()
+    Object.assign(URL, { createObjectURL: undefined, revokeObjectURL: undefined })
+  })
+  start('/lancamentos?month=2026-10')
+  await screen.findByRole('table')
+  await userEvent.click(screen.getByRole('button', { name: 'Despesas' }))
+  await userEvent.click(screen.getByRole('button', { name: 'Exportar CSV' }))
+  expect(names).toEqual(['lancamentos-2026-10.csv'])
+  const text = await blobs[0]?.text()
+  const rows = text?.trimEnd().split('\r\n') ?? []
+  expect(rows).toHaveLength(4)
+  expect(rows.slice(1).map((row) => row.split(';')[2])).toEqual(['Car financing', 'Health plan', 'Rent'])
+  expect(rows[1]).toContain(';-1300,00;')
+})
+
+test('disables the export when the filters leave no rows', async () => {
+  start('/lancamentos?month=2026-10')
+  await screen.findByRole('table')
+  await userEvent.type(screen.getByRole('searchbox'), 'nothing like this')
+  expect(screen.getByRole('button', { name: 'Exportar CSV' })).toHaveProperty('disabled', true)
+})

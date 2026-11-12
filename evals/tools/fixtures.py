@@ -115,10 +115,9 @@ def workbook(sheets, created, path):
     written = io.BytesIO()
     with zipfile.ZipFile(written, 'w', zipfile.ZIP_DEFLATED) as archive:
         ExcelWriter(book, archive).save()
-    with zipfile.ZipFile(written) as source, zipfile.ZipFile(path, 'w', zipfile.ZIP_DEFLATED) as target:
+    with zipfile.ZipFile(written) as source, zipfile.ZipFile(path, 'w', zipfile.ZIP_STORED) as target:
         for item in source.infolist():
             entry = zipfile.ZipInfo(item.filename, created.timetuple()[:6])
-            entry.compress_type = zipfile.ZIP_DEFLATED
             target.writestr(entry, source.read(item))
 
 
@@ -127,6 +126,7 @@ def statement(pages, path):
     pdf = FPDF(format='A4')
     pdf.set_creation_date(datetime(2026, 10, 31, tzinfo=UTC))
     pdf.set_producer('')
+    pdf.set_compression(False)
     pdf.set_auto_page_break(False)
     pdf.set_font('Helvetica', size=11)
     for lines in pages:

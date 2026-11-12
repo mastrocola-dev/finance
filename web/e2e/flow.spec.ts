@@ -1,12 +1,9 @@
-import { execSync } from 'node:child_process'
 import { type Browser, expect, test } from '@playwright/test'
-import { openContext } from './context.ts'
-
-const reseed = () => execSync('npm run db:reset && npm run db:seed', { cwd: '..', stdio: 'ignore' })
+import { memberContext, reseed } from './context.ts'
+import { shotPath } from './shot.ts'
 
 const open = async (browser: Browser, viewport = { width: 1440, height: 1000 }, colorScheme: 'light' | 'dark' = 'light') => {
-  const context = await openContext(browser, { viewport, colorScheme })
-  await context.addInitScript(() => localStorage.setItem('finance.member', 'Marcio'))
+  const context = await memberContext(browser, { viewport, colorScheme })
   const page = await context.newPage()
   return { context, page }
 }
@@ -29,7 +26,7 @@ for (const theme of ['light', 'dark'] as const)
       await expect(bill).toHaveAttribute('aria-pressed', 'true')
       await expect(page.getByRole('status')).toContainText('Internet marcada como paga')
       await page.evaluate(() => document.fonts.ready)
-      await page.screenshot({ path: `screenshots/bills-toast-${viewport.width}-${theme}.png` })
+      await page.screenshot({ path: shotPath(`screenshots/bills-toast-${viewport.width}-${theme}.png`) })
       await page.getByRole('button', { name: 'Desfazer' }).click()
       await expect(bill).toHaveAttribute('aria-pressed', 'false')
       await expect(page.getByRole('status')).toContainText('Internet voltou para em aberto')
@@ -78,7 +75,7 @@ for (const theme of ['light', 'dark'] as const)
       await expect(form.getByLabel('Valor')).toHaveValue('3.200,00')
       await expect(form).toBeInViewport()
       await page.evaluate(() => document.fonts.ready)
-      await page.screenshot({ path: `screenshots/entries-edit-${viewport.width}-${theme}.png` })
+      await page.screenshot({ path: shotPath(`screenshots/entries-edit-${viewport.width}-${theme}.png`) })
       await context.close()
     })
 
@@ -101,7 +98,7 @@ test('flow corrects an entry and then cancels it', async ({ browser }) => {
   await context.close()
 })
 
-test('flow registers a category and a recurring expense, then closes the expense', async ({ browser }) => {
+test('flow registers a category and a recurring expense, edits and closes them, then reuses the closed name', async ({ browser }) => {
   const { context, page } = await open(browser)
   await page.goto('/cadastros')
   await page.getByLabel('O que cadastrar').selectOption('category')
@@ -120,9 +117,26 @@ test('flow registers a category and a recurring expense, then closes the expense
   await expect(page.getByRole('status')).toContainText('Cadastrado: Ração')
   const fixed = page.getByRole('region', { name: /Despesas fixas/ })
   await expect(fixed).toContainText('R$ 250,00 por mês · dia 12 · Pets · Conjunto')
+  await fixed.getByRole('button', { name: 'Editar Ração' }).click()
+  const edit = fixed.getByRole('form', { name: 'Editar Ração' })
+  await edit.getByLabel('Valor mensal').fill('275,00')
+  await edit.getByLabel('Dia do mês').fill('15')
+  await edit.getByRole('button', { name: 'Salvar' }).click()
+  await expect(page.getByRole('status')).toContainText('Alterado: Ração')
+  await expect(fixed).toContainText('R$ 275,00 por mês · dia 15 · Pets · Conjunto')
   page.once('dialog', (dialog) => dialog.accept())
   await fixed.getByRole('button', { name: 'Encerrar Ração' }).click()
   await expect(page.getByRole('status')).toContainText('Encerrado: Ração')
   await expect(fixed.getByText('Ração')).toHaveCount(0)
+  page.once('dialog', (dialog) => dialog.accept())
+  await page
+    .getByRole('region', { name: /Categorias/ })
+    .getByRole('button', { name: 'Encerrar Pets' })
+    .click()
+  await expect(page.getByRole('status')).toContainText('Encerrado: Pets')
+  await page.getByLabel('O que cadastrar').selectOption('category')
+  await page.getByRole('form', { name: 'Cadastrar categoria' }).getByLabel('Nome').fill('Pets')
+  await page.getByRole('form', { name: 'Cadastrar categoria' }).getByRole('button', { name: 'Cadastrar' }).click()
+  await expect(page.getByRole('status')).toContainText('Cadastrado: Pets')
   await context.close()
 })

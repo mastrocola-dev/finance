@@ -2,7 +2,7 @@ import * as z from 'zod'
 
 const digitRun = /\d{5,}/
 
-const text = (description: string) =>
+export const text = (description: string) =>
   z
     .string()
     .trim()
@@ -12,9 +12,9 @@ const text = (description: string) =>
     .describe(description)
 
 const cents = (description: string) => z.int().min(1).max(100_000_000_000).describe(`${description}, integer cents of BRL`)
-const balance = (description: string) => z.int().min(0).max(100_000_000_000).describe(`${description}, integer cents of BRL`)
+export const balance = (description: string) => z.int().min(0).max(100_000_000_000).describe(`${description}, integer cents of BRL`)
 const day = (description: string) => z.iso.date().describe(`${description}, YYYY-MM-DD`)
-const dayOfMonth = z.int().min(1).max(31).describe('Day of the month it falls due')
+export const dayOfMonth = z.int().min(1).max(31).describe('Day of the month it falls due')
 const count = (description: string) => z.int().min(1).max(600).describe(description)
 const member = text("Member name as written in the source, 'joint' when shared by the household; omit when unknown").optional()
 const category = text('Category name as written in the source or the closest household category')

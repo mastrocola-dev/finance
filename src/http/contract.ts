@@ -95,6 +95,14 @@ export const newDecision = z.object({
   amount_cents: z.int().positive().optional(),
 })
 
+export const newGoal = z.object({
+  name: z.string().trim().min(1),
+  target_cents: z.int().positive(),
+  saved_cents: z.int().nonnegative().optional(),
+  due_on: z.iso.date().optional(),
+  reserve: z.string().trim().min(1).optional(),
+})
+
 const money = z.strictObject({ cents: z.string().describe('Integer cents in BRL'), brl: z.string().describe('Formatted as R$ 1.234,56') })
 
 const entry = z.strictObject({
@@ -284,6 +292,7 @@ const importRuntime = z.strictObject({ ready: z.boolean(), cause: z.enum(runtime
 const error = z.strictObject({ error: z.string(), issues: z.array(z.strictObject({ path: z.string(), message: z.string() })).optional() })
 
 const document = z.looseObject({ openapi: z.string() })
+const health = z.strictObject({ status: z.literal('ok') })
 
 export const schemas = {
   Money: money,
@@ -315,4 +324,5 @@ export const schemas = {
   ImportRuntime: importRuntime,
   ApiError: error,
   OpenApiDocument: document,
+  Health: health,
 }

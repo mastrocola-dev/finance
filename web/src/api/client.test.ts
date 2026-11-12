@@ -27,3 +27,10 @@ test('sends the member header on writes', async () => {
   expect(requests[0]?.headers.get('x-member')).toBe('Marcio')
   expect(await requests[0]?.json()).toEqual({ paid_on: '2026-10-20' })
 })
+
+test('sends the session cookie of this origin only', async () => {
+  const { requests, fetch } = recording()
+  await createApi({ baseUrl: 'http://localhost:5173', fetch }).GET('/api/debts')
+  expect(requests[0]?.credentials).toBe('same-origin')
+  expect(requests[0]?.headers.has('authorization')).toBe(false)
+})

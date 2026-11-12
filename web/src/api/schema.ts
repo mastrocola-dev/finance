@@ -16,6 +16,23 @@ export type paths = {
         patch?: never;
         trace?: never;
     };
+    "/api/health": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Liveness without identity or database */
+        get: operations["getHealth"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/months/{month}/summary": {
         parameters: {
             query?: never;
@@ -102,6 +119,23 @@ export type paths = {
         patch?: never;
         trace?: never;
     };
+    "/api/me": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** The member making the request */
+        get: operations["getMe"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/members": {
         parameters: {
             query?: never;
@@ -163,7 +197,8 @@ export type paths = {
         /** Goals with progress, nearest due first */
         get: operations["listGoals"];
         put?: never;
-        post?: never;
+        /** Register a goal with its target, optional due date and reserve */
+        post: operations["createGoal"];
         delete?: never;
         options?: never;
         head?: never;
@@ -211,7 +246,7 @@ export type paths = {
             path?: never;
             cookie?: never;
         };
-        /** Audit log, newest first, with counts per author */
+        /** Audit log, newest first, with counts per author; needs a member */
         get: operations["listAudit"];
         put?: never;
         post?: never;
@@ -322,6 +357,23 @@ export type paths = {
         options?: never;
         head?: never;
         patch?: never;
+        trace?: never;
+    };
+    "/api/setup/{kind}/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Change the name, amount, day, account or category of a registered record; audited, history keeps the previous values */
+        patch: operations["editRecord"];
         trace?: never;
     };
     "/api/setup/{kind}/{id}/close": {
@@ -960,6 +1012,10 @@ export type components = {
         } & {
             [key: string]: unknown;
         };
+        Health: {
+            /** @constant */
+            status: "ok";
+        };
         ListEntriesResponse: components["schemas"]["Entry"][];
         ListDebtsResponse: components["schemas"]["Debt"][];
         ListReservesResponse: components["schemas"]["Reserve"][];
@@ -997,9 +1053,29 @@ export type components = {
                 [key: string]: unknown;
             };
         };
+        EditRecordBody: {
+            /** @description New name, description, nickname or creditor */
+            name?: string;
+            /** @description New amount: monthly amount, balance of a reserve or debt, target of a goal, integer cents of BRL */
+            amountCents?: number;
+            /** @description Day of the month it falls due */
+            dayOfMonth?: number;
+            /** @description Account nickname, null to clear */
+            account?: string | null;
+            /** @description Category name */
+            category?: string;
+        };
         UpdateReserveBody: {
             balance_cents?: number;
             target_cents?: number;
+        };
+        CreateGoalBody: {
+            name: string;
+            target_cents: number;
+            saved_cents?: number;
+            /** Format: date */
+            due_on?: string;
+            reserve?: string;
         };
         ProposeDecisionBody: {
             title: string;
@@ -1060,6 +1136,7 @@ export type ImportQuestion = components['schemas']['ImportQuestion'];
 export type ImportRuntime = components['schemas']['ImportRuntime'];
 export type ApiError = components['schemas']['ApiError'];
 export type OpenApiDocument = components['schemas']['OpenApiDocument'];
+export type Health = components['schemas']['Health'];
 export type ListEntriesResponse = components['schemas']['ListEntriesResponse'];
 export type ListDebtsResponse = components['schemas']['ListDebtsResponse'];
 export type ListReservesResponse = components['schemas']['ListReservesResponse'];
@@ -1072,7 +1149,9 @@ export type CreateEntryBody = components['schemas']['CreateEntryBody'];
 export type MarkPaidBody = components['schemas']['MarkPaidBody'];
 export type ListSetupResponse = components['schemas']['ListSetupResponse'];
 export type RegisterRecordBody = components['schemas']['RegisterRecordBody'];
+export type EditRecordBody = components['schemas']['EditRecordBody'];
 export type UpdateReserveBody = components['schemas']['UpdateReserveBody'];
+export type CreateGoalBody = components['schemas']['CreateGoalBody'];
 export type ProposeDecisionBody = components['schemas']['ProposeDecisionBody'];
 export type ListImportsResponse = components['schemas']['ListImportsResponse'];
 export type ListImportCandidatesResponse = components['schemas']['ListImportCandidatesResponse'];
@@ -1100,6 +1179,35 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["OpenApiDocument"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+        };
+    };
+    getHealth: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Health"];
                 };
             };
             /** @description Error */
@@ -1315,6 +1423,35 @@ export interface operations {
             };
         };
     };
+    getMe: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Member"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+        };
+    };
     listMembers: {
         parameters: {
             query?: never;
@@ -1420,6 +1557,39 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ListGoalsResponse"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+        };
+    };
+    createGoal: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateGoalBody"];
+            };
+        };
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Goal"];
                 };
             };
             /** @description Error */
@@ -1753,6 +1923,42 @@ export interface operations {
         responses: {
             /** @description Created */
             201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SetupRecord"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+        };
+    };
+    editRecord: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                kind: "category" | "account" | "reserve" | "income" | "recurring_expense" | "debt" | "goal";
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["EditRecordBody"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
                 headers: {
                     [name: string]: unknown;
                 };

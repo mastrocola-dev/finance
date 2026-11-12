@@ -1,0 +1,180 @@
+name: ci
+
+on:
+  push:
+    branches: [poc, main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 40
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_PASSWORD: local
+          POSTGRES_DB: finance
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      CI: 'true'
+      DATABASE_URL: postgres://postgres:local@localhost:5432/finance
+      IMPORT_TOKEN_CAP: '400000'
+      IMPORT_UPLOADS: .imports
+      AUTH_MODE: local
+      SERVICE_AGENT_REQUIRED: 'true'
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24
+          cache: npm
+      - uses: astral-sh/setup-uv@v7
+        with:
+          enable-cache: true
+      - name: Install
+        run: |
+          set -euo pipefail
+          npm ci
+          git clone --filter=blob:none https://github.com/mastrocola-dev/service-agent ../service-agent
+          git -C ../service-agent checkout --detach "$(sed -n 's/^ARG SERVICE_AGENT_SHA=//p' Dockerfile)"
+          npm ci --prefix ../service-agent --omit=dev --ignore-scripts
+          UV_PROJECT_ENVIRONMENT="$PWD/ingest/.venv-runtime" uv --directory ingest sync --no-dev --exact --locked
+          npm exec -w web -- playwright install --with-deps chromium
+      - name: Check
+        run: |
+          set -euo pipefail
+          npm run check
+      - name: Ingest check
+        run: |
+          set -euo pipefail
+          npm run ingest:check
+      - name: Ingest tests
+        run: |
+          set -euo pipefail
+          npm run ingest:test
+      - name: Tests
+        run: |
+          set -euo pipefail
+          npm test
+      - name: Web build
+        run: |
+          set -euo pipefail
+          npm run web:build
+      - name: Budget
+        working-directory: web
+        run: |
+          set -euo pipefail
+          npx playwright test -g budget
+
+  images:
+    needs: test
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    permissions:
+      contents: read
+      packages: write
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_PASSWORD: local
+          POSTGRES_DB: finance
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      DATABASE_URL: postgres://postgres:local@localhost:5432/finance
+      API_IMAGE: ghcr.io/mastrocola-dev/finance-api:${{ github.sha }}
+      MCP_IMAGE: ghcr.io/mastrocola-dev/finance-mcp:${{ github.sha }}
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v6
+      - name: Build
+        run: |
+          set -euo pipefail
+          docker build --target api -t finance-api -t "$API_IMAGE" .
+          docker build --target mcp -t finance-mcp -t "$MCP_IMAGE" .
+      - name: Smoke
+        run: |
+          set -euo pipefail
+          test "$(docker run --rm finance-api id -u)" != 0
+          test "$(docker run --rm finance-mcp id -u)" != 0
+          docker run --rm --network host -e DATABASE_URL finance-api node src/db/migrate.ts
+          docker run --rm -e SERVICE_AGENT_REQUIRED=true -v "$PWD/test:/app/test:ro" -v "$PWD/ingest/tests/fixtures:/app/ingest/tests/fixtures:ro" finance-api node --test test/import/service-agent-contract.test.ts
+          docker run -d --name api --network host -e DATABASE_URL -e API_HOST=127.0.0.1 finance-api
+          docker run -d --name mcp --network host -e DATABASE_URL -e MCP_HOST=127.0.0.1 finance-mcp
+          for _ in $(seq 60); do curl -sf http://localhost:3200/api/imports/runtime > runtime.json && break; sleep 1; done
+          grep -q '"ready":true' runtime.json
+          curl -sf http://localhost:3200/api/openapi.json > /dev/null
+          curl -sf http://localhost:3200/ | grep -q '<div id="root">'
+          curl -sf http://localhost:3200/decisoes | grep -q '<div id="root">'
+          test "$(curl -s -o /dev/null -w '%{http_code}' http://localhost:3200/api/nope)" = 404
+          curl -sf -X POST http://localhost:3100/mcp -H 'content-type: application/json' -H 'accept: application/json, text/event-stream' -d '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-06-18","capabilities":{},"clientInfo":{"name":"ci","version":"0"}}}' | grep -q serverInfo
+      - name: Publish
+        if: github.event_name == 'push' && (github.ref == 'refs/heads/poc' || github.ref == 'refs/heads/main')
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          echo "$GH_TOKEN" | docker login ghcr.io -u "$GITHUB_ACTOR" --password-stdin
+          docker push "$API_IMAGE"
+          docker push "$MCP_IMAGE"
+          echo "Published \`$API_IMAGE\` and \`$MCP_IMAGE\`" >> "$GITHUB_STEP_SUMMARY"
+      - name: Base digests
+        run: |
+          set -euo pipefail
+          scripts/pin-bases.sh Dockerfile
+          { echo '### Base image digests'; echo '```diff'; git diff Dockerfile; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
+      - name: Logs
+        if: failure()
+        run: |
+          docker logs api || true
+          docker logs mcp || true
+
+  infra:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    defaults:
+      run:
+        shell: bash
+        working-directory: infra
+    steps:
+      - uses: actions/checkout@v6
+      - uses: hashicorp/setup-terraform@v4
+        with:
+          terraform_version: 1.16.4
+      - name: Format and validate
+        run: |
+          set -euo pipefail
+          terraform fmt -check -recursive
+          terraform init -backend=false
+          terraform validate
+      - name: Lint workflows
+        working-directory: .
+        run: |
+          set -euo pipefail
+          docker run --rm -v "$PWD:/repo" --workdir /repo rhysd/actionlint:1.7.7 -color

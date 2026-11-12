@@ -1,18 +1,38 @@
 import { defineConfig } from '@playwright/test'
-import { frozenAt } from './e2e/context.ts'
+import { e2eEnv, e2eIssuer, entraApiEnv, entraBuildEnv, entraPreview, frozenAt } from './e2e/context.ts'
 
-const api = process.env.API_PORT ?? '3200'
+const chromium = process.env.PLAYWRIGHT_CHROMIUM ?? (process.env.CI ? undefined : '/opt/pw-browsers/chromium')
+const reuseExistingServer = !process.env.CI
 
 export default defineConfig({
   testDir: 'e2e',
   workers: 1,
   reporter: 'list',
+  projects: [
+    { name: 'local', testIgnore: /(entra|sign-in)\.spec\.ts/, use: { baseURL: 'http://127.0.0.1:4273' } },
+    { name: 'entra', grepInvert: /@local/, use: { baseURL: `http://127.0.0.1:${entraPreview.port}` } },
+  ],
   use: {
-    baseURL: 'http://127.0.0.1:4173',
-    launchOptions: { executablePath: process.env.PLAYWRIGHT_CHROMIUM ?? '/opt/pw-browsers/chromium', args: ['--disable-partial-raster'], env: { ...process.env, LANG: 'pt_BR.UTF-8' } },
+    launchOptions: { executablePath: chromium, args: ['--disable-partial-raster'], env: { ...process.env, LANG: 'pt_BR.UTF-8' } },
   },
   webServer: [
-    { command: 'npm run api:http', cwd: '..', env: { SERVICE_AGENT_CLI: 'test/import/fake-agent.ts', FINANCE_CLOCK: frozenAt }, url: `http://127.0.0.1:${api}/api/members`, reuseExistingServer: true },
-    { command: 'npm run build && npm run preview -- --host 127.0.0.1 --port 4173 --strictPort', url: 'http://127.0.0.1:4173', reuseExistingServer: true, timeout: 120_000 },
+    {
+      command: 'npm run db:reset && npm run db:seed && npm run api:http',
+      cwd: '..',
+      env: { ...e2eEnv, SERVICE_AGENT_CLI: 'test/import/fake-agent.ts', FINANCE_CLOCK: frozenAt },
+      url: `http://127.0.0.1:${e2eEnv.API_PORT}/api/members`,
+      reuseExistingServer,
+      timeout: 360_000,
+    },
+    { command: 'node e2e/issuer.ts', url: `${e2eIssuer.issuer}/.well-known/openid-configuration`, reuseExistingServer, timeout: 30_000 },
+    { command: 'npm run api:http', cwd: '..', env: entraApiEnv, url: `http://127.0.0.1:${e2eIssuer.apiPort}/api/health`, reuseExistingServer, timeout: 60_000 },
+    { command: 'npm run build && npm run preview -- --host 127.0.0.1 --port 4273 --strictPort', env: { API_PORT: e2eEnv.API_PORT }, url: 'http://127.0.0.1:4273', reuseExistingServer, timeout: 120_000 },
+    {
+      command: `npx vite build --outDir dist-entra && npx vite preview --outDir dist-entra --host 127.0.0.1 --port ${entraPreview.port} --strictPort`,
+      env: { ...entraBuildEnv, API_PORT: e2eIssuer.apiPort },
+      url: `http://127.0.0.1:${entraPreview.port}`,
+      reuseExistingServer,
+      timeout: 120_000,
+    },
   ],
 })

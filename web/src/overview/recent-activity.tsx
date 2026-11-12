@@ -3,7 +3,7 @@ import { type AuditItem, authorLabel, describeAudit, formatWhen } from '../activ
 import { cn } from '../lib/utils.ts'
 import { Card } from './card.tsx'
 
-export const RecentActivity = ({ items }: { items: AuditItem[] }) => (
+export const RecentActivity = ({ items }: { items?: AuditItem[] }) => (
   <Card
     id="act-title"
     title="Atividade recente"
@@ -13,7 +13,9 @@ export const RecentActivity = ({ items }: { items: AuditItem[] }) => (
       </Link>
     }
   >
-    {items.length === 0 ? (
+    {!items ? (
+      <p className="m-0 text-muted">Escolha quem você é em “Você é” para ver quem mudou o quê.</p>
+    ) : items.length === 0 ? (
       <p className="m-0 text-muted">Nenhuma atividade registrada.</p>
     ) : (
       <ul className="m-0 flex list-none flex-col gap-3 p-0">

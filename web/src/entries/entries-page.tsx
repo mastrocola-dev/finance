@@ -13,6 +13,7 @@ import { ApiFailure } from '../query/client.ts'
 import { useMembers, useSelectedMember } from '../query/shell.ts'
 import { screenOf } from '../shell/nav.ts'
 import { PageHeader } from '../shell/page-header.tsx'
+import { csvName, download, entriesCsv } from './csv.ts'
 import { EntriesList } from './entries-list.tsx'
 import { EntriesTable } from './entries-table.tsx'
 import { categoriesOf, type Filters, filterEntries, isFiltered, noFilters, totalsOf } from './model.ts'
@@ -34,14 +35,14 @@ const failure = (error: Error, entry: NewEntry) => (error instanceof ApiFailure 
 const editFailure = (error: Error, description: string) =>
   error instanceof ApiFailure && error.status === 401 ? 'Escolha quem você é para corrigir.' : error instanceof ApiFailure && error.status === 422 ? `${description} já foi corrigido ou cancelado. A lista foi atualizada.` : `Não foi possível alterar ${description}. Tente de novo.`
 
-const Entries = ({ entries, fresh, onEdit }: { entries: Entry[]; fresh: string | undefined; onEdit: (entry: Entry) => void }) => {
+const Entries = ({ month, entries, fresh, onEdit }: { month: string; entries: Entry[]; fresh: string | undefined; onEdit: (entry: Entry) => void }) => {
   const [filters, setFilters] = useState<Filters>(noFilters)
   const hash = useRecordHash()
   const shown = filterEntries(entries, filters)
   const totals = totalsOf(shown)
   return (
     <>
-      <Toolbar filters={filters} categories={categoriesOf(entries)} onChange={setFilters} />
+      <Toolbar filters={filters} categories={categoriesOf(entries)} exportable={shown.length > 0} onChange={setFilters} onExport={() => download(csvName(month), entriesCsv(shown))} />
       <section aria-label="Lista de lançamentos" className="overflow-x-auto rounded-card border bg-surface">
         {shown.length > 0 ? (
           <>
@@ -132,7 +133,7 @@ export const EntriesPage = () => {
           <QuickAddForm key={`${month}:${member ?? 'all'}`} month={month} member={member} pending={pending} onSubmit={add} />
         ))}
       <QueryView query={entries} skeleton={<EntriesSkeleton />} isEmpty={(data) => data.length === 0} empty={<EmptyState title={`Nenhum lançamento em ${formatMonth(firstDay(month))}`}>Receitas e despesas do mês aparecem aqui assim que forem lançadas ou previstas.</EmptyState>}>
-        {(data) => <Entries key={`${month}:${member ?? 'all'}`} entries={data} fresh={fresh} onEdit={edit} />}
+        {(data) => <Entries key={`${month}:${member ?? 'all'}`} month={month} entries={data} fresh={fresh} onEdit={edit} />}
       </QueryView>
       <Toast notice={notice} onClose={close} />
     </>

@@ -86,6 +86,32 @@ test('the identity picker sends x-member and is remembered per browser', async (
   expect(calls.every((request) => request.headers.get('x-member') === 'Gabriela')).toBe(true)
 })
 
+test('forgets a stale identity the API no longer knows', async () => {
+  localStorage.setItem('finance.member', 'Ana')
+  const stale = vi.fn(async (input: Request) => {
+    calls.push(input)
+    if (input.headers.get('x-member') === 'Ana') return Response.json({ error: 'unknown member' }, { status: 403 })
+    return fetch(input)
+  }) as unknown as typeof globalThis.fetch
+  const history = createMemoryHistory({ initialEntries: ['/decisoes'] })
+  render(<App history={history} fetch={stale} />)
+  await waitFor(() => expect(localStorage.getItem('finance.member')).toBeNull())
+  await screen.findByText('Decisão 1')
+  expect(calls.at(-1)?.headers.has('x-member')).toBe(false)
+})
+
+test('keeps the identity on other refusals', async () => {
+  localStorage.setItem('finance.member', 'Marcio')
+  const refusing = vi.fn(async (input: Request) => {
+    calls.push(input)
+    if (new URL(input.url).pathname === '/api/decisions') return Response.json({ error: 'forbidden host' }, { status: 403 })
+    return fetch(input)
+  }) as unknown as typeof globalThis.fetch
+  render(<App history={createMemoryHistory({ initialEntries: ['/decisoes'] })} fetch={refusing} />)
+  await waitFor(() => expect(calls.some((request) => new URL(request.url).pathname === '/api/decisions')).toBe(true))
+  expect(localStorage.getItem('finance.member')).toBe('Marcio')
+})
+
 test('answers unknown paths with a not found page', async () => {
   start('/nada')
   expect(await screen.findByText('Página não encontrada')).toBeTruthy()

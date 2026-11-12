@@ -12,7 +12,7 @@ import { importUploads } from '../../src/import/uploads.ts'
 import { testDatabase } from '../db/database.ts'
 import { sample as extracted } from '../import/sample.ts'
 
-type Operation = { operationId: string; parameters: { name: string; in: string }[]; requestBody?: unknown; responses: Record<string, { content?: Record<string, { schema?: { $ref?: string } }> }> }
+type Operation = { operationId: string; security: Record<string, string[]>[]; parameters: { name: string; in: string }[]; requestBody?: unknown; responses: Record<string, { content?: Record<string, { schema?: { $ref?: string } }> }> }
 type Sample = { path: string; body?: unknown; file?: string }
 
 const document = openApi(routes) as unknown as { paths: Record<string, Record<string, Operation>>; components: { schemas: Record<string, unknown> } }
@@ -56,6 +56,18 @@ describe('openapi', () => {
     await db.drop()
   })
 
+  test('marks writes, the caller and the audit log as needing a member', () => {
+    const needing = routes.filter((route) => operationOf(route)?.security.length === 1).map(({ operationId }) => operationId)
+    assert.deepEqual(
+      needing,
+      routes.filter(({ method, operationId }) => method !== 'GET' || ['getMe', 'listAudit'].includes(operationId)).map(({ operationId }) => operationId),
+    )
+    assert.deepEqual(
+      routes.filter((route) => operationOf(route)?.security.length === 0).map(({ operationId }) => operationId),
+      ['getOpenApi', 'getHealth'],
+    )
+  })
+
   test('documents every route with its parameters, body and response', () => {
     const ids = routes.map(({ operationId }) => operationId)
     assert.equal(new Set(ids).size, ids.length)
@@ -92,11 +104,13 @@ describe('openapi', () => {
     const today = `today=${seedToday}`
     const samples: Record<string, Sample> = {
       getOpenApi: { path: '/openapi.json' },
+      getHealth: { path: '/health' },
       getMonthSummary: { path: `/months/2026-10/summary?${today}` },
       listEntries: { path: `/months/2026-10/entries?${today}` },
       listDebts: { path: '/debts' },
       listReserves: { path: '/reserves' },
       listDecisions: { path: '/decisions?status=all' },
+      getMe: { path: '/me' },
       listMembers: { path: '/members' },
       listCategories: { path: '/categories?direction=expense' },
       listAccounts: { path: '/accounts' },
@@ -111,8 +125,10 @@ describe('openapi', () => {
       cancelEntry: { path: '/entries/ENTRY/cancel' },
       listSetup: { path: '/setup' },
       registerRecord: { path: '/setup', body: { kind: 'category', payload: { name: 'Pets', kind: 'expense' } } },
+      editRecord: { path: '/setup/category/RECORD', body: { name: 'Bichos' } },
       closeRecord: { path: '/setup/category/RECORD/close' },
       updateReserve: { path: '/reserves/Reserva%20de%20emerg%C3%AAncia', body: { target_cents: 3000000 } },
+      createGoal: { path: '/goals', body: { name: 'Sofá', target_cents: 300000, due_on: '2027-01-01' } },
       proposeDecision: { path: '/decisions', body: { title: 'Bike', description: 'Commuting' } },
       confirmDecision: { path: `/decisions/${proposed.body.id}/confirm` },
       rejectDecision: { path: `/decisions/${answered[0]?.body.id}/reject` },

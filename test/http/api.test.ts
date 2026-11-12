@@ -1,9 +1,11 @@
 import assert from 'node:assert/strict'
+import { get as httpGet } from 'node:http'
 import { after, before, describe, test } from 'node:test'
 import { connectPool } from '../../src/db/connection.ts'
 import { seed, seedToday } from '../../src/db/seed.ts'
-import { serveApi } from '../../src/http/api.ts'
+import { api, apiHosts, apiOrigins, serveApi } from '../../src/http/api.ts'
 import { bodyLimit } from '../../src/http/body.ts'
+import type { Verifier } from '../../src/http/identity.ts'
 import { testDatabase } from '../db/database.ts'
 
 const groceries = { month: '2026-10', due_on: '2026-10-25', description: 'Farmers market', direction: 'expense', amount_cents: 12345, category: 'alimentação', member: 'joint' }
@@ -85,6 +87,43 @@ describe('http api', () => {
     assert.equal((await get('/debts', { origin: 'https://example.com' })).status, 403)
   })
 
+  test('allowed hosts and origins come from the environment with localhost as fallback', async () => {
+    assert.deepEqual(apiHosts({ API_ALLOWED_HOSTS: ' finance-api.example, other.example ' }), ['finance-api.example', 'other.example'])
+    assert.ok(apiHosts({ API_ALLOWED_HOSTS: '' }).includes('localhost'))
+    assert.deepEqual(apiOrigins({ API_ALLOWED_ORIGINS: 'https://finance-web.example' }), ['https://finance-web.example'])
+    const previous = process.env.API_ALLOWED_HOSTS
+    process.env.API_ALLOWED_HOSTS = 'finance-api.example'
+    const hosted = await serveApi(pool, 0, '127.0.0.1')
+    if (previous === undefined) delete process.env.API_ALLOWED_HOSTS
+    else process.env.API_ALLOWED_HOSTS = previous
+    try {
+      const status = (host: string) => new Promise<number | undefined>((resolve, reject) => httpGet(`${hosted.url}/api/health`, { headers: { host } }, (response) => resolve(response.resume().statusCode)).on('error', reject))
+      assert.equal(await status('finance-api.example'), 200)
+      assert.equal(await status('localhost'), 403)
+      assert.equal(await status('evil.example'), 403)
+    } finally {
+      await hosted.close()
+    }
+  })
+
+  test('the audit log needs a member and a closed member is refused', async () => {
+    assert.deepEqual(await get('/audit?limit=1'), { status: 401, body: { error: 'this request needs the x-member header' } })
+    assert.equal((await get('/audit?limit=1', { 'x-member': 'Gabriela' })).status, 200)
+    await pool.query("insert into member (name, share_percent, closed_at) values ('Ana', 0, now())")
+    assert.deepEqual(await get('/debts', { 'x-member': 'Ana' }), { status: 403, body: { error: 'unknown member' } })
+    assert.equal((await post('/entries', groceries, { 'x-member': 'Ana' })).status, 403)
+  })
+
+  test('routes go through the configured verifier', async () => {
+    const nobody: Verifier = Object.assign(async () => undefined, { credential: 'a test credential', openReads: true })
+    const verified = api(pool, undefined, nobody)
+    const handle = (path: string, headers: Record<string, string>) => verified(new Request(`http://localhost/api${path}`, { headers: { host: 'localhost', ...headers } }))
+    assert.equal((await handle('/debts', { 'x-member': 'Marcio' })).status, 200)
+    const answer = await handle('/audit', { 'x-member': 'Marcio' })
+    assert.equal(answer.status, 401)
+    assert.deepEqual(await answer.json(), { error: 'this request needs a test credential' })
+  })
+
   test('creates an entry as the calling member, audited', async () => {
     const { status, body } = await post(`/entries?today=${seedToday}`, groceries)
     assert.equal(status, 201)
@@ -151,6 +190,24 @@ describe('http api', () => {
     assert.equal((await send('PATCH', '/reserves/Reserva%20de%20emerg%C3%AAncia', { balance_cents: -1 })).status, 422)
     assert.equal((await send('PATCH', '/reserves/Nowhere', { balance_cents: 1 })).status, 422)
     assert.equal((await send('PATCH', '/reserves/Reserva%20de%20emerg%C3%AAncia', {}, {})).status, 401)
+  })
+
+  test('creates a goal as the calling member, audited, and refuses bad or duplicate goals', async () => {
+    const created = await post('/goals', { name: 'Bicicleta nova', target_cents: 450000, due_on: '2027-03-01', reserve: 'Reserva de emergência' })
+    assert.equal(created.status, 201)
+    assert.equal(created.body.name, 'Bicicleta nova')
+    assert.deepEqual(created.body.target, { cents: '450000', brl: 'R$ 4.500,00' })
+    assert.equal(created.body.saved.cents, '0')
+    assert.equal(created.body.dueOn, '2027-03-01')
+    assert.equal(created.body.reserve, 'Reserva de emergência')
+    const { rows } = await pool.query<{ author: string; action: string; name: string }>("select a.author, a.action, m.name from audit_log a join member m on m.id = a.member_id where a.entity = 'goal' and a.entity_id = $1", [created.body.id])
+    assert.deepEqual(rows, [{ author: 'member', action: 'create', name: 'Marcio' }])
+    assert.ok((await get('/goals')).body.some((goal: { id: string }) => goal.id === created.body.id))
+    assert.equal((await post('/goals', { name: 'bicicleta NOVA', target_cents: 1 })).status, 422)
+    assert.equal((await post('/goals', { name: 'Viagem', target_cents: 1, reserve: 'Nowhere' })).status, 422)
+    assert.equal((await post('/goals', { name: 'Viagem', target_cents: 0 })).status, 400)
+    assert.equal((await post('/goals', { name: 'Viagem', target_cents: 1, due_on: '2027-13-01' })).status, 400)
+    assert.equal((await post('/goals', { name: 'Viagem', target_cents: 1 }, {})).status, 401)
   })
 
   test('proposes a decision and closes it once every member confirms', async () => {

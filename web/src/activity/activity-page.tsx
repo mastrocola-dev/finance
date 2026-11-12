@@ -3,6 +3,7 @@ import { EmptyState } from '../components/empty-state.tsx'
 import { QueryView } from '../components/query-view.tsx'
 import { Skeleton } from '../components/skeleton.tsx'
 import { Button } from '../components/ui/button.tsx'
+import { useIdentity } from '../identity/identity-provider.tsx'
 import { useMembers } from '../query/shell.ts'
 import { screenOf } from '../shell/nav.ts'
 import { PageHeader } from '../shell/page-header.tsx'
@@ -23,6 +24,15 @@ export const ActivityPage = () => {
   const members = (useMembers().data ?? []).map(({ name }) => name)
   const counts = useAuditCounts().data
   const timeline = useAuditTimeline(filter)
+  const { member } = useIdentity()
+
+  if (!member)
+    return (
+      <>
+        <PageHeader screen={screenOf('/atividade')} />
+        <EmptyState title="Escolha quem você é">O histórico mostra quem mudou o quê na casa. Escolha seu nome em “Você é” para ver a atividade.</EmptyState>
+      </>
+    )
 
   return (
     <>

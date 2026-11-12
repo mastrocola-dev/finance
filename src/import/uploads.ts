@@ -11,7 +11,7 @@ import { batchOfFile, maskDigits } from './staging.ts'
 
 export type Progress = { state: 'extracting' | 'done' | 'failed'; done: number; total: number; error: string | null }
 
-export type Uploads = Omit<FileImport, 'onProgress'> & { folder?: string; warm?: () => Promise<IngestReadiness>; cooldownMs?: number; onWarmed?: (readiness: IngestReadiness) => void }
+export type Uploads = Omit<FileImport, 'onProgress'> & { folder?: string; warm?: () => Promise<IngestReadiness>; cooldownMs?: number; onWarmed?: (readiness: IngestReadiness) => void; dailyCapUsdMicros?: number }
 
 export const uploadsFolder = () => resolve(process.env.IMPORT_UPLOADS ?? '.imports')
 
@@ -20,6 +20,17 @@ export const fileNameIssue = (name: string) => {
   if (/[/\\\0]/.test(name) || name === '.' || name === '..') return 'file name must not contain a path'
   return undefined
 }
+
+export const dailyCapOf = (value = process.env.IMPORT_DAILY_USD_CAP) => {
+  if (value === undefined || value === '') return Number.POSITIVE_INFINITY
+  const usd = Number(value)
+  if (!/^\d+(\.\d+)?$/.test(value) || !(usd > 0)) throw new Error('IMPORT_DAILY_USD_CAP must be a positive amount in US$')
+  return Math.round(usd * 1_000_000)
+}
+
+const spentToday = async (pool: Database) => Number((await pool.query<{ spent: string }>("select coalesce(sum(cost_usd_micros), 0)::text as spent from import_batch where (created_at at time zone 'America/Sao_Paulo')::date = (ledger_now() at time zone 'America/Sao_Paulo')::date")).rows[0]?.spent)
+
+const dollars = (micros: number) => (micros / 1_000_000).toFixed(2).replace('.', ',')
 
 export class Busy extends Error {}
 
@@ -44,7 +55,7 @@ const folders = async (folder: string) => {
   }
 }
 
-export const importUploads = (pool: Database, { folder = uploadsFolder(), warm: warmer = warmIngest, cooldownMs = 30000, onWarmed, ...options }: Uploads = {}) => {
+export const importUploads = (pool: Database, { folder = uploadsFolder(), warm: warmer = warmIngest, cooldownMs = 30000, onWarmed, dailyCapUsdMicros = dailyCapOf(), ...options }: Uploads = {}) => {
   const progress = new Map<bigint, Progress>()
   const running = new Set<Promise<void>>()
   let readiness: IngestReadiness = { ready: true }
@@ -78,6 +89,11 @@ export const importUploads = (pool: Database, { folder = uploadsFolder(), warm: 
     if (!readiness.ready) throw new Unavailable(`the ingest runtime is not ready (${readiness.cause})`)
   }
 
+  const withinCap = async () => {
+    if (!Number.isFinite(dailyCapUsdMicros)) return
+    if ((await spentToday(pool)) >= dailyCapUsdMicros) throw new RuleError(`O limite diário de leitura pelo Claude (US$ ${dollars(dailyCapUsdMicros)}) foi atingido. Tente de novo amanhã.`)
+  }
+
   const extract = async (connection: PoolClient, batchId: bigint, finish: (onProgress: NonNullable<FileImport['onProgress']>) => Promise<unknown>) => {
     const state = progress.get(batchId) as Progress
     try {
@@ -102,6 +118,7 @@ export const importUploads = (pool: Database, { folder = uploadsFolder(), warm: 
     const hash = createHash('sha256').update(bytes).digest('hex')
     const existing = await batchOfFile(pool, hash)
     if (existing) throw new RuleError(`this file is already in import batch ${existing}`)
+    await withinCap()
     const at = join(folder, hash)
     const connection = await pool.connect()
     let created: string | undefined
@@ -131,6 +148,7 @@ export const importUploads = (pool: Database, { folder = uploadsFolder(), warm: 
       if (!batch.open) throw new RuleError(`import batch ${batchId} is not open for a retry`)
       const path = join(folder, batch.hash, batch.name)
       if (!(await present(path))) throw new RuleError(`the file of import batch ${batchId} is no longer kept; close the batch and upload the file again`)
+      await withinCap()
       connection = await pool.connect()
       const opened = await openRetry(connection, batchId, path, options)
       const held = connection

@@ -3,6 +3,7 @@ import { connect, databaseUrl } from '../../src/db/connection.ts'
 import { dropDatabase, reset } from '../../src/db/reset.ts'
 
 export const testDatabase = async () => {
+  if (!databaseUrl) throw new Error('tests need DATABASE_URL')
   const url = new URL(databaseUrl)
   url.pathname = `/finance_test_${randomUUID().replaceAll('-', '')}`
   const applied = await reset(url.href)
