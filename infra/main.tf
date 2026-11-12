@@ -48,8 +48,9 @@ locals {
 
   apps = {
     api = {
-      image = var.api_image
-      port  = 3200
+      image        = var.api_image
+      port         = 3200
+      min_replicas = var.api_min_replicas
 
       env = {
         API_HOST             = "0.0.0.0"
@@ -69,8 +70,9 @@ locals {
     }
 
     mcp = {
-      image = var.mcp_image
-      port  = 3100
+      image        = var.mcp_image
+      port         = 3100
+      min_replicas = 0
 
       env = {
         MCP_HOST            = "0.0.0.0"
@@ -189,7 +191,7 @@ resource "azurerm_container_app" "app" {
   }
 
   template {
-    min_replicas = 0
+    min_replicas = each.value.min_replicas
     max_replicas = 1
 
     container {

@@ -121,3 +121,9 @@ variable "import_daily_usd_cap" {
     error_message = "import_daily_usd_cap must be positive."
   }
 }
+
+variable "api_min_replicas" {
+  type        = number
+  description = "API replicas kept running; 1 avoids a cold start of about 30 seconds and bills the idle rate (about US$ 4 to 6 a month for 0.25 vCPU and 0.5 GiB), 0 scales to zero"
+  default     = 1
+}

@@ -44,6 +44,7 @@ The vault is not managed here: its ID and URI are built from `key_vault_name` an
 | `db_admin_login` | `finance_admin` | |
 | `db_password_version` | `1` | raise after a new `finance-db-password` value |
 | `log_daily_cap_gb` | `0.1` | |
+| `api_min_replicas` | `1` | API replicas kept running; the MCP app always scales to zero |
 | `import_daily_usd_cap` | `2` | US$ per day for the import agent |
 
 ## Secrets
