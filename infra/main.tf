@@ -87,7 +87,7 @@ locals {
 }
 
 resource "azurerm_log_analytics_workspace" "main" {
-  name                = "log-${var.name}"
+  name                = "log-${var.name}-${local.location}"
   resource_group_name = data.azurerm_resource_group.finance.name
   location            = local.location
   sku                 = "PerGB2018"
