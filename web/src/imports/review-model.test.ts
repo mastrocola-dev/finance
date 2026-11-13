@@ -1,6 +1,6 @@
 import { expect, test } from 'vitest'
 import { ApiFailure } from '../query/client.ts'
-import { acceptable, amountOf, blocked, type Candidate, candidateRecord, checkText, commitFailure, commitPlan, detailsOf, groupCandidates, monthOfCandidate, reviewCounts, reviewFailure, titleOf, unstagedText } from './review-model.ts'
+import { acceptable, amountOf, blocked, type Candidate, candidateRecord, checkText, commitFailure, commitPlan, detailsOf, groupCandidates, isBlocking, monthOfCandidate, reviewCounts, reviewFailure, titleOf, unstagedText } from './review-model.ts'
 
 const candidate = (id: string, kind: Candidate['kind'], payload: Record<string, unknown>, changes: Partial<Candidate> = {}): Candidate => ({ id, kind, source: 'A1', chunk: null, confidence: '0.90', status: 'pending', payload, checks: [], recordId: null, ...changes })
 
@@ -41,6 +41,11 @@ test('describes candidates of every shape, including invalid payloads', () => {
 test('explains checks in Portuguese', () => {
   expect(checkText({ code: 'unknown_member', detail: 'GMA' })).toBe('Pessoa desconhecida: GMA')
   expect(checkText({ code: 'low_confidence', detail: '0.60' })).toBe('Leitura incerta (60%)')
+  expect(checkText({ code: 'matched_category', detail: 'Mercado → Supermercado' })).toBe('Categoria reconhecida: Mercado → Supermercado')
+  expect(checkText({ code: 'matched_member', detail: 'GMA → Gabriela' })).toBe('Pessoa reconhecida: GMA → Gabriela')
+  expect(checkText({ code: 'member_unmatched', detail: 'Tia Rosa' })).toBe('Pessoa não encontrada: Tia Rosa, fica como conjunto')
+  expect(checkText({ code: 'account_unmatched', detail: 'Nubank' })).toBe('Conta não encontrada: Nubank, fica sem conta')
+  expect(isBlocking('entry', { code: 'matched_category', detail: 'Mercado → Supermercado' })).toBe(false)
   expect(checkText({ code: 'duplicate_in_ledger', detail: 'entry 4' })).toBe('Já existe no livro')
   expect(checkText({ code: 'total_mismatch', detail: 'Outubro!G40: expense 2026-10 expected 158990, found 150000' })).toBe('Total de Outubro!G40 não confere: impresso R$ 1.589,90, lido R$ 1.500,00')
   expect(checkText({ code: 'total_mismatch', detail: 'Outubro!A40:G40: net 2026-10 expected -100, found 0' })).toBe('Total de Outubro!A40:G40 não confere: impresso -R$ 1,00, lido R$ 0,00')
@@ -74,6 +79,16 @@ test('commit plan lists accepted items naming what only an unaccepted item stage
   expect(commitPlan([vet, pets, card]).unstaged).toEqual([])
   expect(commitPlan([vet, { ...pets, status: 'accepted' }, { ...card, status: 'edited' }], ledger).unstaged).toEqual([])
   expect(commitPlan([vet, pets, card], { ...ledger, accounts: ['cartão novo'], categories: [{ name: 'Pets', direction: 'expense' }] }).unstaged).toEqual([])
+
+  const matched = {
+    ...vet,
+    payload: { ...vet.payload, category: 'Petz' },
+    checks: [
+      { code: 'matched_category', detail: 'Petz → Pets' },
+      { code: 'account_unmatched', detail: 'Cartão Novo' },
+    ],
+  }
+  expect(commitPlan([matched, pets, card], ledger).unstaged[0]?.references.map(unstagedText)).toEqual(['Categoria Pets está num item pendente'])
 })
 
 test('commit refusals become Portuguese', () => {

@@ -71,7 +71,7 @@ describe('import review', () => {
     const id = candidates[1]
     assert.deepEqual(
       (await candidate(id)).checks.map((check: { code: string }) => check.code),
-      ['low_confidence', 'unknown_member'],
+      ['low_confidence', 'matched_member'],
     )
     const payload = { ...sample.candidates[1]?.payload, member: 'Gabriela', description: ' Farmácia Central ' }
     await editCandidate(client, member, batch, id as bigint, payload)
@@ -117,11 +117,17 @@ describe('import review', () => {
           { code: 'unknown_member', detail: 'GMA' },
           { code: 'unknown_account', detail: 'Nubank' },
           { code: 'low_confidence', detail: '0.60' },
+          { code: 'matched_category', detail: 'Mercado → Supermercado' },
+          { code: 'member_unmatched', detail: 'Tia Rosa' },
         ],
       },
     ]
     assert.deepEqual(askedNames('GMA é a Gabriela?', checks), [{ reference: 'member', name: 'GMA' }])
     assert.deepEqual(askedNames('Gamado? nubank?', checks), [{ reference: 'account', name: 'Nubank' }])
+    assert.deepEqual(askedNames('Mercado é Supermercado? E a tia rosa?', checks), [
+      { reference: 'category', name: 'Mercado' },
+      { reference: 'member', name: 'Tia Rosa' },
+    ])
   })
 
   test('retries skip chunks holding reviewed rows', async () => {

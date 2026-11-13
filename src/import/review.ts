@@ -52,14 +52,17 @@ export const editCandidate = (client: Client, actor: Actor, batchId: bigint, can
     return item.id
   })
 
+const namedCheck = /^(?:unknown|matched)_(member|account|category|reserve)$|^(member|account)_unmatched$/
+
 const words = (value: string) => ` ${normalize(value)} `
 
 export const askedNames = (question: string, candidates: Pick<Staged, 'checks'>[]) => {
   const asked = new Map<string, Asked>()
   for (const { code, detail } of candidates.flatMap((item) => item.checks)) {
-    const reference = code.replace(/^unknown_/, '') as Reference
-    if (!code.startsWith('unknown_') || !detail || !normalize(detail) || !words(question).includes(words(detail))) continue
-    asked.set(`${reference}|${normalize(detail)}`, { reference, name: detail })
+    const reference = code.match(namedCheck)?.slice(1).find(Boolean) as Reference | undefined
+    const name = detail?.split(' → ')[0]
+    if (!reference || !name || !normalize(name) || !words(question).includes(words(name))) continue
+    asked.set(`${reference}|${normalize(name)}`, { reference, name })
   }
   return [...asked.values()]
 }

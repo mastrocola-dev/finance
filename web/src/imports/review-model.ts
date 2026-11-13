@@ -40,6 +40,8 @@ export const blocked = (candidate: Candidate) => candidate.status !== 'rejected'
 
 const unknownLabels: Record<string, string> = { member: 'Pessoa desconhecida', account: 'Conta desconhecida', category: 'Categoria desconhecida', reserve: 'Reserva desconhecida' }
 
+const matchedLabels: Record<string, string> = { member: 'Pessoa', account: 'Conta', category: 'Categoria', reserve: 'Reserva' }
+
 const cents = /expected (-?\d+), found (-?\d+)$/
 
 export const checkText = ({ code, detail }: Check) => {
@@ -48,6 +50,9 @@ export const checkText = ({ code, detail }: Check) => {
   if (code === 'duplicate_in_file') return `Repetido no arquivo${detail ? ` (${detail})` : ''}`
   if (code === 'duplicate_in_ledger') return 'Já existe no livro'
   if (code.startsWith('unknown_')) return `${unknownLabels[code.slice(8)] ?? 'Nome desconhecido'}: ${detail ?? ''}`
+  if (code.startsWith('matched_')) return `${matchedLabels[code.slice(8)] ?? 'Nome'} reconhecida: ${detail ?? ''}`
+  if (code === 'member_unmatched') return `Pessoa não encontrada: ${detail ?? ''}, fica como conjunto`
+  if (code === 'account_unmatched') return `Conta não encontrada: ${detail ?? ''}, fica sem conta`
   if (code === 'total_mismatch' && detail) {
     const [, expected = '0', found = '0'] = detail.match(cents) ?? []
     const source = detail.match(/^(.*): (?:income|expense|net)\b/)?.[1] ?? detail
@@ -158,12 +163,17 @@ const matches = (left: Reference, right: Reference) => left.kind === right.kind 
 
 const categoryDirection = ({ kind, payload }: Candidate) => (kind === 'entry' ? String(payload.direction) : kind === 'income' ? 'income' : 'expense')
 
+const resolvedName = (candidate: Candidate, kind: string, value: unknown) => {
+  const matched = candidate.checks.find((check) => check.code === `matched_${kind}`)?.detail?.split(' → ')[1]
+  return (matched ?? String(value)).trim()
+}
+
 const referencesOf = (candidate: Candidate) => {
   const { account, category, reserve } = candidate.payload
   const found: Reference[] = []
-  if (text(account)) found.push({ kind: 'account', name: String(account).trim() })
-  if (text(category)) found.push({ kind: 'category', name: String(category).trim(), direction: categoryDirection(candidate) })
-  if (text(reserve)) found.push({ kind: 'reserve', name: String(reserve).trim() })
+  if (text(account) && !candidate.checks.some((check) => check.code === 'account_unmatched')) found.push({ kind: 'account', name: resolvedName(candidate, 'account', account) })
+  if (text(category)) found.push({ kind: 'category', name: resolvedName(candidate, 'category', category), direction: categoryDirection(candidate) })
+  if (text(reserve)) found.push({ kind: 'reserve', name: resolvedName(candidate, 'reserve', reserve) })
   return found
 }
 

@@ -2,7 +2,7 @@
 
 ## State
 
-- S14 E1 done 2026-11-13 (ledger context in the import task, prompt that decides, eval rule checks); next is S14 E2 (deterministic matcher and auto-created categories in staging/`verify.ts`). Tests: 386 node pass (1 skipped: service-agent contract without the sibling; cloning it was refused by the permission check this run), 204 web, 63 pytest; `npm test` and `npm run check` green; failing-test run streak 0; next free backlog number L237
+- S14 E2a done 2026-11-13 (matcher, matched/unmatched checks, auto-created categories, resolution applied at commit); next is S14 E2b (questions deduplicated and non-blocking, closing stale verify questions and orphan auto categories). Tests: 397 node (1 skipped: service-agent contract without the sibling), 204 web, 63 pytest; `npm test` and `npm run check` green; failing-test run streak 0; next free backlog number L240
 - Do not run Playwright and `npm test` at the same time: vitest `findByText` times out under load (L213)
 - Empty-ledger e2e: `emptyLedger()` in `web/e2e/context.ts` (reset plus `member:add -- Marcio 50 Gabriela 50`), used by `web/e2e/setup.spec.ts` with `afterAll(reseed)`. Cadastros "Novo" opens one form at a time (`adding` in `record-list.tsx`); button names `Novo cadastro em <Seção>`
 
@@ -56,5 +56,6 @@
 ## Python and evals
 
 - `ingest/` is a uv project; runtime ingest uses `.venv-runtime` via `ingestRuntime`; never run `--exact` against the dev `.venv`
+- Name resolution (S14 E2a): `findChecks` returns `resolved` (candidate id → canonical names, `member: 'joint'`, `account: undefined`) and `missing` categories; `verifyWithin` creates the missing ones as accepted candidates (chunk null) and returns `resolved`, which `commitBatch` merges into payloads before `rowOf`; payloads are never rewritten by verify. Non-blocking codes `matched_<kind>` (detail `X → Y`), `member_unmatched`, `account_unmatched`; `askedNames` reads them too
 - Import ledger context (S14 E1): `ledgerContext(client, batchId)` in `src/import/context.ts`, `Task.ledger` sent to every chunk, `propose` adds new category candidates for later chunks. Evals read `ledger.json` per case or `evals/ledger.json` (seed household, regenerate from `ledgerContext` on the seeded db); `src/eval/rules.ts` `ruleViolations` is reported, not failing; `test/eval/run.test.ts` pins the violations (4 deliberate ones in app-json and card-ofx) and the per-case counts
 - Eval fixtures are written uncompressed; a pin change of openpyxl/lxml/fpdf2 regenerates them; No Anthropic key here: tests use recorded responses and `test/import/fake-agent.ts`

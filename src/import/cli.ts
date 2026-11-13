@@ -81,7 +81,7 @@ type Summary = Awaited<ReturnType<typeof importFile>> & { targets?: string[] }
 export const importSummary = ({ batchId, candidates, questions, replaced, targets, usage, failures, done, total, stopped, verification }: Summary) =>
   [
     `batch ${batchId}: ${candidates.length} candidates, ${questions.length} questions from ${done} of ${total} chunks${targets ? `, ${replaced.length} replaced` : ''}`,
-    `verified: ${verification.failed.length} with failed checks, ${verification.lowConfidence.length} low confidence, ${verification.questions.length} new questions, ${verification.totals.mismatches.length} of ${verification.totals.checked} totals mismatched`,
+    `verified: ${verification.failed.length} with failed checks, ${verification.lowConfidence.length} low confidence, ${verification.questions.length} new questions, ${verification.created} new categories, ${verification.totals.mismatches.length} of ${verification.totals.checked} totals mismatched`,
     ...verification.totals.mismatches.map(({ detail }) => `mismatch ${detail}`),
     `tokens ${usage.inputTokens} in, ${usage.outputTokens} out, US$ ${(usage.costUsdMicros / 1_000_000).toFixed(4)}`,
     ...(stopped ? [`stopped: ${stopped}`] : []),
