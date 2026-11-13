@@ -1,4 +1,4 @@
-import { type FormEvent, useState } from 'react'
+import { type FormEvent, type ReactNode, useState } from 'react'
 import { Button } from '../components/ui/button.tsx'
 import { useAccounts, useCategories } from '../entries/queries.ts'
 import { cn } from '../lib/utils.ts'
@@ -52,9 +52,21 @@ const Control = ({ id, field, value, error, onChange }: FieldProps) => {
   return <input id={id} className={cn(input, ['money', 'balance'].includes(field.type) && 'amount')} autoComplete="off" list={field.names ? `${id}-names` : undefined} value={value} onChange={(event) => onChange(event.target.value)} {...kind} {...described} />
 }
 
-type Props = { candidate: Pick<Candidate, 'id' | 'kind' | 'payload'>; fields?: Field[]; title: string; label?: string; saveLabel?: string; names: Record<Names, string[]>; busy: boolean; serverErrors?: Errors; onSave: (payload: Record<string, unknown>) => void; onCancel: () => void }
+type Props = {
+  candidate: Pick<Candidate, 'id' | 'kind' | 'payload'>
+  fields?: Field[]
+  title: string
+  label?: string
+  saveLabel?: string
+  names: Record<Names, string[]>
+  busy: boolean
+  serverErrors?: Errors
+  aside?: (key: string, value: string, change: (value: string) => void) => ReactNode
+  onSave: (payload: Record<string, unknown>) => void
+  onCancel: () => void
+}
 
-export const CandidateForm = ({ candidate, fields = fieldsOf[candidate.kind], title, label = `Editar ${title}`, saveLabel = 'Salvar', names, busy, serverErrors = {}, onSave, onCancel }: Props) => {
+export const CandidateForm = ({ candidate, fields = fieldsOf[candidate.kind], title, label = `Editar ${title}`, saveLabel = 'Salvar', names, busy, serverErrors = {}, aside, onSave, onCancel }: Props) => {
   const [values, setValues] = useState<Values>(() => toValues(candidate, fields))
   const [errors, setErrors] = useState<Errors>({})
   const shown = { ...serverErrors, ...errors }
@@ -71,7 +83,8 @@ export const CandidateForm = ({ candidate, fields = fieldsOf[candidate.kind], ti
         {fields.map((field) => {
           const id = `${prefix}-${field.key}`
           const error = shown[field.key]
-          const control = <Control id={id} field={field} value={values[field.key] ?? ''} error={error} onChange={(value) => setValues((current) => ({ ...current, [field.key]: value }))} />
+          const change = (value: string) => setValues((current) => ({ ...current, [field.key]: value }))
+          const control = <Control id={id} field={field} value={values[field.key] ?? ''} error={error} onChange={change} />
           return (
             <div key={field.key} className="flex min-w-0 flex-col gap-1.5">
               {field.type === 'flag' ? (
@@ -95,6 +108,7 @@ export const CandidateForm = ({ candidate, fields = fieldsOf[candidate.kind], ti
                   ))}
                 </datalist>
               )}
+              {aside && <div className="flex flex-wrap gap-2 empty:hidden">{aside(field.key, values[field.key] ?? '', change)}</div>}
               {error && (
                 <span id={`${id}-error`} className="text-xs text-late">
                   {error}

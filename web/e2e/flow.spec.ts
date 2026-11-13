@@ -41,7 +41,7 @@ test('flow adds an expense paid today and leaves it out of the open bills', asyn
   await expect(form.getByRole('checkbox', { name: 'Já pago' })).toBeChecked()
   await form.getByLabel('Descrição').fill('Drogaria')
   await form.getByLabel('Valor').fill('84,90')
-  await form.getByLabel('Categoria').selectOption('Saúde')
+  await form.getByLabel('Categoria').fill('Saúde')
   await form.getByRole('button', { name: 'Lançar' }).click()
   await expect(page.getByRole('status')).toContainText('Lançado: Drogaria')
   await expect(page.getByRole('table').getByRole('row', { name: /Drogaria/ })).toContainText('R$ 84,90')

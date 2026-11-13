@@ -66,3 +66,9 @@ export const closeFailure = (error: Error, name: string) => {
   if (error instanceof ApiFailure && error.status === 422) return `${name} já estava encerrado. A lista foi atualizada.`
   return `Não foi possível encerrar ${name}. Tente de novo.`
 }
+
+type Named = { name: string; direction: string }
+
+const folded = (name: string) => name.trim().toLocaleLowerCase('pt-BR')
+
+export const findCategory = (categories: Named[], name: string, direction: string) => categories.find((category) => category.direction === direction && folded(category.name) === folded(name))

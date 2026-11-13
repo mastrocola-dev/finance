@@ -5,7 +5,7 @@ import { useStarterCategories } from './queries.ts'
 
 const failure = (error: Error) => (error instanceof ApiFailure && error.status === 401 ? 'Escolha quem você é para criar as categorias.' : 'Não foi possível criar as categorias. Tente de novo.')
 
-export const StarterCategories = ({ notify }: { notify: (notice: Notice) => void }) => {
+export const StarterButton = ({ notify, variant }: { notify: (notice: Notice) => void; variant?: 'outline' }) => {
   const starter = useStarterCategories()
   const create = () =>
     starter.mutate(undefined, {
@@ -13,11 +13,15 @@ export const StarterCategories = ({ notify }: { notify: (notice: Notice) => void
       onError: (error) => notify({ tone: 'error', message: failure(error) }),
     })
   return (
-    <div className="flex flex-col items-start gap-3 px-4 py-4 md:px-6">
-      <p className="m-0 text-meta text-muted">Nenhuma categoria ainda. Comece pelas mais comuns da casa e renomeie ou encerre o que não servir.</p>
-      <Button disabled={starter.isPending} aria-busy={starter.isPending} onClick={create}>
-        Criar categorias sugeridas
-      </Button>
-    </div>
+    <Button variant={variant} disabled={starter.isPending} aria-busy={starter.isPending} onClick={create}>
+      Criar categorias sugeridas
+    </Button>
   )
 }
+
+export const StarterCategories = ({ notify }: { notify: (notice: Notice) => void }) => (
+  <div className="flex flex-col items-start gap-3 px-4 py-4 md:px-6">
+    <p className="m-0 text-meta text-muted">Nenhuma categoria ainda. Comece pelas mais comuns da casa e renomeie ou encerre o que não servir.</p>
+    <StarterButton notify={notify} />
+  </div>
+)

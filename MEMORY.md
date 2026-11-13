@@ -2,7 +2,7 @@
 
 ## State
 
-- S14 A1 done 2026-11-13 (starter categories, Cadastros by section); next is S14 A2 (entry forms on an empty ledger, inline category). Tests: 380 node pass (1 skipped: service-agent contract without the sibling), 200 web, 63 pytest, Playwright last full run before S14; `npm test` and `npm run check` green; failing-test run streak 0; next free backlog number L232
+- S14 A2 done 2026-11-13 (part A closed: category help in the entry, income and recurring expense forms); next is S14 E1 (import with ledger context). Tests: 380 node pass (1 skipped: service-agent contract without the sibling), 204 web, 63 pytest, Playwright full run 312 passed (5.7 min); `npm test` and `npm run check` green; failing-test run streak 0; next free backlog number L234
 - Do not run Playwright and `npm test` at the same time: vitest `findByText` times out under load (L213)
 - Empty-ledger e2e: `emptyLedger()` in `web/e2e/context.ts` (reset plus `member:add -- Marcio 50 Gabriela 50`), used by `web/e2e/setup.spec.ts` with `afterAll(reseed)`. Cadastros "Novo" opens one form at a time (`adding` in `record-list.tsx`); button names `Novo cadastro em <Seção>`
 
@@ -13,8 +13,7 @@
 - `export UV_SYSTEM_CERTS=1; unset UV_NATIVE_TLS` then `uv sync` in `ingest/` before any test (else ingest tests fail with `SdkError: Connection closed`)
 - `npm test` takes about 3 minutes: `timeout 590` with a 600000 ms Bash timeout, output to a log file, read exit codes from the log. Single file: `node --env-file=.env --test test/x.test.ts`; web: `cd web && npx vitest run src/setup`
 - Playwright: the full run takes about 8 min, too close to the Bash limit: start it in the background (`timeout 1200 npx playwright test > log 2>&1; echo exit $? >> log` with `&`) and poll the log with `sleep`; `--project=local` alone is about 4 min. Own `finance_e2e`, reuses servers on 3290/3291/3292/4273/4274 outside CI. PNGs are byte-stable; a changed PNG is a real change
-- `./node_modules/.bin/biome check --write <paths>`, never `npx biome`. `curl` to local servers needs `--noproxy '*'`; stop servers by pid (node processes show as `MainThread` in `pgrep`, so `pgrep node` misses them). `npm run openapi` after any route change
-- Never `pkill -f` a pattern that appears in the Bash command itself: it kills the shell (exit 144). Stop servers by pid
+- `./node_modules/.bin/biome check --write <paths>`, never `npx biome`. `curl` to local servers needs `--noproxy '*'`; stop servers by pid (node processes show as `MainThread` in `pgrep`, so `pgrep node` misses them). `npm run openapi` after any route change. Never `pkill -f` a pattern that appears in the Bash command itself: it kills the shell (exit 144)
 - service-agent is public: `git clone --depth 1 https://github.com/mastrocola-dev/service-agent ../service-agent` then `npm ci` there (read only, never commit to it). The contract test also needs `ingest/.venv-runtime`: `UV_PROJECT_ENVIRONMENT="$PWD/ingest/.venv-runtime" uv --directory ingest sync --no-dev --exact --locked`; it honours `SERVICE_AGENT_CLI` and fails instead of skipping with `SERVICE_AGENT_REQUIRED=true` (set in CI)
 - Docker: `setsid dockerd &` starts a daemon, but Docker Hub and ghcr.io answer 403 through the proxy, so no image can be built. To check the image layout, copy the files the `Dockerfile` copies to a folder outside `/tmp/claude-0` (mode 700), `npm ci --omit=dev --workspaces=false`, sync the runtime venv, and run as `nobody` with a writable `HOME`
 - actionlint cannot be built here (refused by the permission check); CI's `infra` job runs it from Docker. Deploy workflow structure is tested as text in `test/infra/deploy.test.ts`, which also requires every `vars.*` of both workflows to be a row of `## Repository variables` in `infra/README.md` (runbook step 5 repeats it)
@@ -50,6 +49,7 @@
 - Two projects (S9b): new specs open contexts with `memberContext(browser, options)` and call the API with `await memberHeaders(page)`, never `finance.member` or `x-member` directly; picker-only tests get `{ tag: '@local' }`; screenshot paths go through `shotPath` (or `fullShot`). `memberState` links members lazily after `reseed()` and caches the cookie storage state per member and clock; `memberHeaders()` is `{}` in `entra` (`page.request` carries the context cookies); `context.clock.setFixedTime` fakes `performance`, so timing tests use `memberState(browser, member, false)`
 - New screenshot files must be added to the README table (`test/docs/readme.test.ts`); state screenshots live in their flow spec (`flow.spec.ts`, `goal.spec.ts`), not `screenshots.spec.ts`
 - Vitest tests that depend on today use `vi.useFakeTimers({ toFake: ['Date'] })`; downloads are tested by assigning `URL.createObjectURL` and spying `HTMLAnchorElement.prototype.click`
+- Category help: `CategoryHelp` (`web/src/setup/category-help.tsx`) next to category fields; `CandidateForm` takes `aside(key, value, change)`. The quick form's category is an input with datalist `#quick-category-names` (tests read its options with `querySelectorAll`, e2e uses `fill`); `findCategory` in `web/src/setup/model.ts` matches case-insensitively
 - Forms: shared `CandidateForm` (`web/src/imports/candidate-form.tsx`) with optional `fields`
 - `docs/acceptance.md` must name every screen of `web/src/shell/nav.ts` as `**Title** (\`/path\`)` and every mockup file (test)
 

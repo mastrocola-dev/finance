@@ -3,6 +3,7 @@ import type { Notice } from '../components/toast.tsx'
 import { CandidateForm, useNames } from '../imports/candidate-form.tsx'
 import { type Errors, serverErrors } from '../imports/edit-model.ts'
 import { ApiFailure } from '../query/client.ts'
+import { CategoryHelp } from './category-help.tsx'
 import { registerFailure, type SetupKind, setupLabels } from './model.ts'
 import { useRegister } from './queries.ts'
 
@@ -23,5 +24,9 @@ export const NewRecord = ({ kind, notify, onDone }: { kind: SetupKind; notify: (
         onError: (error) => setErrors(error instanceof ApiFailure && error.message.startsWith('invalid ') ? serverErrors(kind, error.message) : { form: registerFailure(error) }),
       },
     )
-  return <CandidateForm key={round} candidate={{ id: `new-${kind}`, kind, payload: {} }} title={setupLabels[kind].one} label={`Cadastrar ${setupLabels[kind].one.toLowerCase()}`} saveLabel="Cadastrar" names={names} busy={register.isPending} serverErrors={errors} onSave={save} onCancel={onDone} />
+  const direction = kind === 'income' ? 'income' : kind === 'recurring_expense' ? 'expense' : undefined
+  const aside = direction && ((key: string, value: string, change: (value: string) => void) => key === 'category' && <CategoryHelp name={value} direction={direction} notify={notify} onCreated={change} />)
+  return (
+    <CandidateForm key={round} candidate={{ id: `new-${kind}`, kind, payload: {} }} title={setupLabels[kind].one} label={`Cadastrar ${setupLabels[kind].one.toLowerCase()}`} saveLabel="Cadastrar" names={names} busy={register.isPending} serverErrors={errors} aside={aside || undefined} onSave={save} onCancel={onDone} />
+  )
 }
