@@ -2,7 +2,7 @@
 
 ## State
 
-- S14 E3b1 done 2026-11-13 (auto-accept `accepted_by_model`, migration 011; `consolidation` on `GET /imports/:id`; one-click "Importar N itens"); next is S14 E3b2 (review summary UI), then E3c (eval workbook, fake-agent merge, Playwright). Tests: 412 node, 209 web, 63 pytest; `npm test` and `npm run check` green; failing-test run streak 0; next free backlog number L249
+- S14 E3b2a done 2026-11-13 (review "Resumo" card: `summary-model.ts`, `review-summary.tsx`); next is S14 E3b2b (rename new categories via a new API route, question split into "Escolhas do Claude", collapsed groups), then E3c. Tests: 412 node (1 skipped), 221 web, 63 pytest; `npm test` and `npm run check` green; failing-test run streak 0; next free backlog number L250
 - Do not run Playwright and `npm test` at the same time: vitest `findByText` times out under load (L213); run import Playwright with `npx playwright test e2e/import.spec.ts --project=local` (about 1 min)
 - Empty-ledger e2e: `emptyLedger()` in `web/e2e/context.ts` (reset plus `member:add -- Marcio 50 Gabriela 50`), used by `web/e2e/setup.spec.ts` with `afterAll(reseed)`. Cadastros "Novo" opens one form at a time (`adding` in `record-list.tsx`); button names `Novo cadastro em <Seção>`
 

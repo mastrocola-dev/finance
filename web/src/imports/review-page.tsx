@@ -21,6 +21,8 @@ import { useClose, useRetry, useRuntime } from './queries.ts'
 import { QuestionCard } from './question-card.tsx'
 import { acceptable, type Candidate, checkText, commitFailure, commitPlan, type Decision, type Group, groupCandidates, pendingChoice, type Question, reviewCounts, reviewFailure, titleOf, withModelChoices } from './review-model.ts'
 import { useAnswer, useBatch, useCandidates, useCommit, useDecide, useEdit, useQuestions } from './review-queries.ts'
+import { ReviewSummary } from './review-summary.tsx'
+import { reviewSummary } from './summary-model.ts'
 import { UnavailableNotice } from './unavailable-notice.tsx'
 
 const card = 'flex min-w-0 flex-col gap-2 rounded-card border bg-surface px-4 py-3 md:px-6 md:py-4'
@@ -140,9 +142,11 @@ const Review = ({ batch, notify, onCommit }: { batch: Batch; notify: (notice: No
             const choosing = open.filter(pendingChoice).length
             const items = withModelChoices(staged, open, names)
             const titles = new Map(items.map((item) => [item.id, titleOf(item)]))
+            const plan = commitPlan(items, ledger)
             return (
               <div className="flex w-full max-w-4xl flex-col gap-5">
                 <Summary candidates={items} questions={asked} />
+                {items.length > 0 && <ReviewSummary summary={reviewSummary(batch, items, open, plan)} />}
                 {(open.length > 0 || batch.checks.length > 0) && (
                   <section aria-labelledby="attention-title" className={cn(card, 'border-accent/40')}>
                     <h2 id="attention-title" className="m-0 text-section font-semibold">
@@ -175,7 +179,7 @@ const Review = ({ batch, notify, onCommit }: { batch: Batch; notify: (notice: No
                     {groupCandidates(items).map((group) => (
                       <GroupCard key={group.key} group={group} hash={hash} names={names} busy={busy} onEdit={onEdit} onDecide={(ids, decision, label) => decide.mutate({ ids, decision }, { onSuccess: () => notify({ message: decided(decision, label) }), onError })} />
                     ))}
-                    <CommitCard plan={commitPlan(items, ledger)} open={open.length - choosing} choosing={choosing} busy={busy} hash={hash} onCommit={onCommit} />
+                    <CommitCard plan={plan} open={open.length - choosing} choosing={choosing} busy={busy} hash={hash} onCommit={onCommit} />
                     <RecordScroll />
                   </>
                 )}

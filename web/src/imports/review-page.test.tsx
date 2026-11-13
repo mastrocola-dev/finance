@@ -381,3 +381,17 @@ test('explains a commit the API refuses', async () => {
   expect(await screen.findByText('Conta antiga não existe no livro nem entre os itens aceitos. Aceite o item que cria esse nome ou edite os itens que o usam.')).toBeTruthy()
   expect(screen.getByRole('region', { name: 'Gravar no livro' })).toBeTruthy()
 })
+
+test('review leads with a summary of the consolidation and what still blocks', async () => {
+  current = batch({ consolidation: { merges: [{ name: 'Farmácia', kind: 'expense', to: 'Saúde', candidates: 1 }], unchecked: [{ source: 'Outubro!G12', month: '2026-10-01', direction: 'expense', category: 'Farmácia', amountCents: 8990 }], failure: null } })
+  candidates = [...candidates.map((item) => (item.id === '1' ? { ...item, status: 'accepted' as const, acceptedByModel: true } : item)), candidate('4', { name: 'Pets', kind: 'expense' }, { kind: 'category' })]
+  start()
+  const summary = await screen.findByRole('region', { name: 'Resumo' })
+  expect(within(summary).getByText('1 item pronto para importar')).toBeTruthy()
+  expect(within(summary).getByText('1 aceito pelo Claude')).toBeTruthy()
+  expect(within(summary).getByText('Nada bloqueia a importação')).toBeTruthy()
+  expect(within(within(summary).getByRole('list', { name: 'Categorias novas' })).getByText('Pets')).toBeTruthy()
+  expect(within(summary).getByRole('list', { name: 'Categorias juntadas' }).textContent).toBe('FarmáciaparaSaúde1 item')
+  expect(within(summary).getByText('Subtotal de Farmácia em outubro de 2026 (R$ 89,90) ficou sem conferência')).toBeTruthy()
+  expect(screen.getAllByRole('region')[0]).toBe(summary)
+})
