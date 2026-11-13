@@ -19,6 +19,7 @@ const batch = (changes: Partial<Batch> = {}): Batch => ({
   checks: [{ code: 'total_mismatch', detail: 'Outubro!G40: expense 2026-10 expected 158990, found 150000' }],
   failures: [],
   totals: [],
+  consolidation: { merges: [], unchecked: [], failure: null },
   candidates: 3,
   flagged: 1,
   openQuestions: 1,
@@ -28,7 +29,7 @@ const batch = (changes: Partial<Batch> = {}): Batch => ({
   ...changes,
 })
 
-const candidate = (id: string, payload: Record<string, unknown>, changes: Partial<Candidate> = {}): Candidate => ({ id, kind: 'entry', source: `Outubro!A${id}:G${id}`, chunk: 'Outubro@0', confidence: '0.95', status: 'pending', payload, checks: [], recordId: null, ...changes })
+const candidate = (id: string, payload: Record<string, unknown>, changes: Partial<Candidate> = {}): Candidate => ({ id, kind: 'entry', source: `Outubro!A${id}:G${id}`, chunk: 'Outubro@0', confidence: '0.95', status: 'pending', acceptedByModel: false, payload, checks: [], recordId: null, ...changes })
 
 const seedCandidates = () => [
   candidate('1', { date: '2026-10-10', description: 'Aluguel', direction: 'expense', amountCents: 150000, category: 'Moradia', member: 'joint', paid: true }),
@@ -305,7 +306,7 @@ test('commit explains the blocking checks of accepted items and stays disabled',
   expect(within(commit).getByText('1 item aceito vai para o livro. 1 item pendente ou rejeitado fica de fora.')).toBeTruthy()
   expect(within(commit).getByText('Um item aceito tem bloqueio. Edite, responda ou rejeite antes de gravar:')).toBeTruthy()
   expect(within(within(commit).getByRole('list', { name: 'Bloqueios' })).getByRole('listitem').textContent).toBe('Farmácia · Pessoa desconhecida: GMA')
-  expect((within(commit).getByRole('button', { name: 'Gravar 1 item' }) as HTMLButtonElement).disabled).toBe(true)
+  expect((within(commit).getByRole('button', { name: 'Importar 1 item' }) as HTMLButtonElement).disabled).toBe(true)
 })
 
 test('commits with an unanswered question, then shows it decided by the model and closes the batch', async () => {
@@ -313,8 +314,7 @@ test('commits with an unanswered question, then shows it decided by the model an
   await userEvent.click(await screen.findByRole('button', { name: 'Aceitar 3 prontos' }))
   const commit = screen.getByRole('region', { name: 'Gravar no livro' })
   await waitFor(() => expect(within(commit).getByText('3 itens aceitos vão para o livro. 1 pergunta sem resposta fica com a primeira opção.')).toBeTruthy())
-  await userEvent.click(within(commit).getByRole('button', { name: 'Gravar 3 itens' }))
-  await userEvent.click(within(commit).getByRole('button', { name: 'Confirmar gravação' }))
+  await userEvent.click(within(commit).getByRole('button', { name: 'Importar 3 itens' }))
   expect(await screen.findByText('Gravado no livro: 3 itens')).toBeTruthy()
   const done = await screen.findByRole('region', { name: 'Gravada no livro' })
   expect(within(done).getByText(/^3 itens gravados\./)).toBeTruthy()
@@ -348,7 +348,7 @@ test('commit lists accepted items naming what only a pending item creates', asyn
   const commit = await screen.findByRole('region', { name: 'Gravar no livro' })
   await waitFor(() => expect(within(commit).getByText('Um item aceito usa um nome que só existe num item não aceito. Aceite esse item ou edite o que usa o nome:')).toBeTruthy())
   expect(within(within(commit).getByRole('list', { name: 'Nomes não aceitos' })).getByRole('listitem').textContent).toBe('Aluguel · Conta Conta nova está num item pendente')
-  expect((within(commit).getByRole('button', { name: 'Gravar 1 item' }) as HTMLButtonElement).disabled).toBe(true)
+  expect((within(commit).getByRole('button', { name: 'Importar 1 item' }) as HTMLButtonElement).disabled).toBe(true)
   const creator = within(commit).getByRole('link', { name: 'Conta Conta nova está num item pendente' })
   expect(creator.getAttribute('href')).toMatch(/\/importar\/7#candidate-4$/)
   expect(document.querySelectorAll('[aria-current="true"]')).toHaveLength(0)
@@ -357,7 +357,19 @@ test('commit lists accepted items naming what only a pending item creates', asyn
   expect(document.querySelectorAll('[aria-current="true"]')).toHaveLength(1)
   await userEvent.click(screen.getByRole('button', { name: 'Aceitar Conta nova' }))
   await waitFor(() => expect(within(commit).queryByRole('list', { name: 'Nomes não aceitos' })).toBeNull())
-  expect((within(commit).getByRole('button', { name: 'Gravar 2 itens' }) as HTMLButtonElement).disabled).toBe(false)
+  expect((within(commit).getByRole('button', { name: 'Importar 2 itens' }) as HTMLButtonElement).disabled).toBe(false)
+})
+
+test('items the Claude accepted say so and import in one click with nothing blocking', async () => {
+  questions = []
+  candidates = candidates.filter((item) => item.id !== '2').map((item) => ({ ...item, status: 'accepted', acceptedByModel: item.id === '1' }))
+  start()
+  const commit = await screen.findByRole('region', { name: 'Gravar no livro' })
+  expect(within(screen.getByText('Aluguel').closest('li') as HTMLElement).getByText('Aceito pelo Claude')).toBeTruthy()
+  expect(within(screen.getByText('Mercado').closest('li') as HTMLElement).getByText('Aceito', { exact: true })).toBeTruthy()
+  await userEvent.click(within(commit).getByRole('button', { name: 'Importar 2 itens' }))
+  expect(await screen.findByText('Gravado no livro: 2 itens')).toBeTruthy()
+  expect(calls.at(-1)).toEqual({ path: '/api/imports/7/commit', body: null, member: 'Marcio' })
 })
 
 test('explains a commit the API refuses', async () => {
@@ -365,8 +377,7 @@ test('explains a commit the API refuses', async () => {
   refusal = 'unknown account Conta antiga'
   start()
   const commit = await screen.findByRole('region', { name: 'Gravar no livro' })
-  await userEvent.click(within(commit).getByRole('button', { name: 'Gravar 1 item' }))
-  await userEvent.click(within(commit).getByRole('button', { name: 'Confirmar gravação' }))
+  await userEvent.click(within(commit).getByRole('button', { name: 'Importar 1 item' }))
   expect(await screen.findByText('Conta antiga não existe no livro nem entre os itens aceitos. Aceite o item que cria esse nome ou edite os itens que o usam.')).toBeTruthy()
   expect(screen.getByRole('region', { name: 'Gravar no livro' })).toBeTruthy()
 })

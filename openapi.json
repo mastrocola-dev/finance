@@ -3431,6 +3431,70 @@
             },
             "description": "Totals printed in the source"
           },
+          "consolidation": {
+            "type": "object",
+            "properties": {
+              "merges": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "name": {
+                      "type": "string"
+                    },
+                    "kind": {
+                      "type": "string",
+                      "enum": [
+                        "income",
+                        "expense"
+                      ]
+                    },
+                    "to": {
+                      "type": "string"
+                    },
+                    "candidates": {
+                      "type": "integer",
+                      "minimum": -9007199254740991,
+                      "maximum": 9007199254740991,
+                      "description": "Candidates whose category was rewritten"
+                    }
+                  },
+                  "required": [
+                    "name",
+                    "kind",
+                    "to",
+                    "candidates"
+                  ],
+                  "additionalProperties": false
+                }
+              },
+              "unchecked": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "propertyNames": {
+                    "type": "string"
+                  },
+                  "additionalProperties": {}
+                },
+                "description": "Category subtotals left out of the reconciliation by a merge"
+              },
+              "failure": {
+                "description": "Why the consolidation call failed; the extraction result was kept",
+                "type": [
+                  "string",
+                  "null"
+                ]
+              }
+            },
+            "required": [
+              "merges",
+              "unchecked",
+              "failure"
+            ],
+            "additionalProperties": false,
+            "description": "New categories of the batch merged by one model call after verification"
+          },
           "candidates": {
             "type": "integer",
             "minimum": -9007199254740991,
@@ -3520,6 +3584,7 @@
           "checks",
           "failures",
           "totals",
+          "consolidation",
           "candidates",
           "flagged",
           "openQuestions",
@@ -3571,6 +3636,10 @@
               "edited"
             ]
           },
+          "acceptedByModel": {
+            "type": "boolean",
+            "description": "Accepted by verification: confidence at or above the threshold and every check passing; a person deciding or editing clears it"
+          },
           "payload": {
             "type": "object",
             "propertyNames": {
@@ -3617,6 +3686,7 @@
           "chunk",
           "confidence",
           "status",
+          "acceptedByModel",
           "payload",
           "checks",
           "recordId"

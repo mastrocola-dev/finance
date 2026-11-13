@@ -3,7 +3,7 @@ import { confidenceThreshold } from './verify.ts'
 
 export const retryChunks = (batch: string, threshold: string) => `select chunk from import_candidate where batch_id = ${batch} and closed_at is null and status = 'pending' and chunk is not null and confidence < ${threshold}
   union select concat(failure->>'source', '@', failure->>'offset') from import_batch, jsonb_array_elements(failures) as failure where id = ${batch}
-  except (select chunk from import_candidate where batch_id = ${batch} and closed_at is null and status <> 'pending' and chunk is not null
+  except (select chunk from import_candidate where batch_id = ${batch} and closed_at is null and status <> 'pending' and not accepted_by_model and chunk is not null
     union select q.chunk from import_question q where q.batch_id = ${batch} and q.closed_at is null and q.answer is not null and q.chunk is not null
     union select c.chunk from import_question q join import_candidate c on c.id = q.candidate_id where q.batch_id = ${batch} and q.closed_at is null and q.answer is not null and c.chunk is not null)`
 
@@ -13,7 +13,7 @@ export type BatchStatus = (typeof batchStatuses)[number]
 
 const batchColumns = `b.id::text as id, b.file_name as "fileName", b.format, b.status, b.created_at as "createdAt", b.closed_at as "closedAt",
   b.input_tokens::int as "inputTokens", b.output_tokens::int as "outputTokens", round(b.cost_usd_micros / 1000000.0, 4)::text as "costUsd",
-  b.checks, b.failures, b.totals,
+  b.checks, b.failures, b.totals, b.consolidation,
   (select count(*)::int from import_candidate c where c.batch_id = b.id and c.closed_at is null) as candidates,
   (select count(*)::int from import_candidate c where c.batch_id = b.id and c.closed_at is null and jsonb_array_length(c.checks) > 0) as flagged,
   (select count(*)::int from import_question q where q.batch_id = b.id and q.closed_at is null and q.answer is null) as "openQuestions",
@@ -27,7 +27,7 @@ export const findBatch = async (client: Queryable, id: bigint) => (await client.
 export const listCandidates = async (client: Queryable, batchId: bigint) =>
   (
     await client.query(
-      `select id::text as id, kind, source, chunk, confidence::text as confidence, status, payload, checks, record_id::text as "recordId"
+      `select id::text as id, kind, source, chunk, confidence::text as confidence, status, accepted_by_model as "acceptedByModel", payload, checks, record_id::text as "recordId"
       from import_candidate where batch_id = $1 and closed_at is null order by id`,
       [batchId],
     )

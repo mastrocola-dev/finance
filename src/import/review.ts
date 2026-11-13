@@ -9,7 +9,7 @@ export const reviewDecisions = { accept: 'accepted', reject: 'rejected' } as con
 
 export type ReviewDecision = keyof typeof reviewDecisions
 
-type Open = Omit<Staged, 'confidence'> & { confidence: string; status: string }
+type Open = Omit<Staged, 'confidence'> & { confidence: string; status: string; accepted_by_model: boolean }
 type Reference = 'member' | 'account' | 'category' | 'reserve'
 type Asked = { reference: Reference; name: string }
 
@@ -17,7 +17,7 @@ const reviewing = <T>(client: Client, actor: Actor, batchId: bigint, work: (ledg
   write(client, actor, async (ledger) => {
     const status = (await client.query<{ status: string }>('select status from import_batch where id = $1 and closed_at is null for update', [batchId])).rows[0]?.status
     if (status !== 'verified') throw new RuleError(`import batch ${batchId} is not open for review`)
-    const { rows } = await client.query<Open>('select id, kind, source, confidence, payload, checks, status from import_candidate where batch_id = $1 and closed_at is null order by id', [batchId])
+    const { rows } = await client.query<Open>('select id, kind, source, confidence, payload, checks, status, accepted_by_model from import_candidate where batch_id = $1 and closed_at is null order by id', [batchId])
     const result = await work(ledger, rows)
     await verifyWithin(client, ledger, batchId)
     return result
@@ -35,8 +35,8 @@ export const reviewCandidates = (client: Client, actor: Actor, batchId: bigint, 
     const chosen = [...new Set(ids)].map((id) => candidateOf(candidates, id))
     for (const item of chosen) {
       if (decision === 'accept' && !payloads[item.kind].safeParse(item.payload).success) throw new RuleError(`candidate ${item.id} has an invalid payload; edit it first`)
-      const unchanged = item.status === status || (decision === 'accept' && item.status === 'edited')
-      if (!unchanged) await ledger.update('import_candidate', item.id, { status })
+      const unchanged = (item.status === status && !item.accepted_by_model) || (decision === 'accept' && item.status === 'edited')
+      if (!unchanged) await ledger.update('import_candidate', item.id, { status, accepted_by_model: false })
     }
     return chosen.map((item) => item.id)
   })
@@ -48,7 +48,7 @@ export const editCandidate = (client: Client, actor: Actor, batchId: bigint, can
     const item = candidateOf(candidates, candidateId)
     const parsed = payloads[item.kind].safeParse(payload)
     if (!parsed.success) throw new RuleError(`invalid ${item.kind} payload: ${issues(parsed.error)}`)
-    await ledger.update('import_candidate', item.id, { payload: parsed.data, status: 'edited' })
+    await ledger.update('import_candidate', item.id, { payload: parsed.data, status: 'edited', accepted_by_model: false })
     return item.id
   })
 
@@ -110,7 +110,7 @@ export const answerQuestion = (client: Client, actor: Actor, batchId: bigint, qu
 export const decideQuestions = async (client: Client, ledger: Writer, batchId: bigint) => {
   const { rows } = await client.query<{ id: bigint; question: string; options: string[] }>('select id, question, options from import_question where batch_id = $1 and closed_at is null and answer is null and jsonb_array_length(options) > 0 order by id', [batchId])
   if (rows.length === 0) return []
-  const candidates = (await client.query<Open>('select id, kind, source, confidence, payload, checks, status from import_candidate where batch_id = $1 and closed_at is null order by id', [batchId])).rows
+  const candidates = (await client.query<Open>('select id, kind, source, confidence, payload, checks, status, accepted_by_model from import_candidate where batch_id = $1 and closed_at is null order by id', [batchId])).rows
   for (const { id, question, options } of rows) {
     const [first = ''] = options
     await ledger.update('import_question', id, { answer: first, decided_by_model: true })

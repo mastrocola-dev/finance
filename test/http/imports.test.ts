@@ -102,6 +102,7 @@ describe('import api', () => {
       const response = await fetch(`${at}/api/imports/${batch}${path}`, { method, headers: { 'content-type': 'application/json', 'x-member': 'Gabriela' }, body: JSON.stringify(body) })
       return { status: response.status, body: await response.json() }
     }
+    assert.deepEqual((await get(`/imports/${batch}`)).body.consolidation, { merges: [], unchecked: [], failure: null })
     const [question] = (await get(`/imports/${batch}/questions`)).body
     const answered = await send('POST', `/questions/${question.id}/answer`, { answer: 'Gabriela' })
     assert.equal(answered.status, 200)
@@ -111,10 +112,15 @@ describe('import api', () => {
     assert.equal((await send('PATCH', `/candidates/${first.id}`, { payload: { ...first.payload, amountCents: -1 } })).status, 422)
     const edited = await send('PATCH', `/candidates/${first.id}`, { payload: { ...first.payload, description: 'Aluguel de outubro' } })
     assert.deepEqual([edited.status, edited.body.status, edited.body.payload.description], [200, 'edited', 'Aluguel de outubro'])
+    assert.equal(second.acceptedByModel, second.status === 'accepted')
     const chosen = await send('POST', '/candidates/accept', { ids: [first.id, second.id] })
     assert.deepEqual(
       chosen.body.map(({ status }: { status: string }) => status),
       ['edited', 'accepted'],
+    )
+    assert.deepEqual(
+      chosen.body.map(({ acceptedByModel }: { acceptedByModel: boolean }) => acceptedByModel),
+      [false, false],
     )
     assert.equal((await send('POST', '/candidates/reject', { ids: [] })).status, 400)
     assert.equal((await send('POST', '/candidates/reject', { ids: ['999999'] })).status, 422)
@@ -166,10 +172,10 @@ describe('import api', () => {
     const [first] = (await get(`/imports/${committed.body.id}/candidates`)).body
     await send(committed.body.id, '/candidates/accept', { ids: [first.id] })
     const written = await send(committed.body.id, '/commit')
-    assert.deepEqual([written.status, written.body.status, written.body.committed], [200, 'committed', 1])
+    assert.deepEqual([written.status, written.body.status, written.body.committed], [200, 'committed', 3])
     assert.equal(await exists(hashOf('fechado\n')), false)
     const closed = await send(committed.body.id, '/close')
-    assert.deepEqual([closed.status, closed.body.status, closed.body.candidates, closed.body.committed], [200, 'closed', 0, 1])
+    assert.deepEqual([closed.status, closed.body.status, closed.body.candidates, closed.body.committed], [200, 'closed', 0, 3])
     assert.equal((await upload('de novo.txt', 'fechado\n')).status, 422)
     const dropped = await send(abandoned.body.id, '/close')
     assert.deepEqual([dropped.status, dropped.body.status, dropped.body.committed], [200, 'closed', 0])

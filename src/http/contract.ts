@@ -244,6 +244,14 @@ const progress = z.strictObject({
   error: z.string().nullable(),
 })
 
+const consolidation = z
+  .strictObject({
+    merges: z.array(z.strictObject({ name: z.string(), kind: z.enum(['income', 'expense']), to: z.string(), candidates: z.int().describe('Candidates whose category was rewritten') })),
+    unchecked: z.array(z.record(z.string(), z.unknown())).describe('Category subtotals left out of the reconciliation by a merge'),
+    failure: z.string().nullable().describe('Why the consolidation call failed; the extraction result was kept'),
+  })
+  .describe('New categories of the batch merged by one model call after verification')
+
 const importBatch = z.strictObject({
   id,
   fileName: z.string(),
@@ -257,6 +265,7 @@ const importBatch = z.strictObject({
   checks: z.array(check).describe('Batch checks such as total_mismatch'),
   failures: z.array(z.strictObject({ source: z.string(), offset: z.int(), reason: z.string() })).describe('Chunks whose extraction failed'),
   totals: z.array(z.record(z.string(), z.unknown())).describe('Totals printed in the source'),
+  consolidation: consolidation,
   candidates: z.int().describe('Open candidates'),
   flagged: z.int().describe('Open candidates with at least one check'),
   openQuestions: z.int(),
@@ -272,6 +281,7 @@ const importCandidate = z.strictObject({
   chunk: z.string().nullable(),
   confidence: z.string(),
   status: z.enum(['pending', 'accepted', 'rejected', 'edited']),
+  acceptedByModel: z.boolean().describe('Accepted by verification: confidence at or above the threshold and every check passing; a person deciding or editing clears it'),
   payload: z.record(z.string(), z.unknown()).describe('Candidate fields in camelCase, amounts in integer cents'),
   checks: z.array(check),
   recordId: id.nullable().describe('Ledger row created from this candidate when the batch was committed; its table is the kind'),

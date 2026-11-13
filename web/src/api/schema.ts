@@ -962,6 +962,23 @@ export type components = {
             totals: {
                 [key: string]: unknown;
             }[];
+            /** @description New categories of the batch merged by one model call after verification */
+            consolidation: {
+                merges: {
+                    name: string;
+                    /** @enum {string} */
+                    kind: "income" | "expense";
+                    to: string;
+                    /** @description Candidates whose category was rewritten */
+                    candidates: number;
+                }[];
+                /** @description Category subtotals left out of the reconciliation by a merge */
+                unchecked: {
+                    [key: string]: unknown;
+                }[];
+                /** @description Why the consolidation call failed; the extraction result was kept */
+                failure: string | null;
+            };
             /** @description Open candidates */
             candidates: number;
             /** @description Open candidates with at least one check */
@@ -992,6 +1009,8 @@ export type components = {
             confidence: string;
             /** @enum {string} */
             status: "pending" | "accepted" | "rejected" | "edited";
+            /** @description Accepted by verification: confidence at or above the threshold and every check passing; a person deciding or editing clears it */
+            acceptedByModel: boolean;
             /** @description Candidate fields in camelCase, amounts in integer cents */
             payload: {
                 [key: string]: unknown;

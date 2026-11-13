@@ -132,11 +132,15 @@ describe('import review', () => {
 
   test('retries skip chunks holding reviewed rows', async () => {
     const { batch, candidates } = await staged()
-    assert.deepEqual(await retryTargets(client, batch), ['L2@0', 'L7@0'])
+    assert.deepEqual(await retryTargets(client, batch), ['L2@0', 'L4@0', 'L7@0'])
     await reviewCandidates(client, member, batch, [candidates[6] as bigint], 'reject')
+    assert.deepEqual(await retryTargets(client, batch), ['L2@0', 'L4@0'])
+    await client.query("update import_candidate set chunk = 'L4@0' where id = $1 and accepted_by_model", [candidates[0]])
+    assert.deepEqual(await retryTargets(client, batch), ['L2@0', 'L4@0'])
+    await reviewCandidates(client, member, batch, [candidates[0] as bigint], 'accept')
     assert.deepEqual(await retryTargets(client, batch), ['L2@0'])
     const { batch: other, questions } = await staged()
     await answerQuestion(client, member, other, questions[0] as bigint, 'Sim')
-    assert.deepEqual(await retryTargets(client, other), ['L7@0'])
+    assert.deepEqual(await retryTargets(client, other), ['L4@0', 'L7@0'])
   })
 })

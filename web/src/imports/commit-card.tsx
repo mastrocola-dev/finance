@@ -98,7 +98,9 @@ export const CommitCard = ({ plan, open, choosing, busy, hash, onCommit }: Props
       </>
     )}
     <div className="flex flex-wrap items-center gap-2">
-      <Confirmed label={plan.ready.length > 0 ? `Gravar ${plural(plan.ready.length, 'item', 'itens')}` : 'Gravar'} confirm="Confirmar gravação" disabled={busy || plan.ready.length === 0 || plan.blocked.length > 0 || plan.unstaged.length > 0} onConfirm={onCommit} />
+      <Button variant="primary" disabled={busy || plan.ready.length === 0 || plan.blocked.length > 0 || plan.unstaged.length > 0} onClick={onCommit}>
+        {plan.ready.length > 0 ? `Importar ${plural(plan.ready.length, 'item', 'itens')}` : 'Importar'}
+      </Button>
     </div>
   </section>
 )

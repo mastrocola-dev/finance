@@ -204,7 +204,7 @@ describe('import run against staging', () => {
     assert.deepEqual(old.rows, [
       { status: 'replaced', closed: true },
       { status: 'replaced', closed: true },
-      { status: 'pending', closed: false },
+      { status: 'accepted', closed: false },
     ])
     const open = await client.query('select count(*)::int as total from import_question where batch_id = $1 and closed_at is null and candidate_id = any($2)', [batch, first.candidates.slice(0, 2)])
     assert.deepEqual(open.rows, [{ total: 0 }])

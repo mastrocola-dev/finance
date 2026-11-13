@@ -155,6 +155,10 @@ describe('verifyBatch', () => {
       rows.map((row) => row.checks.map((check) => check.code)),
       [['duplicate_in_ledger'], ['low_confidence', 'matched_member'], ['matched_member', 'duplicate_in_file'], [], [], ['duplicate_in_ledger'], []],
     )
+    assert.deepEqual(
+      rows.map((row) => row.status),
+      ['pending', 'pending', 'pending', 'accepted', 'accepted', 'pending', 'accepted'],
+    )
     assert.deepEqual(rows[6], { kind: 'category', status: 'accepted', source: 'out!A5:G5', payload: { name: 'Mercado', kind: 'expense' }, checks: [] })
     const questions = await client.query('select question from import_question where batch_id = $1 order by id', [batch])
     assert.deepEqual(questions.rows, [{ question: 'GMA é a Gabriela?' }])
@@ -165,7 +169,7 @@ describe('verifyBatch', () => {
     const checks = await client.query('select checks from import_batch where id = $1', [batch])
     assert.deepEqual(checks.rows[0]?.checks, [mismatch])
     const audit = await client.query<{ author: string; total: number }>("select author, count(*)::int as total from audit_log where entity in ('import_candidate', 'import_question', 'import_batch') and action = 'update' group by author")
-    assert.deepEqual(audit.rows, [{ author: 'import', total: 6 }])
+    assert.deepEqual(audit.rows, [{ author: 'import', total: 8 }])
   })
 
   test('is idempotent: a second run writes nothing new', async () => {

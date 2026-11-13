@@ -2,7 +2,7 @@ import { expect, test } from 'vitest'
 import { ApiFailure } from '../query/client.ts'
 import { acceptable, amountOf, blocked, type Candidate, candidateRecord, checkText, commitFailure, commitPlan, detailsOf, groupCandidates, isBlocking, monthOfCandidate, type Question, reviewCounts, reviewFailure, titleOf, unstagedText, withModelChoices } from './review-model.ts'
 
-const candidate = (id: string, kind: Candidate['kind'], payload: Record<string, unknown>, changes: Partial<Candidate> = {}): Candidate => ({ id, kind, source: 'A1', chunk: null, confidence: '0.90', status: 'pending', payload, checks: [], recordId: null, ...changes })
+const candidate = (id: string, kind: Candidate['kind'], payload: Record<string, unknown>, changes: Partial<Candidate> = {}): Candidate => ({ id, kind, source: 'A1', chunk: null, confidence: '0.90', status: 'pending', acceptedByModel: false, payload, checks: [], recordId: null, ...changes })
 
 const rent = candidate('1', 'entry', { date: '2026-10-10', description: 'Aluguel', direction: 'expense', amountCents: 150000, category: 'Moradia', member: 'joint', paid: true })
 const pharmacy = candidate('2', 'entry', { date: '2026-10-15', description: 'Farmácia', direction: 'expense', amountCents: 8990, category: 'Saúde', member: 'GMA', paid: false, installment: { number: 2, total: 3 } }, { checks: [{ code: 'unknown_member', detail: 'GMA' }] })

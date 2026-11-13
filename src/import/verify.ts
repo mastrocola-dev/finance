@@ -100,6 +100,7 @@ export const findChecks = (candidates: Staged[], references: References, thresho
       else seen.set(key, item.source)
       const existing = ledger.get(key)
       if (existing !== undefined) found.push({ code: 'duplicate_in_ledger', detail: `${item.kind} ${existing}` })
+      else if (item.kind === 'account' && references.accounts.some((account) => same(account.name, String(item.payload.nickname ?? '')))) found.push({ code: 'duplicate_in_ledger', detail: `account ${item.payload.nickname}` })
     }
     checks.set(item.id, found)
     if (Object.keys(resolution).length > 0) resolved.set(item.id, resolution)
@@ -196,7 +197,10 @@ const repeatedOf = (open: Open[]) => {
 export const verifyWithin = async (client: Client, ledger: Writer, batchId: bigint, threshold = confidenceThreshold) => {
   const batch = (await client.query<{ status: string; totals: Record<string, unknown>[]; checks: Check[] }>('select status, totals, checks from import_batch where id = $1 and closed_at is null for update', [batchId])).rows[0]
   if (batch?.status !== 'draft' && batch?.status !== 'verified') throw new RuleError(`import batch ${batchId} is not open for verification`)
-  const { rows } = await client.query<Omit<Staged, 'confidence'> & { confidence: string; origin: string; status: string }>("select id, kind, source, confidence, payload, checks, origin, status from import_candidate where batch_id = $1 and closed_at is null and status <> 'rejected' order by id", [batchId])
+  const { rows } = await client.query<Omit<Staged, 'confidence'> & { confidence: string; origin: string; status: string; accepted_by_model: boolean }>(
+    "select id, kind, source, confidence, payload, checks, origin, status, accepted_by_model from import_candidate where batch_id = $1 and closed_at is null and status <> 'rejected' order by id",
+    [batchId],
+  )
   const staged = rows.map((row) => ({ ...row, confidence: Number(row.confidence) }))
   const references = await loadReferences(client, staged)
   const refused = (await client.query<Named>("select payload->>'name' as name, payload->>'kind' as kind from import_candidate where batch_id = $1 and closed_at is null and status = 'rejected' and kind = 'category'", [batchId])).rows
@@ -207,7 +211,10 @@ export const verifyWithin = async (client: Client, ledger: Writer, batchId: bigi
   const candidates = staged.filter((item) => !orphans.includes(item))
   for (const item of candidates) {
     const found = checks.get(item.id) ?? []
-    if (!sameChecks(found, item.checks)) await ledger.update('import_candidate', item.id, { checks: JSON.stringify(found) })
+    const passing = item.confidence >= threshold && found.every(informational)
+    const status = item.status === 'pending' && passing ? { status: 'accepted', accepted_by_model: true } : item.accepted_by_model && !passing ? { status: 'pending', accepted_by_model: false } : {}
+    const changes = { ...(!sameChecks(found, item.checks) && { checks: JSON.stringify(found) }), ...status }
+    if (Object.keys(changes).length > 0) await ledger.update('import_candidate', item.id, changes)
   }
   const wanted = asks.map((ask) => ({ ask, ...questionFor(ask, references) }))
   const listed = (await client.query<Open>('select id, question, candidate_id, answer, origin from import_question where batch_id = $1 and closed_at is null order by id', [batchId])).rows
