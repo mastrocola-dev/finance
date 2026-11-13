@@ -19,6 +19,7 @@ const count = (description: string) => z.int().min(1).max(600).describe(descript
 const member = text("Member name as written in the source, 'joint' when shared by the household; omit when unknown").optional()
 const category = text('Category name as written in the source or the closest household category')
 const account = text('Account nickname, never a number').optional()
+const unknown = <T extends z.ZodType>(schema: T) => schema.nullish().transform((value) => value ?? undefined)
 
 const ordered = (start: string, end: string) => (value: Record<string, unknown>) => {
   const [from, to] = [value[start], value[end]]
@@ -62,7 +63,7 @@ export const incomePayload = z
     amountCents: cents('Monthly amount'),
     dayOfMonth,
     startsOn: day('First month it applies'),
-    endsOn: day('Last date it applies').optional(),
+    endsOn: unknown(day('Last date it applies; null when open-ended or unknown')),
     category: category.optional(),
     account,
     member,
@@ -75,7 +76,7 @@ export const recurringExpensePayload = z
     amountCents: cents('Monthly amount'),
     dayOfMonth,
     startsOn: day('First month it applies'),
-    endsOn: day('Last date it applies').optional(),
+    endsOn: unknown(day('Last date it applies; null when open-ended or unknown')),
     installmentsTotal: count('Total installments when it is paid in installments').optional(),
     category,
     account,
@@ -89,10 +90,10 @@ export const debtPayload = z
     description: text('What the debt is'),
     principalCents: cents('Original amount'),
     balanceCents: balance('Outstanding balance'),
-    monthlyRatePercent: z.number().min(0).max(100).optional().describe('Monthly interest rate in percent'),
-    installmentCents: cents('Installment amount').optional(),
-    installmentsTotal: count('Total installments').optional(),
-    installmentsPaid: z.int().min(0).max(600).optional().describe('Installments already paid'),
+    monthlyRatePercent: unknown(z.number().min(0).max(100).describe('Monthly interest rate in percent; null when unknown')),
+    installmentCents: unknown(cents('Installment amount; null when unknown')),
+    installmentsTotal: unknown(count('Total installments; null when unknown')),
+    installmentsPaid: unknown(z.int().min(0).max(600).describe('Installments already paid; null when unknown')),
     startsOn: day('Start date'),
     account,
     member,
@@ -139,8 +140,8 @@ export const candidate = z.discriminatedUnion('kind', [variant('entry'), variant
 export const question = z.strictObject({
   question: z.string().trim().min(1).max(300).describe('Question for the household in Portuguese, such as "GMA é a Gabriela?"'),
   options: z.array(z.string().trim().min(1).max(100)).max(6).describe('Suggested answers, empty for free text'),
-  source: source.optional(),
-  candidate: z.int().min(0).optional().describe('Index in candidates of the item the question is about'),
+  source: unknown(source),
+  candidate: unknown(z.int().min(0).describe('Index in candidates of the item the question is about; null when it is about no single item')),
 })
 
 export const total = z

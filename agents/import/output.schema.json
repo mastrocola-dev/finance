@@ -242,9 +242,16 @@
                     "description": "First month it applies, YYYY-MM-DD"
                   },
                   "endsOn": {
-                    "type": "string",
-                    "format": "date",
-                    "description": "Last date it applies, YYYY-MM-DD"
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "format": "date",
+                        "description": "Last date it applies; null when open-ended or unknown, YYYY-MM-DD"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
                   },
                   "category": {
                     "type": "string",
@@ -263,7 +270,8 @@
                   "description",
                   "amountCents",
                   "dayOfMonth",
-                  "startsOn"
+                  "startsOn",
+                  "endsOn"
                 ],
                 "additionalProperties": false
               }
@@ -312,9 +320,16 @@
                     "description": "First month it applies, YYYY-MM-DD"
                   },
                   "endsOn": {
-                    "type": "string",
-                    "format": "date",
-                    "description": "Last date it applies, YYYY-MM-DD"
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "format": "date",
+                        "description": "Last date it applies; null when open-ended or unknown, YYYY-MM-DD"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
                   },
                   "installmentsTotal": {
                     "type": "integer",
@@ -338,6 +353,7 @@
                   "amountCents",
                   "dayOfMonth",
                   "startsOn",
+                  "endsOn",
                   "category"
                 ],
                 "additionalProperties": false
@@ -386,20 +402,48 @@
                     "description": "Outstanding balance, integer cents of BRL"
                   },
                   "monthlyRatePercent": {
-                    "description": "Monthly interest rate in percent",
-                    "type": "number"
+                    "anyOf": [
+                      {
+                        "type": "number",
+                        "description": "Monthly interest rate in percent; null when unknown"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
                   },
                   "installmentCents": {
-                    "type": "integer",
-                    "description": "Installment amount, integer cents of BRL"
+                    "anyOf": [
+                      {
+                        "type": "integer",
+                        "description": "Installment amount; null when unknown, integer cents of BRL"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
                   },
                   "installmentsTotal": {
-                    "type": "integer",
-                    "description": "Total installments"
+                    "anyOf": [
+                      {
+                        "type": "integer",
+                        "description": "Total installments; null when unknown"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
                   },
                   "installmentsPaid": {
-                    "description": "Installments already paid",
-                    "type": "integer"
+                    "anyOf": [
+                      {
+                        "type": "integer",
+                        "description": "Installments already paid; null when unknown"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
                   },
                   "startsOn": {
                     "type": "string",
@@ -420,6 +464,10 @@
                   "description",
                   "principalCents",
                   "balanceCents",
+                  "monthlyRatePercent",
+                  "installmentCents",
+                  "installmentsTotal",
+                  "installmentsPaid",
                   "startsOn"
                 ],
                 "additionalProperties": false
@@ -559,23 +607,38 @@
             "description": "Suggested answers, empty for free text"
           },
           "source": {
-            "type": "string",
-            "description": "Source address of the segment or record, such as 2026-10!A3:G3, $.transactions[12] or p2:L4-L5"
+            "anyOf": [
+              {
+                "type": "string",
+                "description": "Source address of the segment or record, such as 2026-10!A3:G3, $.transactions[12] or p2:L4-L5"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "candidate": {
-            "description": "Index in candidates of the item the question is about",
-            "type": "integer"
+            "anyOf": [
+              {
+                "type": "integer",
+                "description": "Index in candidates of the item the question is about; null when it is about no single item"
+              },
+              {
+                "type": "null"
+              }
+            ]
           }
         },
         "required": [
           "question",
-          "options"
+          "options",
+          "source",
+          "candidate"
         ],
         "additionalProperties": false
       }
     },
     "totals": {
-      "default": [],
       "description": "Totals and subtotals printed in the source, used only to check the candidates",
       "type": "array",
       "items": {
@@ -620,7 +683,8 @@
   },
   "required": [
     "candidates",
-    "questions"
+    "questions",
+    "totals"
   ],
   "additionalProperties": false
 }
