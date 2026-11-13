@@ -4,7 +4,7 @@ import { readFile, rm } from 'node:fs/promises'
 import { resolve } from 'node:path'
 import { describe, test } from 'node:test'
 import { ExtractionError, extract, type Segment, type Task } from '../../src/import/agent.ts'
-import { childEnvironment, defaultCli, renderAgent, run, serviceAgentExtractor, usageOf } from '../../src/import/service-agent.ts'
+import { childEnvironment, defaultCli, parseOutput, renderAgent, run, serviceAgentExtractor, usageOf, withSchema } from '../../src/import/service-agent.ts'
 import { sample } from './sample.ts'
 
 const cli = 'test/import/fake-agent.ts'
@@ -27,7 +27,7 @@ describe('service-agent adapter', () => {
     const result = await run({ folder: 'ingest/tests/fixtures', cli }, task('echo'))
     assert.deepEqual(result.usage, spent)
     const echo = (result.output as { echo: { dir: string } }).echo
-    assert.deepEqual(echo, { dir: echo.dir, files: ['agent.json', 'output.schema.json', 'system.md'], folder: resolve('ingest/tests/fixtures'), database: null, maxRunTokens: 5000, maxTokens: 5000, offset: 0 })
+    assert.deepEqual(echo, { dir: echo.dir, files: ['agent.json', 'system.md'], folder: resolve('ingest/tests/fixtures'), database: null, maxRunTokens: 5000, maxTokens: 5000, offset: 0 })
     assert.notEqual(echo.dir, 'agents/import')
     assert.equal(existsSync(echo.dir), false)
   })
@@ -41,9 +41,19 @@ describe('service-agent adapter', () => {
     assert.equal(model, 'claude-sonnet-4-5')
     assert.deepEqual(rendered, { ...template, mcpServers: { ingest: { ...template.mcpServers.ingest, args: ['ingest/serve.py', resolve('pasta "x"')] } } })
     assert.equal(childEnvironment(dir).TRACE_DIR, `${dir}/traces`)
+    const system = await readFile(`${dir}/system.md`, 'utf8')
+    assert.ok(system.startsWith((await readFile('agents/import/system.md', 'utf8')).trimEnd()))
+    assert.ok(system.includes(JSON.stringify(JSON.parse(await readFile('agents/import/output.schema.json', 'utf8')))))
     const capped = await renderAgent('agents/import', '.', 5000)
     assert.equal(JSON.parse(await readFile(`${capped.dir}/agent.json`, 'utf8')).maxRunTokens, 5000)
     await Promise.all([dir, capped.dir].map((path) => rm(path, { recursive: true })))
+  })
+
+  test('sends the reply schema in the prompt instead of a strict grammar and reads a fenced or plain JSON reply', () => {
+    assert.equal(withSchema('Regras\n', '{ "type": "object" }'), 'Regras\n\n## Reply format\n\nReply with one JSON object and nothing else, valid against this JSON Schema:\n\n{"type":"object"}\n')
+    assert.deepEqual(parseOutput('```json\n{\n  "candidates": []\n}\n```\n'), { value: { candidates: [] } })
+    assert.deepEqual(parseOutput('{"a":1}\n'), { value: { a: 1 } })
+    assert.equal(parseOutput('not json'), undefined)
   })
 
   test('counts cache tokens as input and prices runs service-agent could not price', () => {
