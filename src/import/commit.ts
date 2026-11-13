@@ -4,6 +4,7 @@ import { type Actor, type Closable, type Row, write } from '../db/write.ts'
 import { RuleError } from '../ledger/rule.ts'
 import { competenceOf } from '../ledger/summary.ts'
 import { type CandidateKind, payloads } from './candidate.ts'
+import { decideQuestions } from './review.ts'
 import { type Check, verifyWithin } from './verify.ts'
 
 type Chosen = { id: bigint; kind: CandidateKind; payload: Record<string, unknown>; checks: Check[] }
@@ -97,7 +98,9 @@ export const commitBatch = (client: Client, actor: Actor, batchId: bigint) =>
   write(client, actor, async (ledger) => {
     const status = (await client.query<{ status: string }>('select status from import_batch where id = $1 and closed_at is null for update', [batchId])).rows[0]?.status
     if (status !== 'verified') throw new RuleError(`import batch ${batchId} is not verified`)
-    const { resolved } = await verifyWithin(client, ledger, batchId)
+    const verified = await verifyWithin(client, ledger, batchId)
+    const decided = await decideQuestions(client, ledger, batchId)
+    const { resolved } = decided.length > 0 ? await verifyWithin(client, ledger, batchId) : verified
     const { rows } = await client.query<Chosen>("select id, kind, payload, checks from import_candidate where batch_id = $1 and closed_at is null and status in ('accepted', 'edited') order by id", [batchId])
     if (rows.length === 0) throw new RuleError(`import batch ${batchId} has no accepted candidates`)
     const blocked = rows.filter((item) => item.checks.some(blocking(item.kind)))

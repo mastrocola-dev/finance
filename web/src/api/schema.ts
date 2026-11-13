@@ -1011,6 +1011,7 @@ export type components = {
             source: string | null;
             chunk: string | null;
             answer: string | null;
+            decidedByModel: boolean;
         };
         ImportRuntime: {
             ready: boolean;

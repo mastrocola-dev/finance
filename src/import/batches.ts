@@ -36,7 +36,7 @@ export const listCandidates = async (client: Queryable, batchId: bigint) =>
 export const listQuestions = async (client: Queryable, batchId: bigint) =>
   (
     await client.query(
-      `select id::text as id, candidate_id::text as "candidateId", question, options, source, chunk, answer
+      `select id::text as id, candidate_id::text as "candidateId", question, options, source, chunk, answer, decided_by_model as "decidedByModel"
       from import_question where batch_id = $1 and closed_at is null order by id`,
       [batchId],
     )

@@ -46,7 +46,7 @@ const seedCandidates = () => [
   candidate('3', { date: '2026-10-20', description: 'Mercado', direction: 'expense', amountCents: 42000, category: 'Alimentação', paid: true }),
 ]
 
-const seedQuestions = (): Question[] => [{ id: '9', candidateId: '2', question: 'GMA é a Gabriela?', options: ['Gabriela', 'Marcio'], source: 'Outubro!E4', chunk: 'Outubro@0', answer: null }]
+const seedQuestions = (): Question[] => [{ id: '9', candidateId: '2', question: 'GMA é a Gabriela?', options: ['Gabriela', 'Marcio'], source: 'Outubro!E4', chunk: 'Outubro@0', answer: null, decidedByModel: false }]
 
 let current = batch()
 let candidates = seedCandidates()

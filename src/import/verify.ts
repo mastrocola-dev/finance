@@ -172,26 +172,54 @@ const informational = ({ code }: Check) => code === 'low_confidence' || code.sta
 
 const sameChecks = (a: Check[], b: Check[]) => JSON.stringify(a) === JSON.stringify(b)
 
+type Open = { id: bigint; question: string; candidate_id: bigint | null; answer: string | null; origin: string }
+
+const orphansOf = (candidates: (Staged & { origin: string; status: string })[], resolved: Map<bigint, Resolution>) => {
+  const uses = (item: Staged, name: string, kind: string) => {
+    const category = resolved.get(item.id)?.category ?? text(item.payload.category)
+    return item.kind !== 'category' && category !== undefined && same(category, name) && categoryKind(item.kind, item.payload) === kind
+  }
+  return candidates.filter((item) => item.kind === 'category' && item.origin === 'verify' && item.status === 'accepted' && !candidates.some((other) => uses(other, String(item.payload.name), String(item.payload.kind))))
+}
+
+const repeatedOf = (open: Open[]) => {
+  const ordered = [...open].sort((a, b) => Number(a.answer === null) - Number(b.answer === null) || Number(a.id - b.id))
+  const seen = new Set<string>()
+  return ordered.filter((item) => {
+    const key = normalize(item.question)
+    const repeated = seen.has(key) && item.answer === null
+    seen.add(key)
+    return repeated
+  })
+}
+
 export const verifyWithin = async (client: Client, ledger: Writer, batchId: bigint, threshold = confidenceThreshold) => {
   const batch = (await client.query<{ status: string; totals: Record<string, unknown>[]; checks: Check[] }>('select status, totals, checks from import_batch where id = $1 and closed_at is null for update', [batchId])).rows[0]
   if (batch?.status !== 'draft' && batch?.status !== 'verified') throw new RuleError(`import batch ${batchId} is not open for verification`)
-  const { rows } = await client.query<Omit<Staged, 'confidence'> & { confidence: string }>("select id, kind, source, confidence, payload, checks from import_candidate where batch_id = $1 and closed_at is null and status <> 'rejected' order by id", [batchId])
-  const candidates = rows.map((row) => ({ ...row, confidence: Number(row.confidence) }))
-  const references = await loadReferences(client, candidates)
+  const { rows } = await client.query<Omit<Staged, 'confidence'> & { confidence: string; origin: string; status: string }>("select id, kind, source, confidence, payload, checks, origin, status from import_candidate where batch_id = $1 and closed_at is null and status <> 'rejected' order by id", [batchId])
+  const staged = rows.map((row) => ({ ...row, confidence: Number(row.confidence) }))
+  const references = await loadReferences(client, staged)
   const refused = (await client.query<Named>("select payload->>'name' as name, payload->>'kind' as kind from import_candidate where batch_id = $1 and closed_at is null and status = 'rejected' and kind = 'category'", [batchId])).rows
-  const { checks, asks, resolved, missing } = findChecks(candidates, references, threshold, refused)
-  for (const item of missing) await ledger.create('import_candidate', { batch_id: batchId, kind: 'category', source: item.source, confidence: 1, payload: { name: item.name, kind: item.kind }, status: 'accepted' })
+  const { checks, asks, resolved, missing } = findChecks(staged, references, threshold, refused)
+  for (const item of missing) await ledger.create('import_candidate', { batch_id: batchId, kind: 'category', source: item.source, confidence: 1, payload: { name: item.name, kind: item.kind }, status: 'accepted', origin: 'verify' })
+  const orphans = orphansOf(staged, resolved)
+  for (const item of orphans) await ledger.close('import_candidate', item.id)
+  const candidates = staged.filter((item) => !orphans.includes(item))
   for (const item of candidates) {
     const found = checks.get(item.id) ?? []
     if (!sameChecks(found, item.checks)) await ledger.update('import_candidate', item.id, { checks: JSON.stringify(found) })
   }
-  const open = (await client.query<{ question: string; candidate_id: bigint | null }>('select question, candidate_id from import_question where batch_id = $1 and closed_at is null', [batchId])).rows
-  const covered = (ask: Ask, question: string) => open.some((item) => item.question === question || (item.candidate_id === ask.candidate && normalize(item.question).includes(normalize(ask.name))))
+  const wanted = asks.map((ask) => ({ ask, ...questionFor(ask, references) }))
+  const listed = (await client.query<Open>('select id, question, candidate_id, answer, origin from import_question where batch_id = $1 and closed_at is null order by id', [batchId])).rows
+  const stale = listed.filter((item) => item.answer === null && item.origin === 'verify' && !wanted.some(({ question }) => question === item.question))
+  const repeated = repeatedOf(listed.filter((item) => !stale.includes(item)))
+  for (const item of [...stale, ...repeated]) await ledger.close('import_question', item.id)
+  const open = listed.filter((item) => !stale.includes(item) && !repeated.includes(item))
+  const covered = (ask: Ask, question: string) => open.some((item) => normalize(item.question) === normalize(question) || (item.candidate_id === ask.candidate && normalize(item.question).includes(normalize(ask.name))))
   const questions: bigint[] = []
-  for (const ask of asks) {
-    const { question, options } = questionFor(ask, references)
+  for (const { ask, question, options } of wanted) {
     if (covered(ask, question)) continue
-    const row = await ledger.create('import_question', { batch_id: batchId, candidate_id: ask.candidate, question, options: JSON.stringify(options), source: candidates.find((item) => item.id === ask.candidate)?.source ?? null })
+    const row = await ledger.create('import_question', { batch_id: batchId, candidate_id: ask.candidate, question, options: JSON.stringify(options), source: candidates.find((item) => item.id === ask.candidate)?.source ?? null, origin: 'verify' })
     questions.push(row.id as bigint)
   }
   const stated = totals.parse(batch.totals.map(({ chunk, ...item }) => item))
@@ -203,7 +231,8 @@ export const verifyWithin = async (client: Client, ledger: Writer, batchId: bigi
     .filter((item) => item.confidence < threshold)
     .sort((a, b) => a.confidence - b.confidence)
     .map((item) => item.id)
-  return { checked: candidates.length, failed, lowConfidence, questions, totals: { checked: stated.length, mismatches }, resolved, created: missing.length }
+  const closed = { categories: orphans.map((item) => item.id), questions: [...stale, ...repeated].map((item) => item.id) }
+  return { checked: candidates.length, failed, lowConfidence, questions, totals: { checked: stated.length, mismatches }, resolved, created: missing.length, closed }
 }
 
 export const verifyBatch = (client: Client, actor: Actor, batchId: bigint, threshold = confidenceThreshold) => write(client, actor, (ledger) => verifyWithin(client, ledger, batchId, threshold))

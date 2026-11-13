@@ -79,6 +79,23 @@ export const canonicalName = (reference: Reference, answer: string, known: Refer
   return names.find((name) => same(name, answer))
 }
 
+const applyAnswer = async (client: Client, ledger: Writer, candidates: Open[], question: string, answer: string) => {
+  const known = await loadReferences(client, [])
+  const resolved: bigint[] = []
+  for (const { reference, name } of askedNames(question, candidates)) {
+    const canonical = canonicalName(reference, answer, known, candidates)
+    if (!canonical) continue
+    for (const item of candidates) {
+      const current = item.payload[reference]
+      if (typeof current !== 'string' || !same(current, name) || current === canonical) continue
+      item.payload = { ...item.payload, [reference]: canonical }
+      await ledger.update('import_candidate', item.id, { payload: item.payload })
+      resolved.push(item.id)
+    }
+  }
+  return [...new Set(resolved)]
+}
+
 export const answerQuestion = (client: Client, actor: Actor, batchId: bigint, questionId: bigint, answer: string) =>
   reviewing(client, actor, batchId, async (ledger, candidates) => {
     const text = maskDigits(answer.trim())
@@ -87,18 +104,17 @@ export const answerQuestion = (client: Client, actor: Actor, batchId: bigint, qu
     if (!question) throw new RuleError(`question ${questionId} is not open in import batch ${batchId}`)
     if (question.answer !== null) throw new RuleError(`question ${questionId} is already answered`)
     await ledger.update('import_question', questionId, { answer: text })
-    const known = await loadReferences(client, [])
-    const resolved: bigint[] = []
-    for (const { reference, name } of askedNames(question.question, candidates)) {
-      const canonical = canonicalName(reference, text, known, candidates)
-      if (!canonical) continue
-      for (const item of candidates) {
-        const current = item.payload[reference]
-        if (typeof current !== 'string' || !same(current, name) || current === canonical) continue
-        item.payload = { ...item.payload, [reference]: canonical }
-        await ledger.update('import_candidate', item.id, { payload: item.payload })
-        resolved.push(item.id)
-      }
-    }
-    return { questionId, resolved: [...new Set(resolved)] }
+    return { questionId, resolved: await applyAnswer(client, ledger, candidates, question.question, text) }
   })
+
+export const decideQuestions = async (client: Client, ledger: Writer, batchId: bigint) => {
+  const { rows } = await client.query<{ id: bigint; question: string; options: string[] }>('select id, question, options from import_question where batch_id = $1 and closed_at is null and answer is null and jsonb_array_length(options) > 0 order by id', [batchId])
+  if (rows.length === 0) return []
+  const candidates = (await client.query<Open>('select id, kind, source, confidence, payload, checks, status from import_candidate where batch_id = $1 and closed_at is null order by id', [batchId])).rows
+  for (const { id, question, options } of rows) {
+    const [first = ''] = options
+    await ledger.update('import_question', id, { answer: first, decided_by_model: true })
+    await applyAnswer(client, ledger, candidates, question, first)
+  }
+  return rows.map((row) => row.id)
+}

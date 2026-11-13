@@ -125,8 +125,8 @@ describe('import commit', () => {
   test('refuses an empty commit and candidates with failed checks, writing nothing', async () => {
     const { batch, candidates } = await staged()
     await assert.rejects(commitBatch(client, committer, batch), /no accepted candidates/)
-    await client.query(`update import_candidate set payload = payload || '{"member": "Tia Rosa", "direction": "income"}' where id = $1`, [candidates[0]])
     await reviewCandidates(client, member, batch, candidates.slice(0, 2), 'accept')
+    await client.query(`update import_candidate set payload = payload || '{"amountCents": 0}' where id = $1`, [candidates[0]])
     await assert.rejects(commitBatch(client, committer, batch), new RegExp(`candidates ${candidates[0]} have failed checks`))
     assert.equal(await batchStatus(batch), 'verified')
     assert.equal(await ledgerRows(batch), 0)

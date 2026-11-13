@@ -285,6 +285,7 @@ const importQuestion = z.strictObject({
   source: z.string().nullable(),
   chunk: z.string().nullable(),
   answer: z.string().nullable(),
+  decidedByModel: z.boolean(),
 })
 
 const importRuntime = z.strictObject({ ready: z.boolean(), cause: z.enum(runtimeCauses).nullable(), warming: z.boolean() })
