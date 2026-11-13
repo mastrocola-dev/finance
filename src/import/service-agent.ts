@@ -17,7 +17,6 @@ const root = fileURLToPath(new URL('../../', import.meta.url))
 const replyLimit = 4_000_000
 const nothing: Usage = { inputTokens: 0, outputTokens: 0, costUsdMicros: 0 }
 const passed = ['PATH', 'HOME', 'LANG', 'ANTHROPIC_API_KEY', 'ANTHROPIC_BASE_URL', 'UV_SYSTEM_CERTS', 'SSL_CERT_FILE', 'NODE_EXTRA_CA_CERTS', 'HTTPS_PROXY']
-const copied = ['system.md', 'output.schema.json']
 
 const tokens = z.int().min(0)
 const traced = z.object({ input: tokens, output: tokens, cacheWrite: tokens, cacheRead: tokens })
@@ -35,12 +34,15 @@ export const childEnvironment = (agentDir: string) => ({
   TRACE_DIR: join(agentDir, 'traces'),
 })
 
+export const withSchema = (system: string, schema: string) => `${system.trimEnd()}\n\n## Reply format\n\nReply with one JSON object and nothing else, valid against this JSON Schema:\n\n${JSON.stringify(JSON.parse(schema))}\n`
+
 export const renderAgent = async (template: string, folder: string, maxRunTokens = Number.MAX_SAFE_INTEGER) => {
   const dir = await mkdtemp(join(tmpdir(), 'finance-agent-'))
   const raw = await readFile(join(template, 'agent.json'), 'utf8')
   const config = JSON.parse(raw.replaceAll('{IMPORT_FOLDER}', JSON.stringify(resolve(folder)).slice(1, -1)))
   await writeFile(join(dir, 'agent.json'), JSON.stringify({ ...config, maxRunTokens: Math.min(config.maxRunTokens, maxRunTokens) }))
-  await Promise.all(copied.map(async (name) => writeFile(join(dir, name), await readFile(join(template, name)))))
+  const [system, schema] = await Promise.all([readFile(join(template, 'system.md'), 'utf8'), readFile(join(template, 'output.schema.json'), 'utf8')])
+  await writeFile(join(dir, 'system.md'), withSchema(system, schema))
   return { dir, model: String(config.model) }
 }
 
@@ -66,9 +68,10 @@ const traceEnd = async (agentDir: string) => {
     .at(-1)
 }
 
-const parseOutput = (stdout: string) => {
+export const parseOutput = (stdout: string) => {
+  const text = stdout.slice(stdout.indexOf('{'), stdout.lastIndexOf('}') + 1)
   try {
-    return { value: JSON.parse(stdout.trim().split('\n').at(-1) ?? '') as unknown }
+    return { value: JSON.parse(text) as unknown }
   } catch {
     return undefined
   }
