@@ -2,11 +2,12 @@ import assert from 'node:assert/strict'
 import { readFile } from 'node:fs/promises'
 import { test } from 'node:test'
 import { importOutput } from '../../src/import/candidate.ts'
-import { outputSchemaPath, outputSchemaText, parameterCounts, structured } from '../../src/import/schema.ts'
+import { consolidateSchemaPath, consolidateSchemaText, outputSchemaPath, outputSchemaText, parameterCounts, structured } from '../../src/import/schema.ts'
 import { sample } from './sample.ts'
 
 test('committed output schema is current (npm run agent:schema)', async () => {
   assert.equal(await readFile(outputSchemaPath, 'utf8'), outputSchemaText())
+  assert.equal(await readFile(consolidateSchemaPath, 'utf8'), consolidateSchemaText())
 })
 
 test('output schema keeps only what structured output accepts', () => {

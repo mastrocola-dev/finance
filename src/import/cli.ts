@@ -5,9 +5,10 @@ import type { Client } from 'pg'
 import { connect } from '../db/connection.ts'
 import type { Actor } from '../db/write.ts'
 import { RuleError } from '../ledger/rule.ts'
-import { type Extractor, plan, retryImport, retryTargets, runImport, type Segment } from './agent.ts'
+import { defaultTokenCap, type Extractor, plan, retryImport, retryTargets, runImport, type Segment, type Usage } from './agent.ts'
+import { type Consolidator, consolidateBatch } from './consolidate.ts'
 import { ingestSegments } from './ingest.ts'
-import { serviceAgentExtractor } from './service-agent.ts'
+import { serviceAgentConsolidator, serviceAgentExtractor } from './service-agent.ts'
 import { formats, type ImportFile, maskDigits, openBatch } from './staging.ts'
 import { verifyBatch } from './verify.ts'
 
@@ -18,6 +19,7 @@ const actor: Actor = { author: 'import' }
 export type FileImport = {
   segments?: (folder: string, file: string) => Promise<Segment[]>
   extractor?: (folder: string) => Extractor
+  consolidator?: () => Consolidator
   onProgress?: (done: number, total: number) => void
 }
 
@@ -33,28 +35,39 @@ export const describeFile = async (path: string): Promise<ImportFile> => {
   return { name: basename(path), format: format as ImportFile['format'], hash }
 }
 
-const defaults = { segments: ingestSegments, extractor: (folder: string) => serviceAgentExtractor({ folder }) }
+const defaults = { segments: ingestSegments, extractor: (folder: string) => serviceAgentExtractor({ folder }), consolidator: () => serviceAgentConsolidator() }
 
-export const openImport = async (client: Client, path: string, { segments = defaults.segments, extractor = defaults.extractor }: FileImport = {}, by: Actor = actor) => {
+const consolidatorOf = ({ extractor, consolidator }: FileImport) => (consolidator ?? (extractor ? undefined : defaults.consolidator))?.()
+
+const added = (a: Usage, b: Usage): Usage => ({ inputTokens: a.inputTokens + b.inputTokens, outputTokens: a.outputTokens + b.outputTokens, costUsdMicros: a.costUsdMicros + b.costUsdMicros })
+
+const settle = async <T extends { usage: Usage }>(client: Client, by: Actor, batchId: bigint, consolidator: Consolidator | undefined, result: T) => {
+  const first = await verifyBatch(client, by, batchId)
+  if (!consolidator) return { batchId, ...result, verification: first, consolidation: undefined }
+  const consolidation = await consolidateBatch(client, by, batchId, consolidator, defaultTokenCap() - result.usage.inputTokens - result.usage.outputTokens)
+  const verification = consolidation.merges.length > 0 ? { ...(await verifyBatch(client, by, batchId)), created: first.created } : first
+  return { batchId, ...result, usage: added(result.usage, consolidation.usage), verification, consolidation }
+}
+
+export const openImport = async (client: Client, path: string, options: FileImport = {}, by: Actor = actor) => {
+  const { segments = defaults.segments, extractor = defaults.extractor } = options
   const file = await describeFile(path)
   const folder = dirname(path)
   const agent = extractor(folder)
+  const consolidator = consolidatorOf(options)
   const found = await segments(folder, file.name)
   const batchId = await openBatch(client, by, file)
-  return { batchId, file, agent, found, chunks: plan(file.name, found).length }
+  return { batchId, file, agent, consolidator, found, chunks: plan(file.name, found).length }
 }
 
 export type OpenImport = Awaited<ReturnType<typeof openImport>>
 
-export const finishImport = async (client: Client, { batchId, file, agent, found }: OpenImport, onProgress?: FileImport['onProgress'], by: Actor = actor) => {
-  const result = await runImport(client, by, batchId, { file: file.name, segments: found, extractor: agent, onProgress })
-  const verification = await verifyBatch(client, by, batchId)
-  return { batchId, ...result, verification }
-}
+export const finishImport = async (client: Client, { batchId, file, agent, consolidator, found }: OpenImport, onProgress?: FileImport['onProgress'], by: Actor = actor) => settle(client, by, batchId, consolidator, await runImport(client, by, batchId, { file: file.name, segments: found, extractor: agent, onProgress }))
 
 export const importFile = async (client: Client, path: string, options: FileImport = {}) => finishImport(client, await openImport(client, path, options), options.onProgress)
 
-export const openRetry = async (client: Client, batchId: bigint, path: string, { segments = defaults.segments, extractor = defaults.extractor }: FileImport = {}) => {
+export const openRetry = async (client: Client, batchId: bigint, path: string, options: FileImport = {}) => {
+  const { segments = defaults.segments, extractor = defaults.extractor } = options
   const file = await describeFile(path)
   const { rows } = await client.query<{ file_hash: string; open: boolean }>("select file_hash, closed_at is null and status in ('draft', 'verified') as open from import_batch where id = $1", [batchId])
   if (!rows[0]) throw new RuleError(`import batch ${batchId} not found`)
@@ -63,26 +76,25 @@ export const openRetry = async (client: Client, batchId: bigint, path: string, {
   const targets = await retryTargets(client, batchId)
   if (!targets.length) throw new RuleError(`nothing to retry in import batch ${batchId}`)
   const folder = dirname(path)
-  return { batchId, file, agent: extractor(folder), found: await segments(folder, file.name), chunks: targets.length }
+  return { batchId, file, agent: extractor(folder), consolidator: consolidatorOf(options), found: await segments(folder, file.name), chunks: targets.length }
 }
 
 export type OpenRetry = Awaited<ReturnType<typeof openRetry>>
 
-export const finishRetry = async (client: Client, { batchId, file, agent, found }: OpenRetry, onProgress?: FileImport['onProgress'], by: Actor = actor) => {
-  const result = await retryImport(client, by, batchId, { file: file.name, segments: found, extractor: agent, onProgress })
-  const verification = await verifyBatch(client, by, batchId)
-  return { batchId, ...result, verification }
-}
+export const finishRetry = async (client: Client, { batchId, file, agent, consolidator, found }: OpenRetry, onProgress?: FileImport['onProgress'], by: Actor = actor) => settle(client, by, batchId, consolidator, await retryImport(client, by, batchId, { file: file.name, segments: found, extractor: agent, onProgress }))
 
 export const retryFile = async (client: Client, batchId: bigint, path: string, options: FileImport = {}) => finishRetry(client, await openRetry(client, batchId, path, options), options.onProgress)
 
 type Summary = Awaited<ReturnType<typeof importFile>> & { targets?: string[] }
 
-export const importSummary = ({ batchId, candidates, questions, replaced, targets, usage, failures, done, total, stopped, verification }: Summary) =>
+const consolidated = ({ merges, failure }: NonNullable<Summary['consolidation']>) => (failure ? [`consolidation failed: ${failure}`] : merges.map(({ name, to }) => `merged ${name} → ${to}`))
+
+export const importSummary = ({ batchId, candidates, questions, replaced, targets, usage, failures, done, total, stopped, verification, consolidation }: Summary) =>
   [
     `batch ${batchId}: ${candidates.length} candidates, ${questions.length} questions from ${done} of ${total} chunks${targets ? `, ${replaced.length} replaced` : ''}`,
     `verified: ${verification.failed.length} with failed checks, ${verification.lowConfidence.length} low confidence, ${verification.questions.length} new questions, ${verification.created} new categories, ${verification.totals.mismatches.length} of ${verification.totals.checked} totals mismatched`,
     ...verification.totals.mismatches.map(({ detail }) => `mismatch ${detail}`),
+    ...(consolidation ? consolidated(consolidation) : []),
     `tokens ${usage.inputTokens} in, ${usage.outputTokens} out, US$ ${(usage.costUsdMicros / 1_000_000).toFixed(4)}`,
     ...(stopped ? [`stopped: ${stopped}`] : []),
     ...failures.map(({ source, offset, reason }) => `failed ${source}@${offset}: ${reason}`),

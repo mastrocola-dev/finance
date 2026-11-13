@@ -7,7 +7,7 @@ import { sample } from './sample.ts'
 const { values } = parseArgs({ options: { 'agent-dir': { type: 'string' } } })
 const dir = values['agent-dir'] ?? 'agents/import'
 const task = JSON.parse(await text(process.stdin))
-const mode = task.segment.source as string
+const mode = (task.segment?.source ?? 'consolidate') as string
 if (mode === 'crash') throw new Error('Invalid agent config')
 
 const config = JSON.parse(readFileSync(join(dir, 'agent.json'), 'utf8'))
@@ -32,6 +32,9 @@ else if (mode === 'echo') {
   const echo = { dir, files: readdirSync(dir).sort(), folder: config.mcpServers.ingest.args.at(-1), database: process.env.DATABASE_URL ?? null, maxRunTokens: config.maxRunTokens, maxTokens: task.maxTokens, offset: task.offset, ledger: task.ledger }
   end()
   console.log(JSON.stringify({ candidates: [], questions: [], echo }))
+} else if (mode === 'consolidate') {
+  end()
+  console.log(JSON.stringify({ categories: task.categories.map(({ name, kind }: { name: string; kind: string }) => ({ name, kind, to: name })) }))
 } else {
   end()
   console.log(JSON.stringify(sample))

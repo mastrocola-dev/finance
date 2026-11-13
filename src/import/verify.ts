@@ -33,7 +33,7 @@ export const duplicateKey = (kind: CandidateKind, payload: Record<string, unknow
   return `${kind}|${part('name')}`
 }
 
-const categoryKind = (kind: CandidateKind, payload: Record<string, unknown>) => (kind === 'entry' ? String(payload.direction) : kind === 'income' ? 'income' : 'expense')
+export const categoryKind = (kind: CandidateKind, payload: Record<string, unknown>) => (kind === 'entry' ? String(payload.direction) : kind === 'income' ? 'income' : 'expense')
 
 const earns = (kind: CandidateKind, payload: Record<string, unknown>) => kind === 'income' || (kind === 'entry' && payload.direction === 'income')
 
