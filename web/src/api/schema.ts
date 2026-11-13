@@ -359,6 +359,23 @@ export type paths = {
         patch?: never;
         trace?: never;
     };
+    "/api/setup/starter-categories": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Create the suggested household categories that are not open yet, in one audited write; returns the ones created */
+        post: operations["createStarterCategories"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/setup/{kind}/{id}": {
         parameters: {
             query?: never;
@@ -1053,6 +1070,7 @@ export type components = {
                 [key: string]: unknown;
             };
         };
+        CreateStarterCategoriesResponse: components["schemas"]["SetupRecord"][];
         EditRecordBody: {
             /** @description New name, description, nickname or creditor */
             name?: string;
@@ -1149,6 +1167,7 @@ export type CreateEntryBody = components['schemas']['CreateEntryBody'];
 export type MarkPaidBody = components['schemas']['MarkPaidBody'];
 export type ListSetupResponse = components['schemas']['ListSetupResponse'];
 export type RegisterRecordBody = components['schemas']['RegisterRecordBody'];
+export type CreateStarterCategoriesResponse = components['schemas']['CreateStarterCategoriesResponse'];
 export type EditRecordBody = components['schemas']['EditRecordBody'];
 export type UpdateReserveBody = components['schemas']['UpdateReserveBody'];
 export type CreateGoalBody = components['schemas']['CreateGoalBody'];
@@ -1928,6 +1947,35 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["SetupRecord"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+        };
+    };
+    createStarterCategories: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CreateStarterCategoriesResponse"];
                 };
             };
             /** @description Error */

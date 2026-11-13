@@ -32,3 +32,8 @@ export const useEditRecord = () => {
     onSuccess: useRefresh(),
   })
 }
+
+export const useStarterCategories = () => {
+  const { api } = useIdentity()
+  return useMutation({ mutationFn: async () => unwrap(await api.POST('/api/setup/starter-categories')), onSuccess: useRefresh() })
+}

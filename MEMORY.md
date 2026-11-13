@@ -2,9 +2,9 @@
 
 ## State
 
-- S13 done 2026-11-11 (D was the last part); **Next** is empty, so the schedule was stopped. The author walks `docs/deploy-azure.md` and picks the next sprint; when the schedule resumes, start from the first new item under **Next**. Tests after S13 D: 373 node (1 skipped: service-agent contract without the sibling checkout), 199 web, 282 Playwright (not rerun since D1), 63 pytest; `npm test` and `npm run check` green; failing-test run streak 0
+- S14 A1 done 2026-11-13 (starter categories, Cadastros by section); next is S14 A2 (entry forms on an empty ledger, inline category). Tests: 380 node pass (1 skipped: service-agent contract without the sibling), 200 web, 63 pytest, Playwright last full run before S14; `npm test` and `npm run check` green; failing-test run streak 0; next free backlog number L232
 - Do not run Playwright and `npm test` at the same time: vitest `findByText` times out under load (L213)
-- Next free backlog number: L230
+- Empty-ledger e2e: `emptyLedger()` in `web/e2e/context.ts` (reset plus `member:add -- Marcio 50 Gabriela 50`), used by `web/e2e/setup.spec.ts` with `afterAll(reseed)`. Cadastros "Novo" opens one form at a time (`adding` in `record-list.tsx`); button names `Novo cadastro em <Seção>`
 
 ## Session setup (cloud container, each run, one command per Bash call)
 

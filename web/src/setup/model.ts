@@ -5,7 +5,7 @@ import { ApiFailure } from '../query/client.ts'
 export type SetupRecord = components['schemas']['SetupRecord']
 export type SetupKind = SetupRecord['kind']
 
-export const setupOrder: SetupKind[] = ['income', 'recurring_expense', 'debt', 'account', 'category', 'reserve', 'goal']
+export const setupOrder: SetupKind[] = ['account', 'category', 'income', 'recurring_expense', 'debt', 'reserve', 'goal']
 
 export const setupLabels: Record<SetupKind, { one: string; many: string }> = {
   income: { one: 'Receita fixa', many: 'Receitas fixas' },

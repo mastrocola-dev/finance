@@ -115,3 +115,18 @@ export const listSetup = async (client: Queryable) => {
   const { rows } = await client.query<SetupRecord & { sort: bigint }>(`select * from (${records}) s order by kind, lower(name), sort`)
   return rows.map(({ sort, ...record }) => record)
 }
+
+export const starterCategories = {
+  expense: ['Moradia', 'Mercado', 'Transporte', 'Saúde', 'Educação', 'Lazer', 'Contas da casa', 'Assinaturas', 'Impostos e taxas', 'Outros'],
+  income: ['Salário', 'Outras receitas'],
+} as const
+
+export const createStarterCategories = (client: Client, actor: Actor) =>
+  write(client, actor, async (ledger) => {
+    const { rows } = await client.query<{ name: string; kind: string }>('select lower(name) as name, kind from category where closed_at is null')
+    const open = new Set(rows.map((row) => `${row.kind}:${row.name}`))
+    const missing = Object.entries(starterCategories).flatMap(([kind, names]) => names.filter((name) => !open.has(`${kind}:${name.toLowerCase()}`)).map((name) => ({ name, kind })))
+    const created: string[] = []
+    for (const row of missing) created.push(String(await unique('category', row.name, async () => (await ledger.create('category', row)).id)))
+    return created
+  })

@@ -1160,6 +1160,40 @@
         }
       }
     },
+    "/api/setup/starter-categories": {
+      "post": {
+        "operationId": "createStarterCategories",
+        "summary": "Create the suggested household categories that are not open yet, in one audited write; returns the ones created",
+        "security": [
+          {
+            "member": []
+          }
+        ],
+        "parameters": [],
+        "responses": {
+          "201": {
+            "description": "Created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CreateStarterCategoriesResponse"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/setup/{kind}/{id}": {
       "patch": {
         "operationId": "editRecord",
@@ -3877,6 +3911,12 @@
           "kind",
           "payload"
         ]
+      },
+      "CreateStarterCategoriesResponse": {
+        "type": "array",
+        "items": {
+          "$ref": "#/components/schemas/SetupRecord"
+        }
       },
       "EditRecordBody": {
         "type": "object",
