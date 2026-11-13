@@ -4,19 +4,20 @@ import type { Actor } from '../db/write.ts'
 import { RuleError } from '../ledger/rule.ts'
 import { retryChunks } from './batches.ts'
 import { type ImportOutput, importOutput } from './candidate.ts'
+import { emptyContext, type LedgerContext, ledgerContext, propose } from './context.ts'
 import { chunkKey, maskDigits, stageOutput } from './staging.ts'
 import { confidenceThreshold } from './verify.ts'
 
 export type Segment = { id: string; kind: 'table' | 'tree' | 'text'; source: string; shape: Record<string, unknown>; preview?: unknown }
 export type Strategy = 'mapping' | 'records'
 export type Chunk = { file: string; segment: Segment; strategy: Strategy; offset: number; limit: number }
-export type Task = Chunk & { maxTokens: number }
+export type Task = Chunk & { maxTokens: number; ledger: LedgerContext }
 export type Usage = z.infer<typeof usage>
 export type Extraction = { output: unknown; usage: Usage }
 export type Extractor = { extract: (task: Task) => Promise<Extraction> }
 export type Failure = { source: string; offset: number; reason: string }
 export type Origin = { candidates: string[]; questions: string[]; totals: string[] }
-export type Run = { file: string; segments: Segment[]; extractor: Extractor; tokenCap?: number; only?: string[]; onProgress?: (done: number, total: number) => void }
+export type Run = { file: string; segments: Segment[]; extractor: Extractor; tokenCap?: number; only?: string[]; ledger?: LedgerContext; onProgress?: (done: number, total: number) => void }
 
 export class ExtractionError extends Error {
   usage: Usage
@@ -60,11 +61,12 @@ const describeIssues = (error: z.ZodError) =>
     .map(({ path, message }) => `${path.map(String).join('.') || 'output'}: ${message}`)
     .join('; ')
 
-export const extract = async ({ file, segments, extractor, tokenCap = defaultTokenCap(), only, onProgress }: Run) => {
+export const extract = async ({ file, segments, extractor, tokenCap = defaultTokenCap(), only, ledger = emptyContext(), onProgress }: Run) => {
   const chunks = plan(file, segments).filter((chunk) => !only || only.includes(chunkKey(chunk.segment.source, chunk.offset)))
   const output: ImportOutput = { candidates: [], questions: [], totals: [] }
   const origin: Origin = { candidates: [], questions: [], totals: [] }
   const spent: Usage = { inputTokens: 0, outputTokens: 0, costUsdMicros: 0 }
+  const context = structuredClone(ledger)
   const failures: Failure[] = []
   const attempted: string[] = []
   const result = (done: number, stopped?: 'token cap' | 'output limit') => ({ output, origin, usage: spent, failures, attempted, done, total: chunks.length, stopped })
@@ -82,7 +84,7 @@ export const extract = async ({ file, segments, extractor, tokenCap = defaultTok
       spent.costUsdMicros += cost.costUsdMicros
     }
     try {
-      const extraction = await extractor.extract({ ...chunk, maxTokens: tokenCap - used })
+      const extraction = await extractor.extract({ ...chunk, maxTokens: tokenCap - used, ledger: structuredClone(context) })
       charge(usage.parse(extraction.usage))
       const parsed = importOutput.safeParse(extraction.output)
       if (!parsed.success) fail(`invalid output: ${describeIssues(parsed.error)}`)
@@ -91,6 +93,7 @@ export const extract = async ({ file, segments, extractor, tokenCap = defaultTok
         const shift = output.candidates.length
         attempted.push(key)
         output.candidates.push(...parsed.data.candidates)
+        propose(context, parsed.data.candidates)
         output.questions.push(...parsed.data.questions.map((item) => (item.candidate === undefined ? item : { ...item, candidate: item.candidate + shift })))
         output.totals.push(...parsed.data.totals)
         origin.candidates.push(...parsed.data.candidates.map(() => key))
@@ -116,7 +119,7 @@ const staged = async (client: Client, actor: Actor, batchId: bigint, extracted: 
 
 export const runImport = async (client: Client, actor: Actor, batchId: bigint, run: Run) => {
   if ((await openBatchStatus(client, batchId)) !== 'draft') throw new RuleError(`import batch ${batchId} is not an open draft`)
-  return staged(client, actor, batchId, await extract(run))
+  return staged(client, actor, batchId, await extract({ ...run, ledger: await ledgerContext(client, batchId) }))
 }
 
 export const retryTargets = async (client: Client, batchId: bigint, threshold = confidenceThreshold) => {
@@ -129,6 +132,6 @@ export const retryImport = async (client: Client, actor: Actor, batchId: bigint,
   if (status !== 'draft' && status !== 'verified') throw new RuleError(`import batch ${batchId} is not open for a retry`)
   const targets = await retryTargets(client, batchId, threshold)
   if (!targets.length) throw new RuleError(`nothing to retry in import batch ${batchId}`)
-  const extracted = await extract({ ...run, only: targets })
+  const extracted = await extract({ ...run, only: targets, ledger: await ledgerContext(client, batchId) })
   return { targets, ...(await staged(client, actor, batchId, extracted, extracted.attempted)) }
 }

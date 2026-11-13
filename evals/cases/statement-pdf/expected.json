@@ -83,6 +83,13 @@
         "member": "Gabriela",
         "paid": true
       }
+    },
+    {
+      "kind": "category",
+      "payload": {
+        "name": "Educação",
+        "kind": "expense"
+      }
     }
   ]
 }

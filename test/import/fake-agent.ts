@@ -29,7 +29,7 @@ if (mode === 'garbage') {
   console.log('not json')
 } else if (mode === 'hang') await new Promise((done) => setTimeout(done, 60_000))
 else if (mode === 'echo') {
-  const echo = { dir, files: readdirSync(dir).sort(), folder: config.mcpServers.ingest.args.at(-1), database: process.env.DATABASE_URL ?? null, maxRunTokens: config.maxRunTokens, maxTokens: task.maxTokens, offset: task.offset }
+  const echo = { dir, files: readdirSync(dir).sort(), folder: config.mcpServers.ingest.args.at(-1), database: process.env.DATABASE_URL ?? null, maxRunTokens: config.maxRunTokens, maxTokens: task.maxTokens, offset: task.offset, ledger: task.ledger }
   end()
   console.log(JSON.stringify({ candidates: [], questions: [], echo }))
 } else {

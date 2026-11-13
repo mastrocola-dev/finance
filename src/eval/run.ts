@@ -6,13 +6,16 @@ import { parseArgs } from 'node:util'
 import * as z from 'zod'
 import { defaultTokenCap, type Extractor, extract, plan, type Segment, usage } from '../import/agent.ts'
 import { kinds } from '../import/candidate.ts'
+import type { LedgerContext } from '../import/context.ts'
 import { ingestSegments } from '../import/ingest.ts'
 import { type Recording, recordedExtractor } from '../import/recorded.ts'
 import { serviceAgentExtractor } from '../import/service-agent.ts'
 import { chunkKey } from '../import/staging.ts'
+import { contextTokens, ruleViolations } from './rules.ts'
 import { type Rates, rates, type Score, score } from './score.ts'
 
 export const casesFolder = fileURLToPath(new URL('../../evals/cases', import.meta.url))
+export const defaultLedger = fileURLToPath(new URL('../../evals/ledger.json', import.meta.url))
 const biome = fileURLToPath(new URL('../../node_modules/.bin/biome', import.meta.url))
 
 const expectedFile = z.strictObject({
@@ -22,7 +25,18 @@ const expectedFile = z.strictObject({
 
 const recordedFile = z.array(z.strictObject({ source: z.string(), offset: z.int().min(0).optional(), output: z.unknown(), usage }))
 
+const names = z.strictObject({ income: z.array(z.string()), expense: z.array(z.string()) })
+const ledgerFile = z.strictObject({
+  members: z.array(z.strictObject({ name: z.string(), initials: z.string() })),
+  categories: names,
+  accounts: z.array(z.strictObject({ nickname: z.string(), institution: z.string(), lastFour: z.string().regex(/^•\d{4}$/) })),
+  reserves: z.array(z.string()),
+  proposed: names,
+})
+
 const json = async (path: string) => JSON.parse(await readFile(path, 'utf8'))
+
+const ledgerOf = async (folder: string): Promise<LedgerContext> => ledgerFile.parse(await json(join(folder, 'ledger.json')).catch(async (error) => (error.code === 'ENOENT' ? json(defaultLedger) : Promise.reject(error))))
 
 export type Segments = (folder: string, file: string) => Promise<Segment[]>
 export type Live = { extractorFor: (folder: string) => Extractor; record?: boolean; tokenCap?: number }
@@ -52,21 +66,24 @@ const loadCase = async (folder: string, segments: Segments) => {
   const expected = expectedFile.parse(await json(join(folder, 'expected.json')))
   const recordings: Recording[] = recordedFile.parse(await json(join(folder, 'recorded.json')))
   const found = await segments(folder, expected.file)
-  return { expected, recordings, found, keys: plan(expected.file, found).map((chunk) => chunkKey(chunk.segment.source, chunk.offset)) }
+  const ledger = await ledgerOf(folder)
+  return { expected, recordings, found, ledger, keys: plan(expected.file, found).map((chunk) => chunkKey(chunk.segment.source, chunk.offset)) }
 }
 
 const recordedCost = (recordings: Recording[], keys: string[]) => recordings.filter((item) => keys.includes(keyOf(item))).reduce((total, item) => total + item.usage.costUsdMicros, 0)
 
 export const runCase = async (folder: string, segments: Segments = ingestSegments, live?: Live) => {
-  const { expected, recordings, found, keys } = await loadCase(folder, segments)
+  const { expected, recordings, found, ledger, keys } = await loadCase(folder, segments)
   const fresh: Recording[] = []
   const extractor = live ? recording(live.extractorFor(folder), fresh) : recordedExtractor(recordings)
-  const run = await extract({ file: expected.file, segments: found, extractor, tokenCap: live ? (live.tokenCap ?? defaultTokenCap()) : Number.MAX_SAFE_INTEGER })
+  const run = await extract({ file: expected.file, segments: found, extractor, ledger, tokenCap: live ? (live.tokenCap ?? defaultTokenCap()) : Number.MAX_SAFE_INTEGER })
   if (live?.record) await record(join(folder, 'recorded.json'), keys, recordings, fresh)
   return {
     file: expected.file,
     score: score(expected.candidates, run.output, run.usage),
     recordedUsdMicros: recordedCost(recordings, keys),
+    context: { tokens: contextTokens(ledger), chunks: keys.length },
+    violations: ruleViolations(ledger, run.output, run.origin.questions),
     failures: [...run.failures.map(({ source, offset, reason }) => `${source}@${offset}: ${reason}`), ...(run.stopped ? [`stopped at ${run.done}/${run.total} chunks: ${run.stopped}`] : [])],
   }
 }
@@ -134,9 +151,11 @@ export const liveExtractors = (environment = process.env) => {
 export const report = (results: CaseResult[]) => {
   const total = overall(results.map((item) => item.score))
   return [
-    ...results.flatMap(({ name, file, score: { candidates, totals, usage: spent }, failures }) => [
+    ...results.flatMap(({ name, file, score: { candidates, totals, usage: spent }, context, violations, failures }) => [
       `${name} (${file}): candidates ${rated(candidates)}, totals ${totals.stated - totals.mismatched.length}/${totals.stated} reconciled, ${spent.inputTokens} in, ${spent.outputTokens} out, ${dollars(spent.costUsdMicros)}`,
+      `  ledger context ≈${context.tokens} tokens × ${context.chunks} chunks, ${violations.length} rule violations`,
       ...totals.mismatched.map((detail) => `  mismatch ${detail}`),
+      ...violations.map((detail) => `  rule ${detail}`),
       ...failures.map((failure) => `  failed ${failure}`),
     ]),
     `overall: candidates ${rated(total.candidates)}, ${dollars(total.costUsdMicros)}`,

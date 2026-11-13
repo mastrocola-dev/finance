@@ -4,13 +4,15 @@ import { readFile, rm } from 'node:fs/promises'
 import { resolve } from 'node:path'
 import { describe, test } from 'node:test'
 import { ExtractionError, extract, type Segment, type Task } from '../../src/import/agent.ts'
+import { emptyContext } from '../../src/import/context.ts'
 import { childEnvironment, defaultCli, parseOutput, renderAgent, run, serviceAgentExtractor, usageOf, withSchema } from '../../src/import/service-agent.ts'
 import { sample } from './sample.ts'
 
 const cli = 'test/import/fake-agent.ts'
 const spent = { inputTokens: 1200, outputTokens: 300, costUsdMicros: 8100 }
 const segment = (source: string): Segment => ({ id: 'table-1', kind: 'table', source, shape: { rows: 3, columns: 4 } })
-const task = (source: string): Task => ({ file: 'extrato.csv', segment: segment(source), strategy: 'records', offset: 0, limit: 3, maxTokens: 5000 })
+const ledger = { ...emptyContext(), members: [{ name: 'Gabriela', initials: 'G' }], categories: { income: ['Salário'], expense: ['Mercado'] } }
+const task = (source: string): Task => ({ file: 'extrato.csv', segment: segment(source), strategy: 'records', offset: 0, limit: 3, maxTokens: 5000, ledger })
 
 const failure = async (promise: Promise<unknown>) => {
   try {
@@ -23,11 +25,11 @@ const failure = async (promise: Promise<unknown>) => {
 }
 
 describe('service-agent adapter', () => {
-  test('runs a copy of the agent with the folder in its ingest server, the task on stdin and no database', async () => {
+  test('runs a copy of the agent with the folder in its ingest server, the task with its ledger block on stdin and no database', async () => {
     const result = await run({ folder: 'ingest/tests/fixtures', cli }, task('echo'))
     assert.deepEqual(result.usage, spent)
     const echo = (result.output as { echo: { dir: string } }).echo
-    assert.deepEqual(echo, { dir: echo.dir, files: ['agent.json', 'system.md'], folder: resolve('ingest/tests/fixtures'), database: null, maxRunTokens: 5000, maxTokens: 5000, offset: 0 })
+    assert.deepEqual(echo, { dir: echo.dir, files: ['agent.json', 'system.md'], folder: resolve('ingest/tests/fixtures'), database: null, maxRunTokens: 5000, maxTokens: 5000, offset: 0, ledger })
     assert.notEqual(echo.dir, 'agents/import')
     assert.equal(existsSync(echo.dir), false)
   })
