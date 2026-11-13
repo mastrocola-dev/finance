@@ -169,9 +169,9 @@ for (const [state, prepare] of [
     await context.close()
   })
 
-const batchId = async (page: Page) => {
+const batchId = async (page: Page, name = statement.name) => {
   const batches: { id: string; fileName: string }[] = await (await page.request.get('/api/imports', { headers: memberHeaders() })).json()
-  return batches.find((batch) => batch.fileName === statement.name)?.id
+  return batches.find((batch) => batch.fileName === name)?.id
 }
 
 const review = async (page: Page) => {
@@ -274,4 +274,45 @@ test('import discards a batch that was never reviewed', async ({ browser }) => {
   await expect(item.getByText('Descartado')).toBeVisible()
   await expect(item.getByText('Nada foi gravado')).toBeVisible()
   await context.close()
+})
+
+const third = { name: 'extrato-dezembro.csv', mimeType: 'text/csv', buffer: Buffer.from('data,descricao,valor\n2026-12-03,Padaria do bairro,-19.00\n') }
+
+test('import commits with an unanswered question and shows the answer the model chose', async ({ browser }) => {
+  const context = await memberContext(browser, { viewport: viewports[1] })
+  const page = await context.newPage()
+  await page.goto('/importar')
+  const form = page.getByRole('form', { name: 'Enviar arquivo' })
+  await form.getByLabel('Arquivo', { exact: true }).setInputFiles(third)
+  await form.getByRole('checkbox').check()
+  await form.getByRole('button', { name: 'Enviar para leitura' }).click()
+  const item = page.getByRole('region', { name: 'Histórico' }).getByRole('listitem').filter({ hasText: third.name })
+  await expect(item.getByText('Para revisar')).toBeVisible({ timeout: 30_000 })
+  await item.getByRole('link', { name: `Revisar ${third.name}` }).click()
+  const attention = page.getByRole('region', { name: 'Precisa de vocês' })
+  await expect(attention.getByText('GMA é a Gabriela?', { exact: true })).toBeVisible()
+  await expect(attention.getByText('Sem resposta, o modelo escolhe a primeira opção ao importar.')).toBeVisible()
+  await page.getByRole('button', { name: 'Aceitar Aluguel' }).click()
+  await expect(page.getByRole('status')).toContainText('Aceito: Aluguel')
+  const commit = page.getByRole('region', { name: 'Gravar no livro' })
+  await expect(commit.getByText(/perguntas? sem resposta fica/)).toBeVisible()
+  await commit.getByRole('button', { name: 'Gravar 1 item' }).click()
+  await commit.getByRole('button', { name: 'Confirmar gravação' }).click()
+  await expect(page.getByRole('status')).toContainText('Gravado no livro: 1 item')
+  const decided = page.getByRole('region', { name: 'Decididas pelo modelo' })
+  const gma = decided.getByRole('listitem').filter({ hasText: 'GMA é a Gabriela?' })
+  await expect(gma).toBeHidden()
+  await decided.getByText('Decididas pelo modelo').click()
+  await expect(gma.getByText('Resposta: Sim')).toBeVisible()
+  await expect(gma.getByText('decidido pelo modelo')).toBeVisible()
+  expect((await new AxeBuilder({ page }).analyze()).violations).toEqual([])
+  await context.close()
+})
+
+shoot('imports-decided', async (page) => {
+  await page.goto(`/importar/${await batchId(page, third.name)}`)
+  const decided = page.getByRole('region', { name: 'Decididas pelo modelo' })
+  await decided.getByText('Decididas pelo modelo').click()
+  await expect(decided.getByText('Resposta: Sim')).toBeVisible()
+  await decided.scrollIntoViewIfNeeded()
 })

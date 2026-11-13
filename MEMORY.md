@@ -2,8 +2,8 @@
 
 ## State
 
-- S14 E2b1 done 2026-11-13 (questions deduplicated, stale verify questions and orphan auto categories closed, commit decides unanswered questions with their first option, API `decidedByModel`); next is S14 E2b2 (review web shows the model's decisions, screenshots). Tests: 403 node (1 skipped: service-agent contract without the sibling), 204 web, 63 pytest; `npm test` and `npm run check` green; failing-test run streak 0; next free backlog number L242
-- Do not run Playwright and `npm test` at the same time: vitest `findByText` times out under load (L213)
+- S14 E2b2 done 2026-11-13 (review shows "Decididas pelo modelo", `withModelChoices` turns unknown names an open question would settle into non-blocking `model_<ref>` checks); next is S14 E3 (consolidate categories, one-click import; large: split it, e.g. E3a consolidate call with recorded responses, E3b review summary and one-click, E3c eval workbook and Playwright). Tests: 403 node (1 skipped), 208 web, 63 pytest; `npm test` and `npm run check` green; failing-test run streak 0; next free backlog number L245
+- Do not run Playwright and `npm test` at the same time: vitest `findByText` times out under load (L213); run import Playwright with `npx playwright test e2e/import.spec.ts --project=local` (about 1 min)
 - Empty-ledger e2e: `emptyLedger()` in `web/e2e/context.ts` (reset plus `member:add -- Marcio 50 Gabriela 50`), used by `web/e2e/setup.spec.ts` with `afterAll(reseed)`. Cadastros "Novo" opens one form at a time (`adding` in `record-list.tsx`); button names `Novo cadastro em <Seção>`
 
 ## Session setup (cloud container, each run, one command per Bash call)
@@ -16,8 +16,7 @@
 - `./node_modules/.bin/biome check --write <paths>`, never `npx biome`. `curl` to local servers needs `--noproxy '*'`; stop servers by pid (node processes show as `MainThread` in `pgrep`, so `pgrep node` misses them). `npm run openapi` after any route change. Never `pkill -f` a pattern that appears in the Bash command itself: it kills the shell (exit 144)
 - service-agent is public: `git clone --depth 1 https://github.com/mastrocola-dev/service-agent ../service-agent` then `npm ci` there (read only, never commit to it). The contract test also needs `ingest/.venv-runtime`: `UV_PROJECT_ENVIRONMENT="$PWD/ingest/.venv-runtime" uv --directory ingest sync --no-dev --exact --locked`; it honours `SERVICE_AGENT_CLI` and fails instead of skipping with `SERVICE_AGENT_REQUIRED=true` (set in CI)
 - Docker: `setsid dockerd &` starts a daemon, but Docker Hub and ghcr.io answer 403 through the proxy, so no image can be built. To check the image layout, copy the files the `Dockerfile` copies to a folder outside `/tmp/claude-0` (mode 700), `npm ci --omit=dev --workspaces=false`, sync the runtime venv, and run as `nobody` with a writable `HOME`
-- actionlint cannot be built here (refused by the permission check); CI's `infra` job runs it from Docker. Deploy workflow structure is tested as text in `test/infra/deploy.test.ts`, which also requires every `vars.*` of both workflows to be a row of `## Repository variables` in `infra/README.md` (runbook step 5 repeats it)
-- Terraform cannot be downloaded and the OpenTofu release download was refused by the session's permission check (S13 A); `test/infra/terraform.test.ts` stands in for `fmt -check`. `mastrocola-dev/infra` is public: `git clone --depth 1` into the scratchpad to read conventions (read only)
+- actionlint cannot be built here (refused by the permission check); CI's `infra` job runs it from Docker. Deploy workflow structure is tested as text in `test/infra/deploy.test.ts`, which also requires every `vars.*` of both workflows to be a row of `## Repository variables` in `infra/README.md` (runbook step 5 repeats it). Terraform cannot be downloaded and the OpenTofu release download was refused by the session's permission check (S13 A); `test/infra/terraform.test.ts` stands in for `fmt -check`. `mastrocola-dev/infra` is public: `git clone --depth 1` into the scratchpad to read conventions (read only)
 
 ## Architecture facts the code does not make obvious
 
@@ -53,8 +52,9 @@
 
 ## Python and evals
 
+- Import e2e (`web/e2e/import.spec.ts`, serial): batches `extrato-outubro.csv` (reviewed, committed, closed), `extrato-novembro.csv` (discarded), `extrato-dezembro.csv` (committed with GMA unanswered → model answer `Sim`); the fake agent always returns `test/import/sample.ts`; `batchId(page, name)`
 - `ingest/` is a uv project; runtime ingest uses `.venv-runtime` via `ingestRuntime`; never run `--exact` against the dev `.venv`
 - Name resolution (S14 E2a): `findChecks` returns `resolved` (candidate id → canonical names, `member: 'joint'`, `account: undefined`) and `missing` categories; `verifyWithin` creates the missing ones as accepted candidates (chunk null) and returns `resolved`, which `commitBatch` merges into payloads before `rowOf`; payloads are never rewritten by verify. Non-blocking codes `matched_<kind>` (detail `X → Y`), `member_unmatched`, `account_unmatched`; `askedNames` reads them too
 - Origins (S14 E2b1, migration 009): `origin` `model`/`verify` on `import_candidate` and `import_question`; `decided_by_model` on questions (check: needs an answer). `verifyWithin` closes repeated and stale verify questions and orphan `verify` categories (status `accepted`) and returns `closed`; `commitBatch` = verify, `decideQuestions` (review.ts), verify again if anything was decided
 - Import ledger context (S14 E1): `ledgerContext(client, batchId)` in `src/import/context.ts`, `Task.ledger` sent to every chunk, `propose` adds new category candidates for later chunks. Evals read `ledger.json` per case or `evals/ledger.json` (seed household, regenerate from `ledgerContext` on the seeded db); `src/eval/rules.ts` `ruleViolations` is reported, not failing; `test/eval/run.test.ts` pins the violations (4 deliberate ones in app-json and card-ofx) and the per-case counts
-- Eval fixtures are written uncompressed; a pin change of openpyxl/lxml/fpdf2 regenerates them; No Anthropic key here: tests use recorded responses and `test/import/fake-agent.ts`
+- Eval fixtures are written uncompressed; a pin change of openpyxl/lxml/fpdf2 regenerates them; no Anthropic key here: tests use recorded responses and `test/import/fake-agent.ts`

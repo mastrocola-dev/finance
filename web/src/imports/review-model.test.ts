@@ -1,6 +1,6 @@
 import { expect, test } from 'vitest'
 import { ApiFailure } from '../query/client.ts'
-import { acceptable, amountOf, blocked, type Candidate, candidateRecord, checkText, commitFailure, commitPlan, detailsOf, groupCandidates, isBlocking, monthOfCandidate, reviewCounts, reviewFailure, titleOf, unstagedText } from './review-model.ts'
+import { acceptable, amountOf, blocked, type Candidate, candidateRecord, checkText, commitFailure, commitPlan, detailsOf, groupCandidates, isBlocking, monthOfCandidate, type Question, reviewCounts, reviewFailure, titleOf, unstagedText, withModelChoices } from './review-model.ts'
 
 const candidate = (id: string, kind: Candidate['kind'], payload: Record<string, unknown>, changes: Partial<Candidate> = {}): Candidate => ({ id, kind, source: 'A1', chunk: null, confidence: '0.90', status: 'pending', payload, checks: [], recordId: null, ...changes })
 
@@ -100,4 +100,25 @@ test('commit refusals become Portuguese', () => {
   expect(failure(422, 'income Aluguel recebido needs a member')).toBe('A receita Aluguel recebido precisa de uma pessoa. Edite o item e escolha quem recebe.')
   expect(failure(401, 'x-member header required')).toBe('Escolha quem você é para gravar.')
   expect(commitFailure(new Error('network'))).toBe('Não foi possível gravar. Tente de novo.')
+})
+
+const question = (id: string, text: string, options: string[], answer: string | null = null): Question => ({ id, candidateId: null, question: text, options, source: null, chunk: null, answer, decidedByModel: false })
+
+const names = { members: ['Conjunto', 'Marcio', 'Gabriela'], accounts: ['Conta conjunta'], categories: ['Saúde', 'Pets'], reserves: [] }
+
+test('an unknown name an open question would settle with its first option is shown as the model choice, not as a block', () => {
+  const vet = candidate('6', 'entry', { date: '2026-10-02', description: 'Veterinário', direction: 'expense', amountCents: 300, category: 'Bichos', paid: true }, { checks: [{ code: 'unknown_category', detail: 'Bichos' }], status: 'accepted' })
+  const choices = withModelChoices([pharmacy, vet], [question('1', 'Quem é "gma"?', ['Gabriela', 'Conjunto']), question('2', 'Bichos é Saúde?', ['Sim']), question('3', 'Qual categoria é "Bichos"?', ['pets', 'Nova categoria'])], names)
+  expect(choices.map((item) => item.checks)).toEqual([[{ code: 'model_member', detail: 'GMA → Gabriela' }], [{ code: 'model_category', detail: 'Bichos → Pets' }]])
+  expect(choices.some(blocked)).toBe(false)
+  expect(checkText({ code: 'model_category', detail: 'Bichos → Pets' })).toBe('Categoria desconhecida: Bichos. Sem resposta, fica Pets')
+  expect(commitPlan(choices, { accounts: [], categories: [{ name: 'Saúde', direction: 'expense' }], reserves: [] }).unstaged).toEqual([])
+})
+
+test('answered questions, empty options and a first option that names nothing known leave the block', () => {
+  const keep = (questions: Question[]) => withModelChoices([pharmacy], questions, names)[0]?.checks
+  expect(keep([question('1', 'GMA é a Gabriela?', ['Gabriela'], 'Marcio')])).toEqual(pharmacy.checks)
+  expect(keep([question('1', 'GMA é a Gabriela?', [])])).toEqual(pharmacy.checks)
+  expect(keep([question('1', 'GMA é a Gabriela?', ['Sim', 'Não'])])).toEqual(pharmacy.checks)
+  expect(keep([question('1', 'Quem é GMAX?', ['Gabriela'])])).toEqual(pharmacy.checks)
 })

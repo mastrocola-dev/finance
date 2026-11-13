@@ -14,11 +14,12 @@ import { ApiFailure } from '../query/client.ts'
 import { useLedger, useNames } from './candidate-form.tsx'
 import { CandidateRow, type EditForm } from './candidate-row.tsx'
 import { CommitCard, CommittedCard } from './commit-card.tsx'
+import { DecidedQuestions } from './decided-questions.tsx'
 import { type Names, serverErrors } from './edit-model.ts'
 import { type Batch, canRetry, closeFailure, formatStamp, phaseLabels, phaseOf, phaseTones, plural, progressText, retryFailure, retryText, type Unavailable, unavailableNotice } from './model.ts'
 import { useClose, useRetry, useRuntime } from './queries.ts'
 import { QuestionCard } from './question-card.tsx'
-import { acceptable, type Candidate, checkText, commitFailure, commitPlan, type Decision, type Group, groupCandidates, type Question, reviewCounts, reviewFailure, titleOf } from './review-model.ts'
+import { acceptable, type Candidate, checkText, commitFailure, commitPlan, type Decision, type Group, groupCandidates, pendingChoice, type Question, reviewCounts, reviewFailure, titleOf, withModelChoices } from './review-model.ts'
 import { useAnswer, useBatch, useCandidates, useCommit, useDecide, useEdit, useQuestions } from './review-queries.ts'
 import { UnavailableNotice } from './unavailable-notice.tsx'
 
@@ -60,10 +61,18 @@ const BatchHeader = ({ batch }: { batch: Batch }) => {
 
 const Summary = ({ candidates, questions }: { candidates: Candidate[]; questions: Question[] }) => {
   const counts = reviewCounts(candidates)
-  const open = questions.filter((question) => question.answer === null).length
+  const choosing = questions.filter(pendingChoice).length
+  const open = questions.filter((question) => question.answer === null).length - choosing
   return (
     <p className="m-0 text-meta text-muted">
-      {[plural(counts.pending, 'pendente', 'pendentes'), plural(counts.accepted, 'aceito', 'aceitos'), plural(counts.rejected, 'rejeitado', 'rejeitados'), counts.blocked > 0 && plural(counts.blocked, 'com bloqueio', 'com bloqueio'), open > 0 && plural(open, 'pergunta aberta', 'perguntas abertas')]
+      {[
+        plural(counts.pending, 'pendente', 'pendentes'),
+        plural(counts.accepted, 'aceito', 'aceitos'),
+        plural(counts.rejected, 'rejeitado', 'rejeitados'),
+        counts.blocked > 0 && plural(counts.blocked, 'com bloqueio', 'com bloqueio'),
+        open > 0 && plural(open, 'pergunta aberta', 'perguntas abertas'),
+        choosing > 0 && plural(choosing, 'pergunta com escolha do modelo', 'perguntas com escolha do modelo'),
+      ]
         .filter(Boolean)
         .join(' · ')}
     </p>
@@ -124,10 +133,12 @@ const Review = ({ batch, notify, onCommit }: { batch: Batch; notify: (notice: No
 
   return (
     <QueryView query={candidates} skeleton={<Rows />}>
-      {(items) => (
+      {(staged) => (
         <QueryView query={questions} skeleton={<Rows />}>
           {(asked) => {
             const open = asked.filter((question) => question.answer === null)
+            const choosing = open.filter(pendingChoice).length
+            const items = withModelChoices(staged, open, names)
             const titles = new Map(items.map((item) => [item.id, titleOf(item)]))
             return (
               <div className="flex w-full max-w-4xl flex-col gap-5">
@@ -146,6 +157,7 @@ const Review = ({ batch, notify, onCommit }: { batch: Batch; notify: (notice: No
                         ))}
                       </ul>
                     )}
+                    {choosing > 0 && <p className="m-0 text-meta text-muted">Sem resposta, o modelo escolhe a primeira opção ao importar.</p>}
                     {open.length > 0 && (
                       <ul aria-label="Perguntas" className="m-0 flex list-none flex-col gap-2.5 p-0">
                         {open.map((question) => (
@@ -155,6 +167,7 @@ const Review = ({ batch, notify, onCommit }: { batch: Batch; notify: (notice: No
                     )}
                   </section>
                 )}
+                <DecidedQuestions questions={asked} titles={titles} />
                 {items.length === 0 ? (
                   <EmptyState title="Nenhum item lido">O Claude não encontrou lançamentos neste arquivo. Volte ao histórico para descartar a importação.</EmptyState>
                 ) : (
@@ -162,7 +175,7 @@ const Review = ({ batch, notify, onCommit }: { batch: Batch; notify: (notice: No
                     {groupCandidates(items).map((group) => (
                       <GroupCard key={group.key} group={group} hash={hash} names={names} busy={busy} onEdit={onEdit} onDecide={(ids, decision, label) => decide.mutate({ ids, decision }, { onSuccess: () => notify({ message: decided(decision, label) }), onError })} />
                     ))}
-                    <CommitCard plan={commitPlan(items, ledger)} open={open.length} busy={busy} hash={hash} onCommit={onCommit} />
+                    <CommitCard plan={commitPlan(items, ledger)} open={open.length - choosing} choosing={choosing} busy={busy} hash={hash} onCommit={onCommit} />
                     <RecordScroll />
                   </>
                 )}
@@ -173,6 +186,13 @@ const Review = ({ batch, notify, onCommit }: { batch: Batch; notify: (notice: No
       )}
     </QueryView>
   )
+}
+
+const Decided = ({ batch }: { batch: Batch }) => {
+  const questions = useQuestions(batch.id, true)
+  const candidates = useCandidates(batch.id, true)
+  const titles = new Map((candidates.data ?? []).map((item) => [item.id, titleOf(item)]))
+  return <DecidedQuestions questions={questions.data ?? []} titles={titles} className="max-w-4xl" />
 }
 
 const retryUnavailableId = 'retry-unavailable'
@@ -213,6 +233,7 @@ export const ReviewPage = () => {
               )}
               {phase === 'verified' && <Review batch={data} notify={setNotice} onCommit={() => commit.mutate(undefined, { onSuccess: (done) => setNotice({ message: `Gravado no livro: ${plural(done.committed, 'item', 'itens')}` }), onError: (error) => setNotice({ tone: 'error', message: commitFailure(error) }) })} />}
               {phase === 'committed' && <CommittedCard batch={data} busy={close.isPending} onClose={() => close.mutate(data, { onSuccess: () => setNotice({ message: `Importação encerrada: ${data.fileName}` }), onError: (error) => setNotice({ tone: 'error', message: closeFailure(error) }) })} />}
+              {phase === 'committed' && <Decided batch={data} />}
               {phase !== 'verified' && phase !== 'committed' && <EmptyState title={phase === 'extracting' ? 'O Claude está lendo o arquivo' : 'Nada para revisar'}>{phase === 'extracting' ? 'A revisão abre aqui assim que a leitura terminar.' : waiting[phase]}</EmptyState>}
             </>
           )

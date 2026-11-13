@@ -1,6 +1,7 @@
 import type { components } from '../api/schema.ts'
 import { formatBrl, formatMonth } from '../lib/format.ts'
 import { ApiFailure } from '../query/client.ts'
+import type { Names } from './edit-model.ts'
 
 export type Candidate = components['schemas']['ImportCandidate']
 export type Question = components['schemas']['ImportQuestion']
@@ -53,6 +54,10 @@ export const checkText = ({ code, detail }: Check) => {
   if (code.startsWith('matched_')) return `${matchedLabels[code.slice(8)] ?? 'Nome'} reconhecida: ${detail ?? ''}`
   if (code === 'member_unmatched') return `Pessoa não encontrada: ${detail ?? ''}, fica como conjunto`
   if (code === 'account_unmatched') return `Conta não encontrada: ${detail ?? ''}, fica sem conta`
+  if (code.startsWith('model_')) {
+    const [name, choice] = (detail ?? '').split(' → ')
+    return `${unknownLabels[code.slice(6)] ?? 'Nome desconhecido'}: ${name}. Sem resposta, fica ${choice}`
+  }
   if (code === 'total_mismatch' && detail) {
     const [, expected = '0', found = '0'] = detail.match(cents) ?? []
     const source = detail.match(/^(.*): (?:income|expense|net)\b/)?.[1] ?? detail
@@ -107,6 +112,38 @@ export const detailsOf = ({ kind, payload }: Candidate) => {
   }[kind]
   return parts.filter((part): part is string => typeof part === 'string' && part !== '')
 }
+
+const words = (value: string) =>
+  ` ${value
+    .normalize('NFD')
+    .replace(/\p{M}/gu, '')
+    .toLowerCase()
+    .replace(/[^\p{L}\p{N}]+/gu, ' ')
+    .trim()} `
+
+const pools: Record<string, Names> = { member: 'members', account: 'accounts', category: 'categories', reserve: 'reserves' }
+
+export const pendingChoice = (question: Question) => question.answer === null && question.options.length > 0
+
+const modelChoice = (reference: string, name: string, questions: Question[], names: Record<Names, string[]>) => {
+  const pool = names[pools[reference] as Names]
+  for (const question of questions) {
+    const [first] = question.options
+    if (!pendingChoice(question) || !first || !words(question.question).includes(words(name))) continue
+    const choice = pool.find((known) => known.trim().toLowerCase() === first.trim().toLowerCase())
+    if (choice) return choice
+  }
+}
+
+export const withModelChoices = (candidates: Candidate[], questions: Question[], names: Record<Names, string[]>) =>
+  candidates.map((candidate) => ({
+    ...candidate,
+    checks: candidate.checks.map((check) => {
+      const reference = check.code.match(/^unknown_(member|account|category|reserve)$/)?.[1]
+      const choice = reference && check.detail ? modelChoice(reference, check.detail, questions, names) : undefined
+      return reference && choice ? { code: `model_${reference}`, detail: `${check.detail} → ${choice}` } : check
+    }),
+  }))
 
 export type Group = { key: string; kind: Kind; month?: string; title: string; candidates: Candidate[] }
 
@@ -164,7 +201,7 @@ const matches = (left: Reference, right: Reference) => left.kind === right.kind 
 const categoryDirection = ({ kind, payload }: Candidate) => (kind === 'entry' ? String(payload.direction) : kind === 'income' ? 'income' : 'expense')
 
 const resolvedName = (candidate: Candidate, kind: string, value: unknown) => {
-  const matched = candidate.checks.find((check) => check.code === `matched_${kind}`)?.detail?.split(' → ')[1]
+  const matched = candidate.checks.find((check) => check.code === `matched_${kind}` || check.code === `model_${kind}`)?.detail?.split(' → ')[1]
   return (matched ?? String(value)).trim()
 }
 

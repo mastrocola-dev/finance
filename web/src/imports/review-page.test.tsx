@@ -85,6 +85,7 @@ const fetch = vi.fn(async (input: Request) => {
     if (refusal) return Response.json({ error: refusal }, { status: 422 })
     const committed = candidates.filter((item) => item.status === 'accepted' || item.status === 'edited').length
     current = url.pathname.endsWith('/commit') ? { ...current, status: 'committed', committed } : { ...current, status: 'closed', closedAt: '2026-10-20T14:00:00.000Z' }
+    if (url.pathname.endsWith('/commit')) questions = questions.map((question) => (question.answer === null && question.options[0] ? { ...question, answer: question.options[0], decidedByModel: true } : question))
     return Response.json(current)
   }
   if (input.method === 'POST') {
@@ -134,11 +135,37 @@ test('review shows questions and file checks first, then candidates grouped by m
     .filter((item) => item.getAttribute('aria-labelledby'))
     .map((item) => item.querySelector('[id^="candidate-title"]')?.textContent)
   expect(titles).toEqual(['Farmácia', 'Aluguel', 'Mercado'])
-  expect(within(row('Farmácia')).getByText('Pessoa desconhecida: GMA')).toBeTruthy()
+  expect(within(attention).getByText('Sem resposta, o modelo escolhe a primeira opção ao importar.')).toBeTruthy()
+  expect(within(row('Farmácia')).getByText('Pessoa desconhecida: GMA. Sem resposta, fica Gabriela')).toBeTruthy()
   expect(within(row('Farmácia')).getByText('Outubro!A2:G2')).toBeTruthy()
+  expect((within(row('Farmácia')).getByRole('button', { name: 'Aceitar Farmácia' }) as HTMLButtonElement).disabled).toBe(false)
+  expect(screen.getByText('3 pendentes · 0 aceitos · 0 rejeitados · 1 pergunta com escolha do modelo')).toBeTruthy()
+  expect(screen.queryByRole('region', { name: 'Decididas pelo modelo' })).toBeNull()
+  expect(document.title).toBe('Revisar planilha-casa.xlsx · Caixa')
+})
+
+test('an unknown name stays blocking when no open question offers a known name first', async () => {
+  const [gma] = seedQuestions() as [Question]
+  questions = [
+    { ...gma, options: ['Sim', 'Não'] },
+    { ...gma, id: '10', question: 'Quem pagou a farmácia?', options: [] },
+  ]
+  start()
+  const attention = await screen.findByRole('region', { name: 'Precisa de vocês' })
+  expect(within(attention).getByText('Sem resposta, o modelo escolhe a primeira opção ao importar.')).toBeTruthy()
+  expect(within(row('Farmácia')).getByText('Pessoa desconhecida: GMA')).toBeTruthy()
+  expect((within(row('Farmácia')).getByRole('button', { name: 'Aceitar Farmácia' }) as HTMLButtonElement).disabled).toBe(true)
+  expect(screen.getByText('3 pendentes · 0 aceitos · 0 rejeitados · 1 com bloqueio · 1 pergunta aberta · 1 pergunta com escolha do modelo')).toBeTruthy()
+})
+
+test('questions without options need an answer and say nothing about the model', async () => {
+  const [gma] = seedQuestions() as [Question]
+  questions = [{ ...gma, options: [] }]
+  start()
+  const attention = await screen.findByRole('region', { name: 'Precisa de vocês' })
+  expect(within(attention).queryByText('Sem resposta, o modelo escolhe a primeira opção ao importar.')).toBeNull()
   expect((within(row('Farmácia')).getByRole('button', { name: 'Aceitar Farmácia' }) as HTMLButtonElement).disabled).toBe(true)
   expect(screen.getByText('3 pendentes · 0 aceitos · 0 rejeitados · 1 com bloqueio · 1 pergunta aberta')).toBeTruthy()
-  expect(document.title).toBe('Revisar planilha-casa.xlsx · Caixa')
 })
 
 test('answering a question resolves the blocked candidate', async () => {
@@ -157,6 +184,7 @@ test('free text answers go through the form', async () => {
 })
 
 test('accepts the ready items of a group at once, rejects and accepts one by one', async () => {
+  questions = []
   start()
   await userEvent.click(await screen.findByRole('button', { name: 'Aceitar 2 prontos' }))
   await waitFor(() => expect(calls.at(-1)).toEqual({ path: '/api/imports/7/candidates/accept', body: { ids: ['1', '3'] }, member: 'Marcio' }))
@@ -270,25 +298,36 @@ test('keeps Ler de novo disabled and says why while the ingest runtime is not re
 }, 10000)
 
 test('commit explains the blocking checks of accepted items and stays disabled', async () => {
+  questions = []
   candidates = candidates.map((item) => ({ ...item, status: item.id === '3' ? 'rejected' : 'accepted' }))
   start()
   const commit = await screen.findByRole('region', { name: 'Gravar no livro' })
-  expect(within(commit).getByText('1 item aceito vai para o livro. 1 item pendente ou rejeitado fica de fora. 1 pergunta segue aberta.')).toBeTruthy()
+  expect(within(commit).getByText('1 item aceito vai para o livro. 1 item pendente ou rejeitado fica de fora.')).toBeTruthy()
   expect(within(commit).getByText('Um item aceito tem bloqueio. Edite, responda ou rejeite antes de gravar:')).toBeTruthy()
   expect(within(within(commit).getByRole('list', { name: 'Bloqueios' })).getByRole('listitem').textContent).toBe('Farmácia · Pessoa desconhecida: GMA')
   expect((within(commit).getByRole('button', { name: 'Gravar 1 item' }) as HTMLButtonElement).disabled).toBe(true)
 })
 
-test('commits the accepted items after confirmation, then closes the batch', async () => {
+test('commits with an unanswered question, then shows it decided by the model and closes the batch', async () => {
   start()
-  await userEvent.click(await screen.findByRole('button', { name: 'Aceitar 2 prontos' }))
+  await userEvent.click(await screen.findByRole('button', { name: 'Aceitar 3 prontos' }))
   const commit = screen.getByRole('region', { name: 'Gravar no livro' })
-  await waitFor(() => expect(within(commit).getByText('2 itens aceitos vão para o livro. 1 item pendente ou rejeitado fica de fora. 1 pergunta segue aberta.')).toBeTruthy())
-  await userEvent.click(within(commit).getByRole('button', { name: 'Gravar 2 itens' }))
+  await waitFor(() => expect(within(commit).getByText('3 itens aceitos vão para o livro. 1 pergunta sem resposta fica com a primeira opção.')).toBeTruthy())
+  await userEvent.click(within(commit).getByRole('button', { name: 'Gravar 3 itens' }))
   await userEvent.click(within(commit).getByRole('button', { name: 'Confirmar gravação' }))
-  expect(await screen.findByText('Gravado no livro: 2 itens')).toBeTruthy()
+  expect(await screen.findByText('Gravado no livro: 3 itens')).toBeTruthy()
   const done = await screen.findByRole('region', { name: 'Gravada no livro' })
-  expect(within(done).getByText(/^2 itens gravados\./)).toBeTruthy()
+  expect(within(done).getByText(/^3 itens gravados\./)).toBeTruthy()
+  const decided = await screen.findByRole('region', { name: 'Decididas pelo modelo' })
+  const list = within(decided).getByRole('list', { name: 'Perguntas decididas pelo modelo', hidden: true })
+  expect(list.closest('details')?.open).toBe(false)
+  await userEvent.click(within(decided).getByText('Decididas pelo modelo'))
+  expect(list.closest('details')?.open).toBe(true)
+  const item = within(list).getByRole('listitem')
+  expect(within(item).getByText('GMA é a Gabriela?')).toBeTruthy()
+  expect(within(item).getByText('Resposta: Gabriela')).toBeTruthy()
+  expect(within(item).getByText('decidido pelo modelo')).toBeTruthy()
+  expect(within(item).getByText('Farmácia · Origem Outubro!E4')).toBeTruthy()
   expect(within(done).getByRole('link', { name: 'Ver lançamentos' }).getAttribute('href')).toContain('/lancamentos')
   expect(screen.queryByRole('region', { name: 'Gravar no livro' })).toBeNull()
   await userEvent.click(within(done).getByRole('button', { name: 'Encerrar' }))
