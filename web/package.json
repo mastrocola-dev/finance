@@ -11,7 +11,8 @@
     "test": "vitest run",
     "screenshots": "playwright test",
     "icons": "node scripts/icons.ts",
-    "branding": "node scripts/branding.ts"
+    "branding": "node scripts/branding.ts",
+    "brand": "node scripts/brand.ts"
   },
   "devDependencies": {
     "@axe-core/playwright": "^4.14.0",
