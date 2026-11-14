@@ -83,7 +83,8 @@ test('pin-bases rewrites every external base to its digest and leaves stages and
   const froms = pinned.match(/^FROM .+$/gm) ?? []
   for (const line of froms.filter((text) => text.includes('node:24-slim'))) assert.ok(line.includes(`node:24-slim@${node} AS`), line)
   assert.match(pinned, new RegExp(`^FROM ghcr\\.io/astral-sh/uv:[\\d.]+@${uv} AS uv$`, 'm'))
-  assert.match(pinned, /^FROM base AS api$/m)
+  assert.match(pinned, /^FROM app AS api$/m)
+  assert.match(pinned, /^FROM modules AS mcp_modules$/m)
   assert.equal(pinned.replaceAll(`@${node}`, '').replaceAll(`@${uv}`, ''), dockerfile.replace(/@sha256:[0-9a-f]{64}/g, ''))
   execFileSync(script, [file], { env })
   assert.equal(readFileSync(file, 'utf8'), pinned)

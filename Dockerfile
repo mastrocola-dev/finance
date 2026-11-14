@@ -6,6 +6,9 @@ COPY package.json package-lock.json ./
 COPY web/package.json web/
 RUN npm ci --omit=dev --workspaces=false --ignore-scripts && npm cache clean --force
 
+FROM modules AS mcp_modules
+RUN npm uninstall --no-save --omit=dev --workspaces=false --ignore-scripts --no-audit --no-fund @modelcontextprotocol/client read-excel-file && npm cache clean --force
+
 FROM node:24-slim AS web
 WORKDIR /app
 COPY package.json package-lock.json ./
@@ -40,19 +43,28 @@ FROM node:24-slim AS base
 LABEL org.opencontainers.image.source=https://github.com/mastrocola-dev/finance
 ENV NODE_ENV=production
 WORKDIR /app
+COPY package.json ./
+
+FROM base AS app
 COPY --from=modules /app/node_modules node_modules
-COPY package.json openapi.json ./
+COPY openapi.json ./
 COPY db db
 COPY src src
 
 FROM base AS mcp
+COPY --from=mcp_modules /app/node_modules node_modules
+COPY src/db src/db
+COPY src/http src/http
+COPY src/import src/import
+COPY src/ledger src/ledger
+COPY src/mcp src/mcp
 ENV MCP_HOST=0.0.0.0 \
     MCP_PORT=3100
 USER node
 EXPOSE 3100
 CMD ["node", "src/mcp/http.ts"]
 
-FROM base AS api
+FROM app AS api
 COPY --from=web /app/web/dist web/dist
 ENV API_HOST=0.0.0.0 \
     API_PORT=3200 \
@@ -61,7 +73,7 @@ USER node
 EXPOSE 3200
 CMD ["node", "src/http/api.ts"]
 
-FROM base AS extract
+FROM app AS extract
 COPY --from=uv /uv /usr/local/bin/uv
 COPY --from=ingest /opt/python /opt/python
 COPY --from=ingest /app/ingest ingest

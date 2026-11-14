@@ -6,7 +6,8 @@ import type { Database } from '../db/connection.ts'
 import type { Actor } from '../db/write.ts'
 import { RuleError } from '../ledger/rule.ts'
 import { type FileImport, finishImport, finishRetry, openImport, openRetry } from './cli.ts'
-import { type IngestReadiness, type RuntimeCause, warmIngest } from './ingest.ts'
+import { warmIngest } from './ingest.ts'
+import type { IngestReadiness, RuntimeCause } from './readiness.ts'
 import { batchOfFile, maskDigits } from './staging.ts'
 
 export type Progress = { state: 'extracting' | 'done' | 'failed'; done: number; total: number; error: string | null }

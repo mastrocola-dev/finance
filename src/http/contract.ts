@@ -1,7 +1,7 @@
 import * as z from 'zod'
 import { batchStatuses } from '../import/batches.ts'
 import { kinds } from '../import/candidate.ts'
-import { runtimeCauses } from '../import/ingest.ts'
+import { runtimeCauses } from '../import/readiness.ts'
 import { authors } from '../ledger/audit.ts'
 import { statuses } from '../ledger/decisions.ts'
 import { origins, states } from '../ledger/entries.ts'

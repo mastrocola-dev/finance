@@ -6,6 +6,7 @@ import { Client } from '@modelcontextprotocol/client'
 import { getDefaultEnvironment, StdioClientTransport, type StdioServerParameters } from '@modelcontextprotocol/client/stdio'
 import * as z from 'zod'
 import type { Segment } from './agent.ts'
+import type { IngestReadiness } from './readiness.ts'
 
 const ingestDirectory = fileURLToPath(new URL('../../ingest', import.meta.url))
 export const runtimeEnvironment = join(ingestDirectory, '.venv-runtime')
@@ -20,12 +21,6 @@ export const ingestRuntime = (command: string[]) => ({
   args: ['--directory', ingestDirectory, 'run', '--no-dev', '--exact', '--locked', '--quiet', ...command],
   env: { ...getDefaultEnvironment(), ...Object.fromEntries(passed()), UV_PROJECT_ENVIRONMENT: runtimeEnvironment },
 })
-
-export const runtimeCauses = ['missing', 'timeout', 'failed'] as const
-
-export type RuntimeCause = (typeof runtimeCauses)[number]
-
-export type IngestReadiness = { ready: true } | { ready: false; cause: RuntimeCause; reason: string }
 
 const warmTimeout = 300000
 

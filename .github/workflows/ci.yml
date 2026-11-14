@@ -127,6 +127,7 @@ jobs:
           test "$(docker run --rm finance-mcp id -u)" != 0
           test "$(docker run --rm finance-extract id -u)" != 0
           docker run --rm finance-api sh -c '! command -v uv && test ! -e /opt/python && test ! -e ingest && test ! -e agents && test ! -e /opt/service-agent'
+          docker run --rm finance-mcp sh -c 'test ! -e node_modules/@modelcontextprotocol/client && test ! -e node_modules/read-excel-file && test ! -e db && test ! -e openapi.json && test ! -e src/eval && test ! -e web'
           EXTRACT_KEY="$(openssl rand -hex 32)"
           export EXTRACT_KEY
           docker run --rm --network host -e DATABASE_URL finance-api node src/db/migrate.ts
