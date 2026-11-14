@@ -222,6 +222,23 @@ export type paths = {
         patch?: never;
         trace?: never;
     };
+    "/api/cards": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Open credit cards with limit, installments, committed and available limit and the releases of the coming bills */
+        get: operations["listCards"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/months/{month}/split": {
         parameters: {
             query?: never;
@@ -348,10 +365,10 @@ export type paths = {
             path?: never;
             cookie?: never;
         };
-        /** Open categories, accounts, reserves, incomes, recurring expenses, variable expenses, debts and goals */
+        /** Open categories, accounts, reserves, incomes, recurring expenses, variable expenses, card installments, debts and goals */
         get: operations["listSetup"];
         put?: never;
-        /** Register a category, account, reserve, income, recurring expense, variable expense, debt or goal */
+        /** Register a category, account, reserve, income, recurring expense, variable expense, card installment, debt or goal */
         post: operations["registerRecord"];
         delete?: never;
         options?: never;
@@ -874,16 +891,58 @@ export type components = {
         };
         SetupRecord: {
             /** @enum {string} */
-            kind: "category" | "account" | "reserve" | "income" | "recurring_expense" | "variable_expense" | "debt" | "goal";
+            kind: "category" | "account" | "reserve" | "income" | "recurring_expense" | "variable_expense" | "card_installment" | "debt" | "goal";
             id: string;
             name: string;
-            /** @description Category direction, account institution, kind and last four, recurring installments, debt description or goal reserve; null for variable expenses */
+            /** @description Category direction, account institution, kind and last four, recurring installments, card installments and first bill, debt description or goal reserve; null for variable expenses */
             detail: string | null;
+            /** @description Credit limit of an account, monthly amount, installment, balance or target */
             amount: components["schemas"]["Money"] | null;
             day: number | null;
             member: string | null;
             category: string | null;
             account: string | null;
+        };
+        Release: {
+            /** @description Bill competence */
+            month: string;
+            /** @description Limit freed when this bill is paid */
+            amount: components["schemas"]["Money"];
+        };
+        CardInstallment: {
+            id: string;
+            description: string;
+            member: string | null;
+            category: string | null;
+            installment: components["schemas"]["Money"];
+            installmentsTotal: number;
+            /** @description Installment on the bill of the month; null before the first bill */
+            current: number | null;
+            /** @description Installments still to be billed, the current one included */
+            remaining: number;
+            /** @description Date as YYYY-MM-DD */
+            firstBill: string;
+            /** @description Date as YYYY-MM-DD */
+            lastBill: string;
+            /** @description Installment times remaining */
+            committed: components["schemas"]["Money"];
+        };
+        Card: {
+            id: string;
+            nickname: string;
+            institution: string;
+            /** @description Last four digits only */
+            lastFour: string;
+            /** @description Owner; null means joint */
+            member: string | null;
+            limit: components["schemas"]["Money"] | null;
+            /** @description Limit held by open installments, the bill of the month included */
+            committed: components["schemas"]["Money"];
+            /** @description Limit minus committed; null without a limit */
+            available: components["schemas"]["Money"] | null;
+            installments: components["schemas"]["CardInstallment"][];
+            /** @description Limit freed per bill, oldest first */
+            releases: components["schemas"]["Release"][];
         };
         Closed: {
             id: string;
@@ -1078,6 +1137,7 @@ export type components = {
         ListCategoriesResponse: components["schemas"]["Category"][];
         ListAccountsResponse: components["schemas"]["Account"][];
         ListGoalsResponse: components["schemas"]["Goal"][];
+        ListCardsResponse: components["schemas"]["Card"][];
         CreateEntryBody: {
             /** @description Month as YYYY-MM */
             month: string;
@@ -1101,7 +1161,7 @@ export type components = {
         ListSetupResponse: components["schemas"]["SetupRecord"][];
         RegisterRecordBody: {
             /** @enum {string} */
-            kind: "category" | "account" | "reserve" | "income" | "recurring_expense" | "variable_expense" | "debt" | "goal";
+            kind: "category" | "account" | "reserve" | "income" | "recurring_expense" | "variable_expense" | "card_installment" | "debt" | "goal";
             /** @description Payload in camelCase, checked against the schema of its kind (same as import candidates) */
             payload: {
                 [key: string]: unknown;
@@ -1111,7 +1171,7 @@ export type components = {
         EditRecordBody: {
             /** @description New name, description, nickname or creditor */
             name?: string;
-            /** @description New amount: monthly amount, balance of a reserve or debt, target of a goal, integer cents of BRL */
+            /** @description New amount: monthly amount, installment of a card purchase, limit of a credit card account, balance of a reserve or debt, target of a goal, integer cents of BRL */
             amountCents?: number;
             /** @description Day of the month it falls due */
             dayOfMonth?: number;
@@ -1185,6 +1245,9 @@ export type Category = components['schemas']['Category'];
 export type Account = components['schemas']['Account'];
 export type Goal = components['schemas']['Goal'];
 export type SetupRecord = components['schemas']['SetupRecord'];
+export type Release = components['schemas']['Release'];
+export type CardInstallment = components['schemas']['CardInstallment'];
+export type Card = components['schemas']['Card'];
 export type Closed = components['schemas']['Closed'];
 export type AuditItem = components['schemas']['AuditItem'];
 export type AuditPage = components['schemas']['AuditPage'];
@@ -1207,6 +1270,7 @@ export type ListMembersResponse = components['schemas']['ListMembersResponse'];
 export type ListCategoriesResponse = components['schemas']['ListCategoriesResponse'];
 export type ListAccountsResponse = components['schemas']['ListAccountsResponse'];
 export type ListGoalsResponse = components['schemas']['ListGoalsResponse'];
+export type ListCardsResponse = components['schemas']['ListCardsResponse'];
 export type CreateEntryBody = components['schemas']['CreateEntryBody'];
 export type MarkPaidBody = components['schemas']['MarkPaidBody'];
 export type ListSetupResponse = components['schemas']['ListSetupResponse'];
@@ -1697,6 +1761,38 @@ export interface operations {
             };
         };
     };
+    listCards: {
+        parameters: {
+            query: {
+                /** @description Month as YYYY-MM whose bill counts as the current installment */
+                month: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ListCardsResponse"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+        };
+    };
     getMonthSplit: {
         parameters: {
             query?: never;
@@ -2040,7 +2136,7 @@ export interface operations {
             query?: never;
             header?: never;
             path: {
-                kind: "category" | "account" | "reserve" | "income" | "recurring_expense" | "variable_expense" | "debt" | "goal";
+                kind: "category" | "account" | "reserve" | "income" | "recurring_expense" | "variable_expense" | "card_installment" | "debt" | "goal";
                 id: string;
             };
             cookie?: never;
@@ -2076,7 +2172,7 @@ export interface operations {
             query?: never;
             header?: never;
             path: {
-                kind: "category" | "account" | "reserve" | "income" | "recurring_expense" | "variable_expense" | "debt" | "goal";
+                kind: "category" | "account" | "reserve" | "income" | "recurring_expense" | "variable_expense" | "card_installment" | "debt" | "goal";
                 id: string;
             };
             cookie?: never;

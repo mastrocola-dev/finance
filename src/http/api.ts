@@ -10,6 +10,7 @@ import { commitBatch } from '../import/commit.ts'
 import { answerQuestion, editCandidate, renameCategory, reviewCandidates } from '../import/review.ts'
 import { Busy, type Imports, importUploads, Unavailable, warmedUploads } from '../import/uploads.ts'
 import { listAudit } from '../ledger/audit.ts'
+import { cardLimits } from '../ledger/cards.ts'
 import { listAccounts, listCategories } from '../ledger/catalog.ts'
 import { listDebts } from '../ledger/debts.ts'
 import { findDecision, listDecisions } from '../ledger/decisions.ts'
@@ -32,6 +33,7 @@ import {
   candidateEdit,
   candidateIds,
   candidatePath,
+  cardQuery,
   categoryQuery,
   categoryRename,
   decisionQuery,
@@ -161,6 +163,7 @@ export const routes: Route[] = [
   route({ method: 'GET', path: '/accounts', operationId: 'listAccounts', summary: 'Active accounts by nickname and last four digits, joint first', response: z.array(schemas.Account) }, ({ client }) => listAccounts(client)),
   route({ method: 'GET', path: '/goals', operationId: 'listGoals', summary: 'Goals with progress, nearest due first', response: z.array(schemas.Goal) }, ({ client }) => listGoals(client)),
   route({ method: 'GET', path: '/net-worth', operationId: 'getNetWorth', summary: 'Reserves and goals minus debt balances', response: schemas.NetWorth }, ({ client }) => netWorth(client)),
+  route({ method: 'GET', path: '/cards', operationId: 'listCards', summary: 'Open credit cards with limit, installments, committed and available limit and the releases of the coming bills', query: cardQuery, response: z.array(schemas.Card) }, ({ client, query }) => cardLimits(client, query.month)),
   route({ method: 'GET', path: '/months/:month/split', operationId: 'getMonthSplit', summary: 'Who owes whom from joint expenses paid from member accounts', params: monthPath, response: schemas.Split }, ({ client, params }) => monthSplit(client, params.month)),
   route({ method: 'GET', path: '/audit', operationId: 'listAudit', summary: 'Audit log, newest first, with counts per author; needs a member', identified: true, query: auditQuery, response: schemas.AuditPage }, ({ client, query: { before, ...filter } }) =>
     listAudit(client, { ...filter, before: before === undefined ? undefined : BigInt(before) }),
@@ -186,8 +189,8 @@ export const routes: Route[] = [
     const cancelled = await writing(input, (connection, actor) => cancelEntry(connection, actor, BigInt(input.params.id)))
     return { id: String(cancelled) }
   }),
-  route({ method: 'GET', path: '/setup', operationId: 'listSetup', summary: 'Open categories, accounts, reserves, incomes, recurring expenses, variable expenses, debts and goals', response: z.array(schemas.SetupRecord) }, ({ client }) => listSetup(client)),
-  route({ method: 'POST', path: '/setup', operationId: 'registerRecord', summary: 'Register a category, account, reserve, income, recurring expense, variable expense, debt or goal', body: newRecord, response: schemas.SetupRecord, status: 201 }, async (input) => {
+  route({ method: 'GET', path: '/setup', operationId: 'listSetup', summary: 'Open categories, accounts, reserves, incomes, recurring expenses, variable expenses, card installments, debts and goals', response: z.array(schemas.SetupRecord) }, ({ client }) => listSetup(client)),
+  route({ method: 'POST', path: '/setup', operationId: 'registerRecord', summary: 'Register a category, account, reserve, income, recurring expense, variable expense, card installment, debt or goal', body: newRecord, response: schemas.SetupRecord, status: 201 }, async (input) => {
     const created = String(await writing(input, (connection, actor) => registerRecord(connection, actor, input.body.kind, input.body.payload)))
     return (await listSetup(input.client)).find((record) => record.kind === input.body.kind && record.id === created)
   }),

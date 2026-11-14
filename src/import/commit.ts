@@ -2,8 +2,8 @@ import type { Client } from 'pg'
 import type * as z from 'zod'
 import { type Actor, type Closable, type Row, write } from '../db/write.ts'
 import { RuleError } from '../ledger/rule.ts'
-import { competenceOf } from '../ledger/summary.ts'
-import { type CandidateKind, payloads, type variableExpensePayload } from './candidate.ts'
+import { competenceOf, shiftMonth } from '../ledger/summary.ts'
+import { type CandidateKind, type cardInstallmentPayload, payloads, type variableExpensePayload } from './candidate.ts'
 import { decideQuestions } from './review.ts'
 import { type Check, verifyWithin } from './verify.ts'
 
@@ -32,7 +32,19 @@ export const resolver = (client: Client) => {
   return { member, account, category, reserve }
 }
 
-export const rowOf = async (resolve: ReturnType<typeof resolver>, kind: CandidateKind | 'variable_expense', payload: Record<string, unknown>): Promise<Row> => {
+export const rowOf = async (resolve: ReturnType<typeof resolver>, kind: CandidateKind | 'variable_expense' | 'card_installment', payload: Record<string, unknown>): Promise<Row> => {
+  if (kind === 'card_installment') {
+    const item = payload as z.output<typeof cardInstallmentPayload>
+    return {
+      description: item.description,
+      account_id: await resolve.account(item.account),
+      member_id: await resolve.member(item.member),
+      category_id: await resolve.category(item.category, 'expense'),
+      installment_cents: item.amountCents,
+      installments_total: item.installmentsTotal,
+      first_bill: shiftMonth(item.billMonth, 1 - item.currentInstallment),
+    }
+  }
   if (kind === 'variable_expense') {
     const item = payload as z.output<typeof variableExpensePayload>
     return { description: item.description, category_id: await resolve.category(item.category, 'expense'), member_id: await resolve.member(item.member), account_id: await resolve.account(item.account), amount_cents: item.amountCents, starts_on: item.startsOn }

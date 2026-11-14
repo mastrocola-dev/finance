@@ -117,6 +117,7 @@ describe('openapi', () => {
       listGoals: { path: '/goals' },
       getNetWorth: { path: '/net-worth' },
       getMonthSplit: { path: '/months/2026-10/split' },
+      listCards: { path: '/cards?month=2026-11' },
       listAudit: { path: '/audit?limit=5' },
       createEntry: { path: `/entries?${today}`, body: { month: '2026-10', due_on: '2026-10-26', description: 'Bakery', direction: 'expense', amount_cents: 1800, category: 'alimentação', member: 'joint' } },
       markPaid: { path: `/entries/ENTRY/paid?${today}`, body: {} },

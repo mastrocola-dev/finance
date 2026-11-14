@@ -240,6 +240,32 @@ describe('http api', () => {
     )
   })
 
+  test('registers a card installment, sets the card limit and lists the cards of a month', async () => {
+    const payload = { description: 'Notebook', account: 'Cartão Marcio', amountCents: 50000, installmentsTotal: 4, currentInstallment: 2, billMonth: '2026-11-01' }
+    const created = await post('/setup', { kind: 'card_installment', payload })
+    assert.deepEqual([created.status, created.body.detail, created.body.amount.brl, created.body.account], [201, '4 installments from 2026-10-01', 'R$ 500,00', 'Cartão Marcio'])
+    assert.equal((await post('/setup', { kind: 'card_installment', payload: { ...payload, account: 'Conta conjunta' } })).status, 422)
+    const account = (await get('/setup')).body.find((record: { kind: string; name: string }) => record.kind === 'account' && record.name === 'Cartão Marcio')
+    const limited = await send('PATCH', `/setup/account/${account.id}`, { amountCents: 600000 })
+    assert.deepEqual([limited.status, limited.body.amount.brl], [200, 'R$ 6.000,00'])
+    const { status, body } = await get('/cards?month=2026-11')
+    assert.equal(status, 200)
+    const card = body.find((item: { nickname: string }) => item.nickname === 'Cartão Marcio')
+    assert.deepEqual([card.limit.brl, card.committed.brl, card.available.brl, card.lastFour, card.installments[0].current, card.installments[0].installment.cents], ['R$ 6.000,00', 'R$ 1.500,00', 'R$ 4.500,00', '8812', 2, '50000'])
+    assert.deepEqual(
+      card.releases.map((release: { month: string; amount: { cents: string } }) => [release.month, release.amount.cents]),
+      [
+        ['2026-11-01', '50000'],
+        ['2026-12-01', '50000'],
+        ['2027-01-01', '50000'],
+      ],
+    )
+    assert.equal((await get('/cards?month=2026-13')).status, 422)
+    assert.equal((await get('/cards')).status, 400)
+    assert.deepEqual((await post(`/setup/card_installment/${created.body.id}/close`, {})).body, { id: created.body.id })
+    assert.equal((await send('PATCH', `/setup/account/${account.id}`, { amountCents: 0 })).status, 422)
+  })
+
   test('proposes a decision and closes it once every member confirms', async () => {
     const proposed = await post('/decisions', { title: 'Move to a bigger flat', amount_cents: 50000000 })
     assert.equal(proposed.status, 201)

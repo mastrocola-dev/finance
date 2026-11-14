@@ -52,6 +52,7 @@ describe('streamable http adapter', () => {
     const { tools } = await mcp.listTools()
     assert.deepEqual(tools.map(({ name }) => name).sort(), [
       'cancel_entry',
+      'card_limits',
       'close_record',
       'confirm_decision',
       'correct_entry',

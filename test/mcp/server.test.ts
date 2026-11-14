@@ -41,7 +41,7 @@ describe('mcp read tools', () => {
     const { tools } = await mcp.listTools()
     const readOnly = tools.filter(({ annotations }) => annotations?.readOnlyHint === true).map(({ name }) => name)
     const writing = tools.filter(({ annotations }) => annotations?.readOnlyHint === false && annotations.destructiveHint === false).map(({ name }) => name)
-    assert.deepEqual(readOnly.sort(), ['list_debts', 'list_decisions', 'list_entries', 'list_reserves', 'list_setup', 'month_summary'])
+    assert.deepEqual(readOnly.sort(), ['card_limits', 'list_debts', 'list_decisions', 'list_entries', 'list_reserves', 'list_setup', 'month_summary'])
     assert.deepEqual(writing.sort(), ['cancel_entry', 'close_record', 'confirm_decision', 'correct_entry', 'create_entry', 'edit_record', 'forecast_month', 'mark_paid', 'mark_unpaid', 'propose_decision', 'register_record', 'reject_decision', 'update_reserve', 'withdraw_decision'])
   })
 
@@ -123,6 +123,15 @@ describe('mcp read tools', () => {
 
   test('list_decisions is empty over the seed', async () => {
     assert.deepEqual((await call('list_decisions')).json(), [])
+  })
+
+  test('card_limits lists open credit cards with money as strings', async () => {
+    const cards = (await call('card_limits', { month: '2026-11' })).json()
+    assert.deepEqual(
+      cards.map((card: { nickname: string; limit: Money | null; committed: Money; available: Money | null; installments: unknown[]; releases: unknown[] }) => [card.nickname, card.limit, card.committed.brl, card.available, card.installments, card.releases]),
+      [['Cartão Marcio', null, 'R$ 0,00', null, [], []]],
+    )
+    assert.equal((await call('card_limits', { month: '2026-13' })).isError, true)
   })
 
   test('list_debts lists active debts with installments left', async () => {

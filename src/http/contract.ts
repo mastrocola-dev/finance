@@ -13,6 +13,7 @@ export const memberHeader = 'x-member'
 const direction = z.enum(['income', 'expense'])
 
 export const monthPath = z.object({ month })
+export const cardQuery = z.object({ month: month.describe('Month as YYYY-MM whose bill counts as the current installment') })
 export const idPath = z.object({ id })
 export const namePath = z.object({ name: z.string().describe('Reserve name, percent-encoded') })
 export const referenceQuery = z.object({ today })
@@ -187,12 +188,41 @@ const setupRecord = z.strictObject({
   kind: setupKind,
   id,
   name: z.string(),
-  detail: z.string().nullable().describe('Category direction, account institution, kind and last four, recurring installments, debt description or goal reserve; null for variable expenses'),
-  amount: money.nullable(),
+  detail: z.string().nullable().describe('Category direction, account institution, kind and last four, recurring installments, card installments and first bill, debt description or goal reserve; null for variable expenses'),
+  amount: money.nullable().describe('Credit limit of an account, monthly amount, installment, balance or target'),
   day: z.int().nullable(),
   member: z.string().nullable(),
   category: z.string().nullable(),
   account: z.string().nullable(),
+})
+
+const release = z.strictObject({ month: date.describe('Bill competence'), amount: money.describe('Limit freed when this bill is paid') })
+
+const cardInstallment = z.strictObject({
+  id,
+  description: z.string(),
+  member: z.string().nullable(),
+  category: z.string().nullable(),
+  installment: money,
+  installmentsTotal: z.int(),
+  current: z.int().nullable().describe('Installment on the bill of the month; null before the first bill'),
+  remaining: z.int().describe('Installments still to be billed, the current one included'),
+  firstBill: date,
+  lastBill: date,
+  committed: money.describe('Installment times remaining'),
+})
+
+const card = z.strictObject({
+  id,
+  nickname: z.string(),
+  institution: z.string(),
+  lastFour: z.string().describe('Last four digits only'),
+  member: z.string().nullable().describe('Owner; null means joint'),
+  limit: money.nullable(),
+  committed: money.describe('Limit held by open installments, the bill of the month included'),
+  available: money.nullable().describe('Limit minus committed; null without a limit'),
+  installments: z.array(cardInstallment),
+  releases: z.array(release).describe('Limit freed per bill, oldest first'),
 })
 
 const closed = z.strictObject({ id })
@@ -323,6 +353,9 @@ export const schemas = {
   Account: account,
   Goal: goal,
   SetupRecord: setupRecord,
+  Release: release,
+  CardInstallment: cardInstallment,
+  Card: card,
   Closed: closed,
   AuditItem: auditItem,
   AuditPage: auditPage,

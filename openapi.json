@@ -673,6 +673,51 @@
         }
       }
     },
+    "/api/cards": {
+      "get": {
+        "operationId": "listCards",
+        "summary": "Open credit cards with limit, installments, committed and available limit and the releases of the coming bills",
+        "security": [
+          {},
+          {
+            "member": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "month",
+            "in": "query",
+            "required": true,
+            "description": "Month as YYYY-MM whose bill counts as the current installment",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ListCardsResponse"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/months/{month}/split": {
       "get": {
         "operationId": "getMonthSplit",
@@ -1086,7 +1131,7 @@
     "/api/setup": {
       "get": {
         "operationId": "listSetup",
-        "summary": "Open categories, accounts, reserves, incomes, recurring expenses, variable expenses, debts and goals",
+        "summary": "Open categories, accounts, reserves, incomes, recurring expenses, variable expenses, card installments, debts and goals",
         "security": [
           {},
           {
@@ -1119,7 +1164,7 @@
       },
       "post": {
         "operationId": "registerRecord",
-        "summary": "Register a category, account, reserve, income, recurring expense, variable expense, debt or goal",
+        "summary": "Register a category, account, reserve, income, recurring expense, variable expense, card installment, debt or goal",
         "security": [
           {
             "member": []
@@ -1217,6 +1262,7 @@
                 "income",
                 "recurring_expense",
                 "variable_expense",
+                "card_installment",
                 "debt",
                 "goal"
               ]
@@ -1289,6 +1335,7 @@
                 "income",
                 "recurring_expense",
                 "variable_expense",
+                "card_installment",
                 "debt",
                 "goal"
               ]
@@ -3009,6 +3056,7 @@
               "income",
               "recurring_expense",
               "variable_expense",
+              "card_installment",
               "debt",
               "goal"
             ]
@@ -3021,7 +3069,7 @@
             "type": "string"
           },
           "detail": {
-            "description": "Category direction, account institution, kind and last four, recurring installments, debt description or goal reserve; null for variable expenses",
+            "description": "Category direction, account institution, kind and last four, recurring installments, card installments and first bill, debt description or goal reserve; null for variable expenses",
             "type": [
               "string",
               "null"
@@ -3035,7 +3083,8 @@
               {
                 "type": "null"
               }
-            ]
+            ],
+            "description": "Credit limit of an account, monthly amount, installment, balance or target"
           },
           "day": {
             "anyOf": [
@@ -3078,6 +3127,178 @@
           "member",
           "category",
           "account"
+        ],
+        "additionalProperties": false
+      },
+      "Release": {
+        "type": "object",
+        "properties": {
+          "month": {
+            "type": "string",
+            "description": "Bill competence"
+          },
+          "amount": {
+            "description": "Limit freed when this bill is paid",
+            "$ref": "#/components/schemas/Money"
+          }
+        },
+        "required": [
+          "month",
+          "amount"
+        ],
+        "additionalProperties": false
+      },
+      "CardInstallment": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^\\d+$"
+          },
+          "description": {
+            "type": "string"
+          },
+          "member": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "category": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "installment": {
+            "$ref": "#/components/schemas/Money"
+          },
+          "installmentsTotal": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
+          "current": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": -9007199254740991,
+                "maximum": 9007199254740991
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Installment on the bill of the month; null before the first bill"
+          },
+          "remaining": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991,
+            "description": "Installments still to be billed, the current one included"
+          },
+          "firstBill": {
+            "type": "string",
+            "description": "Date as YYYY-MM-DD"
+          },
+          "lastBill": {
+            "type": "string",
+            "description": "Date as YYYY-MM-DD"
+          },
+          "committed": {
+            "description": "Installment times remaining",
+            "$ref": "#/components/schemas/Money"
+          }
+        },
+        "required": [
+          "id",
+          "description",
+          "member",
+          "category",
+          "installment",
+          "installmentsTotal",
+          "current",
+          "remaining",
+          "firstBill",
+          "lastBill",
+          "committed"
+        ],
+        "additionalProperties": false
+      },
+      "Card": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^\\d+$"
+          },
+          "nickname": {
+            "type": "string"
+          },
+          "institution": {
+            "type": "string"
+          },
+          "lastFour": {
+            "type": "string",
+            "description": "Last four digits only"
+          },
+          "member": {
+            "description": "Owner; null means joint",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "limit": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Money"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "committed": {
+            "description": "Limit held by open installments, the bill of the month included",
+            "$ref": "#/components/schemas/Money"
+          },
+          "available": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Money"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Limit minus committed; null without a limit"
+          },
+          "installments": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CardInstallment"
+            }
+          },
+          "releases": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Release"
+            },
+            "description": "Limit freed per bill, oldest first"
+          }
+        },
+        "required": [
+          "id",
+          "nickname",
+          "institution",
+          "lastFour",
+          "member",
+          "limit",
+          "committed",
+          "available",
+          "installments",
+          "releases"
         ],
         "additionalProperties": false
       },
@@ -3947,6 +4168,12 @@
           "$ref": "#/components/schemas/Goal"
         }
       },
+      "ListCardsResponse": {
+        "type": "array",
+        "items": {
+          "$ref": "#/components/schemas/Card"
+        }
+      },
       "CreateEntryBody": {
         "type": "object",
         "properties": {
@@ -4026,6 +4253,7 @@
               "income",
               "recurring_expense",
               "variable_expense",
+              "card_installment",
               "debt",
               "goal"
             ]
@@ -4063,7 +4291,7 @@
             "type": "integer",
             "minimum": 0,
             "maximum": 100000000000,
-            "description": "New amount: monthly amount, balance of a reserve or debt, target of a goal, integer cents of BRL"
+            "description": "New amount: monthly amount, installment of a card purchase, limit of a credit card account, balance of a reserve or debt, target of a goal, integer cents of BRL"
           },
           "dayOfMonth": {
             "type": "integer",

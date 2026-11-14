@@ -2,8 +2,9 @@ import type { components } from '../api/schema.ts'
 import { formatBrl } from '../lib/format.ts'
 import { ApiFailure } from '../query/client.ts'
 
-export type SetupRecord = components['schemas']['SetupRecord']
-export type SetupKind = SetupRecord['kind']
+export type ApiRecord = components['schemas']['SetupRecord']
+export type SetupKind = Exclude<ApiRecord['kind'], 'card_installment'>
+export type SetupRecord = ApiRecord & { kind: SetupKind }
 
 export const setupOrder: SetupKind[] = ['account', 'category', 'income', 'recurring_expense', 'variable_expense', 'debt', 'reserve', 'goal']
 
@@ -42,7 +43,7 @@ const parts = (record: SetupRecord): (string | null | undefined)[] => {
 
 export const describeRecord = (record: SetupRecord) => parts(record).filter(Boolean).join(' · ')
 
-export const groupRecords = (records: SetupRecord[]) => setupOrder.map((kind) => ({ kind, records: records.filter((record) => record.kind === kind) }))
+export const groupRecords = (records: ApiRecord[]) => setupOrder.map((kind) => ({ kind, records: records.filter((record): record is SetupRecord => record.kind === kind) }))
 
 const refusals: [RegExp, (match: RegExpMatchArray) => string][] = [
   [/already exists/, () => 'Já existe um cadastro com esse nome.'],

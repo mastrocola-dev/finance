@@ -1,6 +1,7 @@
 import type { McpServer } from '@modelcontextprotocol/server'
 import * as z from 'zod'
 import type { Database } from '../db/connection.ts'
+import { cardLimits } from '../ledger/cards.ts'
 import { listDebts } from '../ledger/debts.ts'
 import { listDecisions, statuses } from '../ledger/decisions.ts'
 import { listEntries, states } from '../ledger/entries.ts'
@@ -15,11 +16,23 @@ export const registerReads = (server: McpServer, client: Database) => {
     'list_setup',
     {
       title: 'List registered records',
-      description: 'Open categories, accounts, reserves, incomes, recurring expenses, variable expenses, debts and goals with their ids, amounts and references.',
+      description: 'Open categories, accounts (credit limit as amount), reserves, incomes, recurring expenses, variable expenses, card installments, debts and goals with their ids, amounts and references.',
       inputSchema: z.object({}),
       annotations: readOnly,
     },
     async () => result(await listSetup(client)),
+  )
+
+  server.registerTool(
+    'card_limits',
+    {
+      title: 'Card limits',
+      description:
+        'Open credit cards with their limit, the installment purchases still to be billed, the limit they hold (committed, the bill of the month included), the available limit and how much each coming bill frees. Installments are already part of each card bill and never count as separate expenses of the month. Amounts are cents as strings plus BRL display.',
+      inputSchema: z.object({ month }),
+      annotations: readOnly,
+    },
+    async (input) => result(await cardLimits(client, input.month)),
   )
 
   server.registerTool(
