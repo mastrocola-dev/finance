@@ -37,7 +37,7 @@ Compare with the mockups in `docs/mockups/` (layout, spacing, copy, palette) and
 
 ## 4. Import with a fictional file
 
-Use `evals/cases/bank-csv/extrato-conjunta.csv` (invented). With the real model: on Azure the API image carries service-agent and reads `ANTHROPIC_API_KEY` from Key Vault; locally, service-agent checked out next to this repository and `ANTHROPIC_API_KEY` set. Without the model: start the API with `SERVICE_AGENT_CLI=test/import/fake-agent.ts`, which answers with a fixed sample.
+Use `evals/cases/bank-csv/extrato-conjunta.csv` (invented). With the real model: on Azure the API hands the file to `finance-extract`, whose image carries service-agent and reads `ANTHROPIC_API_KEY` from Key Vault; locally, service-agent checked out next to this repository and `ANTHROPIC_API_KEY` set. Without the model: start the API with `SERVICE_AGENT_CLI=test/import/fake-agent.ts`, which answers with a fixed sample.
 
 - [ ] Enviar is disabled until the consent box is checked; the history shows Extraindo, then Para revisar, with tokens and cost
 - [ ] Revisar: answer a question, edit one item, reject one, accept the rest; Aceitar stays disabled while an item has a blocking check
@@ -81,6 +81,7 @@ Empty ledger:
 Import with the real model:
 
 - [ ] Importar `evals/cases/bank-csv/extrato-conjunta.csv`: Extraindo, then Para revisar within a few minutes, with tokens and the cost in US$
+- [ ] After five minutes without imports, the first upload wakes `finance-extract` (runbook step 13 shows the replica appear) and still reaches Extraindo
 - [ ] Revisar asks about the accounts and categories the ledger does not have; answering with the existing ones or Nova … clears the blocking checks; Gravar no livro writes the accepted items, which appear in Lançamentos with the Importado chip and the new names under Cadastros
 - [ ] Encerrar closes the batch; a second upload of the same file flags the entries as possible duplicates
 - [ ] With `import_daily_usd_cap` set below the day's spend, a new upload is refused with the daily limit message, and the rest of the app keeps working

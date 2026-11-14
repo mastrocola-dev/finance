@@ -15,7 +15,7 @@ const runbook = '| `AZURE_CLIENT_ID` | id |\n| `REGION` | region |\n\n| `name` |
 
 test('the runbook and the terraform agree on every variable and secret', () => {
   assert.deepEqual(drift(sources), [])
-  for (const secret of ['finance-db-password', 'finance-session-key', 'finance-web-secret', 'anthropic-api-key-finance']) assert.match(sources.runbook, new RegExp(`--name ${secret} .*--expires `), secret)
+  for (const secret of ['finance-db-password', 'finance-session-key', 'finance-web-secret', 'anthropic-api-key-finance', 'finance-extract-key']) assert.match(sources.runbook, new RegExp(`--name ${secret} .*--expires `), secret)
   assert.doesNotMatch(sources.runbook, /--name (database-url|registry-password|session-key|anthropic-api-key) /)
   assert.match(sources.runbook, /\[docs\/acceptance.md\]\(acceptance.md\) section 8/)
   assert.match(read('docs/acceptance.md'), /^## 8\. On Azure/m)
@@ -45,7 +45,7 @@ test('the runbook steps run in order and the other documents point at the right 
     assert.ok(sources.runbook.includes(text), text)
   const acceptance = read('docs/acceptance.md')
   for (const text of ['After steps 1 to 14 of', '(step 12 of the runbook)', 'connector of runbook step 14']) assert.ok(acceptance.includes(text), text)
-  assert.match(read('infra/README.md'), /all four values before the first apply \(runbook step 4\)/)
+  assert.match(read('infra/README.md'), /all five values before the first apply \(runbook step 4\)/)
 })
 
 test('drift is empty when both sides list the same names', () => {
