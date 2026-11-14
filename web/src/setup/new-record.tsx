@@ -1,0 +1,46 @@
+import { useState } from 'react'
+import type { Notice } from '../components/toast.tsx'
+import { CandidateForm, useNames } from '../imports/candidate-form.tsx'
+import { type Errors, serverErrors } from '../imports/edit-model.ts'
+import { currentMonth } from '../lib/format.ts'
+import { ApiFailure } from '../query/client.ts'
+import { CategoryHelp } from './category-help.tsx'
+import { registerFailure, type SetupKind, setupLabels } from './model.ts'
+import { useRegister } from './queries.ts'
+
+export const NewRecord = ({ kind, notify, onDone }: { kind: SetupKind; notify: (notice: Notice) => void; onDone: () => void }) => {
+  const [round, setRound] = useState(0)
+  const [errors, setErrors] = useState<Errors>({})
+  const register = useRegister()
+  const names = useNames([])
+  const planned = kind === 'variable_expense'
+  const save = (payload: Record<string, unknown>) =>
+    register.mutate(
+      { kind, payload: planned ? { ...payload, startsOn: currentMonth() } : payload },
+      {
+        onSuccess: (created) => {
+          setErrors({})
+          setRound((value) => value + 1)
+          notify({ message: `Cadastrado: ${created.name}` })
+        },
+        onError: (error) => setErrors(error instanceof ApiFailure && error.message.startsWith('invalid ') ? serverErrors(kind, error.message) : { form: registerFailure(error) }),
+      },
+    )
+  const direction = kind === 'income' ? 'income' : kind === 'recurring_expense' || planned ? 'expense' : undefined
+  const aside = direction && ((key: string, value: string, change: (value: string) => void) => key === 'category' && <CategoryHelp name={value} direction={direction} notify={notify} onCreated={change} />)
+  return (
+    <CandidateForm
+      key={round}
+      candidate={{ id: `new-${kind}`, kind, payload: planned ? { member: 'joint' } : {} }}
+      title={setupLabels[kind].one}
+      label={`Cadastrar ${setupLabels[kind].one.toLowerCase()}`}
+      saveLabel="Cadastrar"
+      names={names}
+      busy={register.isPending}
+      serverErrors={errors}
+      aside={aside || undefined}
+      onSave={save}
+      onCancel={onDone}
+    />
+  )
+}

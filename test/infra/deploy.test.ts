@@ -53,6 +53,8 @@ test('deploys the images and the infra of the commit that was tested', () => {
   assert.match(step('Images'), /TF_VAR_mcp_image=ghcr\.io\/mastrocola-dev\/finance-mcp:\$COMMIT/)
   assert.match(step('Images published'), /docker manifest inspect "\$TF_VAR_api_image"/)
   assert.match(step('Images published'), /docker manifest inspect "\$TF_VAR_mcp_image"/)
+  assert.match(step('Images'), /TF_VAR_extract_image=ghcr\.io\/mastrocola-dev\/finance-extract:\$COMMIT/)
+  assert.match(step('Images published'), /docker manifest inspect "\$TF_VAR_extract_image"/)
 })
 
 test('state in tfstate-finance with Entra auth, plan and apply wait for the lock', () => {

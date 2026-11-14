@@ -81,7 +81,7 @@ test('secrets reach Azure only through write-only attributes and Key Vault refer
 
 test('apps and the job connect with PostgreSQL environment variables', () => {
   assert.match(all, /PGHOST\s+= azurerm_postgresql_flexible_server\.main\.fqdn\n\s+PGPORT\s+= "5432"\n\s+PGUSER\s+= var\.db_admin_login\n\s+PGDATABASE = azurerm_postgresql_flexible_server_database\.finance\.name\n\s+PGSSLMODE\s+= "require"/)
-  assert.match(all, /for_each = merge\(local\.entra, local\.database, each\.value\.env\)/)
+  assert.match(all, /for_each = merge\(each\.value\.external \? local\.entra : \{\}, local\.database, each\.value\.env\)/)
   assert.equal([...all.matchAll(/for_each = merge\(local\.database_secrets, each\.value\.secrets\)/g)].length, 2)
   assert.equal([...all.matchAll(/identity_ids = \[local\.identity_id\]/g)].length, 2)
 })
@@ -119,8 +119,7 @@ test('the api app signs people in on its own origin with secrets from Key Vault'
   assert.match(api, /ENTRA_CLIENT_ID\s+= var\.entra_web_client_id/)
   assert.match(api, /SESSION_KEY\s+= "finance-session-key"/)
   assert.match(api, /ENTRA_CLIENT_SECRET = "finance-web-secret"/)
-  assert.match(api, /ANTHROPIC_API_KEY\s+= "anthropic-api-key-finance"/)
-  assert.match(api, /IMPORT_DAILY_USD_CAP = tostring\(var\.import_daily_usd_cap\)/)
+  assert.doesNotMatch(api, /ANTHROPIC_API_KEY|IMPORT_/)
   assert.doesNotMatch(all, /(SESSION_KEY|ENTRA_CLIENT_SECRET|ANTHROPIC_API_KEY)\s+= var\./)
   assert.doesNotMatch(all, /sk-ant-/)
   const mcp = /\n {4}mcp = \{([\s\S]*?)\n {4}\}\n/.exec(all)?.[1] ?? ''
@@ -128,6 +127,39 @@ test('the api app signs people in on its own origin with secrets from Key Vault'
   assert.doesNotMatch(mcp, /API_|ENTRA_CLIENT|SESSION_KEY|IMPORT_/)
   assert.match(all, /key_vault_secret_id = "\$\{local\.key_vault_uri\}secrets\/\$\{secret\.value\}"/)
   assert.match(all, /for_each = merge\(local\.database_secrets, each\.value\.secrets\)\n\n\s+content \{\n\s+name\s+= env\.key\n\s+secret_name = env\.value/)
+})
+
+const appOf = (name: string) => new RegExp(`\n {4}${name} = \\{([\\s\\S]*?)\n {4}\\}\n`).exec(all)?.[1] ?? ''
+
+test('the api hands uploads to an internal extraction app that holds the model key and the daily cap', () => {
+  const api = appOf('api')
+  const extract = appOf('extract')
+  assert.match(all, /extract_host\s+= "\$\{var\.name\}-extract\.internal\.\$\{azurerm_container_app_environment\.main\.default_domain\}"/)
+  assert.match(api, /EXTRACT_URL\s+= "https:\/\/\$\{local\.extract_host\}"/)
+  assert.match(api, /EXTRACT_KEY\s+= "finance-extract-key"/)
+  assert.match(extract, /image\s+= var\.extract_image\n\s+port\s+= 3300\n\s+min_replicas = 0\n\s+external\s+= false/)
+  assert.match(extract, /EXTRACT_HOST\s+= "0\.0\.0\.0"/)
+  assert.match(extract, /EXTRACT_PORT\s+= "3300"/)
+  assert.match(extract, /IMPORT_DAILY_USD_CAP = tostring\(var\.import_daily_usd_cap\)/)
+  assert.match(extract, /EXTRACT_KEY\s+= "finance-extract-key"/)
+  assert.match(extract, /ANTHROPIC_API_KEY = "anthropic-api-key-finance"/)
+  assert.doesNotMatch(extract, /\b(API_|ENTRA_|SESSION_KEY|MCP_)/)
+  assert.match(appOf('mcp'), /external\s+= true/)
+  assert.match(api, /external\s+= true/)
+  assert.match(all, /external_enabled = each\.value\.external\n/)
+  assert.match(all, /for_each = each\.value\.external \? var\.allowed_ips : \[\]/)
+})
+
+test('api and extract wait about a minute for their health route before taking traffic', () => {
+  assert.match(appOf('api'), /probe\s+= "\/api\/health"/)
+  assert.match(appOf('extract'), /probe\s+= "\/health"/)
+  assert.match(appOf('mcp'), /probe\s+= null/)
+  const probe = /dynamic "startup_probe" \{([\s\S]*?)\n {6}\}/.exec(all)?.[1] ?? ''
+  assert.match(probe, /for_each = each\.value\.probe == null \? \[\] : \[each\.value\.probe\]/)
+  assert.match(probe, /transport\s+= "HTTP"\n\s+port\s+= each\.value\.port\n\s+path\s+= startup_probe\.value/)
+  const interval = Number(/interval_seconds\s+= (\d+)/.exec(probe)?.[1])
+  const failures = Number(/failure_count_threshold = (\d+)/.exec(probe)?.[1])
+  assert.ok(failures <= 10 && interval * failures >= 55 && interval * failures <= 90, `${interval} × ${failures}`)
 })
 
 test('a manual job runs the migrations with the api image, the runtime identity and the database password reference', () => {

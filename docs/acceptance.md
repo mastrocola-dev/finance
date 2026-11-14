@@ -30,6 +30,7 @@ Compare with the mockups in `docs/mockups/` (layout, spacing, copy, palette) and
 - [ ] **Decisões** (`/decisoes`), mockup `MobileDecisions.dc.html`: Marcio proposes a decision; it stays proposta; Gabriela confirms it and only then it is confirmed; another one is rejected or withdrawn
 - [ ] **Atividade** (`/atividade`), mockup `Audit.dc.html`: every change above appears with author, before and after; the filter by author works
 - [ ] **Cadastros** (`/cadastros`): register a category, edit it (Editar), close it (Encerrar) and register the same name again
+- [ ] **Cadastros**: under Despesas variáveis, register Supermercado with an estimate per month for Conjunto, edit the estimate, and see that Visão do mês and Contas do mês do not gain an entry from it
 - [ ] **Importar** (`/importar`): see section 4
 - [ ] **Revisar importação** (`/importar/<id>`): see section 4
 - [ ] An unknown address shows the not-found page with a way back
@@ -37,7 +38,7 @@ Compare with the mockups in `docs/mockups/` (layout, spacing, copy, palette) and
 
 ## 4. Import with a fictional file
 
-Use `evals/cases/bank-csv/extrato-conjunta.csv` (invented). With the real model: on Azure the API image carries service-agent and reads `ANTHROPIC_API_KEY` from Key Vault; locally, service-agent checked out next to this repository and `ANTHROPIC_API_KEY` set. Without the model: start the API with `SERVICE_AGENT_CLI=test/import/fake-agent.ts`, which answers with a fixed sample.
+Use `evals/cases/bank-csv/extrato-conjunta.csv` (invented). With the real model: on Azure the API hands the file to `finance-extract`, whose image carries service-agent and reads `ANTHROPIC_API_KEY` from Key Vault; locally, service-agent checked out next to this repository and `ANTHROPIC_API_KEY` set. Without the model: start the API with `SERVICE_AGENT_CLI=test/import/fake-agent.ts`, which answers with a fixed sample.
 
 - [ ] Enviar is disabled until the consent box is checked; the history shows Extraindo, then Para revisar, with tokens and cost
 - [ ] Revisar: answer a question, edit one item, reject one, accept the rest; Aceitar stays disabled while an item has a blocking check
@@ -53,9 +54,9 @@ Use `evals/cases/bank-csv/extrato-conjunta.csv` (invented). With the real model:
 
 The build agent's session cannot pull base images (Docker Hub and ghcr.io are blocked there), so the images were never built by the agent: only the layout they produce was run as a non-root user with production dependencies. CI builds and smoke-tests them in the `images` job.
 
-- [ ] `docker build --target api -t finance-api .` and `docker build --target mcp -t finance-mcp .` succeed
+- [ ] `docker build --target api -t finance-api .`, `docker build --target mcp -t finance-mcp .` and `docker build --target extract -t finance-extract .` succeed
 - [ ] `docker run --rm finance-api id -u` prints a non-zero id
-- [ ] With PostgreSQL on the host: `docker run --rm --network host --env-file .env finance-api` logs `ingest runtime ready` within seconds (no download at start), and `docker run --rm --network host --env-file .env finance-mcp` answers on port 3100
+- [ ] With PostgreSQL on the host and an `EXTRACT_KEY` of at least 32 characters exported: `docker run --rm --network host --env-file .env -e EXTRACT_KEY finance-extract` logs `ingest runtime ready` within seconds (no download at start), `docker run --rm --network host --env-file .env -e EXTRACT_KEY -e EXTRACT_URL=http://127.0.0.1:3300 finance-api` answers `"ready":true` on `/api/imports/runtime`, and `docker run --rm --network host --env-file .env finance-mcp` answers on port 3100
 
 ## 7. Decisions to take
 
@@ -81,6 +82,7 @@ Empty ledger:
 Import with the real model:
 
 - [ ] Importar `evals/cases/bank-csv/extrato-conjunta.csv`: Extraindo, then Para revisar within a few minutes, with tokens and the cost in US$
+- [ ] After five minutes without imports, the first upload wakes `finance-extract` (runbook step 13 shows the replica appear) and still reaches Extraindo
 - [ ] Revisar asks about the accounts and categories the ledger does not have; answering with the existing ones or Nova … clears the blocking checks; Gravar no livro writes the accepted items, which appear in Lançamentos with the Importado chip and the new names under Cadastros
 - [ ] Encerrar closes the batch; a second upload of the same file flags the entries as possible duplicates
 - [ ] With `import_daily_usd_cap` set below the day's spend, a new upload is refused with the daily limit message, and the rest of the app keeps working

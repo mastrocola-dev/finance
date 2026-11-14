@@ -1,3 +1,4 @@
+import { Plus } from 'lucide-react'
 import { useState } from 'react'
 import type { Notice } from '../components/toast.tsx'
 import { Button } from '../components/ui/button.tsx'
@@ -5,8 +6,10 @@ import { CandidateForm, useNames } from '../imports/candidate-form.tsx'
 import { type Errors, serverErrors } from '../imports/edit-model.ts'
 import { ApiFailure } from '../query/client.ts'
 import { changesOf, editFields, editPayload } from './edit-model.ts'
-import { closeFailure, describeRecord, groupRecords, registerFailure, type SetupRecord, setupLabels } from './model.ts'
+import { closeFailure, describeRecord, groupRecords, registerFailure, type SetupKind, type SetupRecord, setupLabels } from './model.ts'
+import { NewRecord } from './new-record.tsx'
 import { useCloseRecord, useEditRecord } from './queries.ts'
+import { StarterCategories } from './starter-categories.tsx'
 
 type Notify = (notice: Notice) => void
 
@@ -35,20 +38,34 @@ const EditRecord = ({ record, onDone, notify }: { record: SetupRecord; onDone: (
 export const RecordList = ({ records, notify }: { records: SetupRecord[]; notify: Notify }) => {
   const close = useCloseRecord()
   const [editing, setEditing] = useState<string>()
+  const [adding, setAdding] = useState<SetupKind>()
   const keyOf = (record: SetupRecord) => `${record.kind}:${record.id}`
   const drop = (record: SetupRecord) => {
     if (!window.confirm(`Encerrar ${record.name}? Some das listas e da previsão, mas o histórico fica.`)) return
     close.mutate({ kind: record.kind, id: record.id }, { onSuccess: () => notify({ message: `Encerrado: ${record.name}` }), onError: (error) => notify({ tone: 'error', message: closeFailure(error, record.name) }) })
   }
   return (
-    <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+    <div className="grid grid-cols-1 items-start gap-4 lg:grid-cols-2">
       {groupRecords(records).map(({ kind, records: group }) => (
         <section key={kind} aria-labelledby={`setup-${kind}`} className="flex min-w-0 flex-col rounded-card border bg-surface">
-          <h2 id={`setup-${kind}`} className="m-0 flex items-baseline gap-2 border-b px-4 py-3 text-body font-semibold md:px-6">
-            {setupLabels[kind].many}
-            <span className="text-meta font-normal text-muted">{group.length}</span>
-          </h2>
-          {group.length === 0 ? (
+          <div className="flex items-center gap-2 border-b py-2 pr-2 pl-4 md:pl-6">
+            <h2 id={`setup-${kind}`} className="m-0 flex flex-1 items-baseline gap-2 text-body font-semibold">
+              {setupLabels[kind].many}
+              <span className="text-meta font-normal text-muted">{group.length}</span>
+            </h2>
+            <Button variant="ghost" aria-label={`Novo cadastro em ${setupLabels[kind].many}`} aria-expanded={adding === kind} onClick={() => setAdding((current) => (current === kind ? undefined : kind))}>
+              <Plus aria-hidden className="size-4" />
+              Novo
+            </Button>
+          </div>
+          {adding === kind && (
+            <div className="border-b px-4 py-3 md:px-6">
+              <NewRecord kind={kind} notify={notify} onDone={() => setAdding(undefined)} />
+            </div>
+          )}
+          {group.length === 0 && kind === 'category' ? (
+            <StarterCategories notify={notify} />
+          ) : group.length === 0 ? (
             <p className="m-0 px-4 py-4 text-meta text-muted md:px-6">Nada cadastrado.</p>
           ) : (
             <ul className="m-0 flex list-none flex-col p-0">

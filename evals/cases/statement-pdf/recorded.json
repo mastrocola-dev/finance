@@ -63,6 +63,15 @@
             "member": "Gabriela",
             "paid": true
           }
+        },
+        {
+          "kind": "category",
+          "source": "p1:L9",
+          "confidence": 0.8,
+          "payload": {
+            "name": "Educação",
+            "kind": "expense"
+          }
         }
       ],
       "questions": [],

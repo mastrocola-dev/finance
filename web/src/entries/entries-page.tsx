@@ -128,9 +128,9 @@ export const EntriesPage = () => {
       <PageHeader screen={screenOf('/lancamentos')} />
       {!loadingMembers &&
         (editing ? (
-          <QuickAddForm key={`edit:${editing.id}`} month={month} member={member} pending={pending} editing={{ entry: editing, onCancelEntry: drop(editing), onClose: () => setEditing(undefined) }} onSubmit={save(editing)} />
+          <QuickAddForm key={`edit:${editing.id}`} month={month} member={member} pending={pending} editing={{ entry: editing, onCancelEntry: drop(editing), onClose: () => setEditing(undefined) }} notify={setNotice} onSubmit={save(editing)} />
         ) : (
-          <QuickAddForm key={`${month}:${member ?? 'all'}`} month={month} member={member} pending={pending} onSubmit={add} />
+          <QuickAddForm key={`${month}:${member ?? 'all'}`} month={month} member={member} pending={pending} notify={setNotice} onSubmit={add} />
         ))}
       <QueryView query={entries} skeleton={<EntriesSkeleton />} isEmpty={(data) => data.length === 0} empty={<EmptyState title={`Nenhum lançamento em ${formatMonth(firstDay(month))}`}>Receitas e despesas do mês aparecem aqui assim que forem lançadas ou previstas.</EmptyState>}>
         {(data) => <Entries key={`${month}:${member ?? 'all'}`} month={month} entries={data} fresh={fresh} onEdit={edit} />}

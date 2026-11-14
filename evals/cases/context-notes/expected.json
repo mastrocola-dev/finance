@@ -1,0 +1,111 @@
+{
+  "file": "gastos-novembro.txt",
+  "candidates": [
+    {
+      "kind": "entry",
+      "payload": {
+        "date": "2026-11-02",
+        "description": "Supermercado Bom Preço",
+        "direction": "expense",
+        "amountCents": 41230,
+        "category": "Mercado",
+        "member": "joint"
+      }
+    },
+    {
+      "kind": "entry",
+      "payload": {
+        "date": "2026-11-04",
+        "description": "Drogaria Vida",
+        "direction": "expense",
+        "amountCents": 8990,
+        "category": "Saúde",
+        "member": "Gabriela Mendes Alves"
+      }
+    },
+    {
+      "kind": "entry",
+      "payload": {
+        "date": "2026-11-05",
+        "description": "Salário",
+        "direction": "income",
+        "amountCents": 720000,
+        "category": "Salário",
+        "member": "Marcio Mastrocola"
+      }
+    },
+    {
+      "kind": "entry",
+      "payload": {
+        "date": "2026-11-08",
+        "description": "Ração e banho do Thor",
+        "direction": "expense",
+        "amountCents": 18000,
+        "category": "Pets",
+        "member": "joint"
+      }
+    },
+    {
+      "kind": "entry",
+      "payload": {
+        "date": "2026-11-12",
+        "description": "Uber",
+        "direction": "expense",
+        "amountCents": 3250,
+        "category": "Transporte",
+        "member": "Marcio Mastrocola"
+      }
+    },
+    {
+      "kind": "entry",
+      "payload": {
+        "date": "2026-11-15",
+        "description": "Pet shop Amigo",
+        "direction": "expense",
+        "amountCents": 9500,
+        "category": "Pets",
+        "member": "joint"
+      }
+    },
+    {
+      "kind": "entry",
+      "payload": {
+        "date": "2026-11-20",
+        "description": "Feira",
+        "direction": "expense",
+        "amountCents": 6400,
+        "category": "Mercado",
+        "member": "joint"
+      }
+    },
+    {
+      "kind": "entry",
+      "payload": {
+        "date": "2026-11-25",
+        "description": "Farmácias Popular",
+        "direction": "expense",
+        "amountCents": 4520,
+        "category": "Saúde",
+        "member": "Gabriela Mendes Alves"
+      }
+    },
+    {
+      "kind": "entry",
+      "payload": {
+        "date": "2026-11-28",
+        "description": "Cinema",
+        "direction": "expense",
+        "amountCents": 7000,
+        "category": "Lazer",
+        "member": "Gabriela Mendes Alves"
+      }
+    },
+    {
+      "kind": "category",
+      "payload": {
+        "name": "Pets",
+        "kind": "expense"
+      }
+    }
+  ]
+}

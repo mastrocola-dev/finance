@@ -4,7 +4,7 @@ import type { Client } from 'pg'
 import { migrate } from '../../src/db/migrate.ts'
 import { testDatabase } from './database.ts'
 
-const tables = ['account', 'audit_log', 'category', 'debt', 'decision', 'decision_confirmation', 'entry', 'goal', 'import_batch', 'import_candidate', 'import_question', 'income', 'member', 'recurring_expense', 'reserve', 'schema_migration']
+const tables = ['account', 'audit_log', 'card_installment', 'category', 'debt', 'decision', 'decision_confirmation', 'entry', 'goal', 'import_batch', 'import_candidate', 'import_question', 'income', 'member', 'recurring_expense', 'reserve', 'schema_migration', 'variable_expense']
 
 describe('migrations', () => {
   let db: Awaited<ReturnType<typeof testDatabase>>
@@ -28,7 +28,21 @@ describe('migrations', () => {
   }
 
   test('applies every migration to an empty database', async () => {
-    assert.deepEqual(db.applied, ['001-ledger.sql', '002-ledger-clock.sql', '003-import-staging.sql', '004-import-totals.sql', '005-import-retry.sql', '006-import-commit.sql', '007-open-names.sql', '008-member-external-id.sql'])
+    assert.deepEqual(db.applied, [
+      '001-ledger.sql',
+      '002-ledger-clock.sql',
+      '003-import-staging.sql',
+      '004-import-totals.sql',
+      '005-import-retry.sql',
+      '006-import-commit.sql',
+      '007-open-names.sql',
+      '008-member-external-id.sql',
+      '009-import-origin.sql',
+      '010-import-consolidation.sql',
+      '011-import-auto-accept.sql',
+      '012-variable-expense.sql',
+      '013-card-installment.sql',
+    ])
     const { rows } = await client.query<{ table_name: string }>("select table_name from information_schema.tables where table_schema = 'public' order by table_name")
     assert.deepEqual(
       rows.map((row) => row.table_name),

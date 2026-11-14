@@ -1086,7 +1086,7 @@
     "/api/setup": {
       "get": {
         "operationId": "listSetup",
-        "summary": "Open categories, accounts, reserves, incomes, recurring expenses, debts and goals",
+        "summary": "Open categories, accounts, reserves, incomes, recurring expenses, variable expenses, debts and goals",
         "security": [
           {},
           {
@@ -1119,7 +1119,7 @@
       },
       "post": {
         "operationId": "registerRecord",
-        "summary": "Register a category, account, reserve, income, recurring expense, debt or goal",
+        "summary": "Register a category, account, reserve, income, recurring expense, variable expense, debt or goal",
         "security": [
           {
             "member": []
@@ -1160,6 +1160,40 @@
         }
       }
     },
+    "/api/setup/starter-categories": {
+      "post": {
+        "operationId": "createStarterCategories",
+        "summary": "Create the suggested household categories that are not open yet, in one audited write; returns the ones created",
+        "security": [
+          {
+            "member": []
+          }
+        ],
+        "parameters": [],
+        "responses": {
+          "201": {
+            "description": "Created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CreateStarterCategoriesResponse"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/setup/{kind}/{id}": {
       "patch": {
         "operationId": "editRecord",
@@ -1182,6 +1216,7 @@
                 "reserve",
                 "income",
                 "recurring_expense",
+                "variable_expense",
                 "debt",
                 "goal"
               ]
@@ -1253,6 +1288,7 @@
                 "reserve",
                 "income",
                 "recurring_expense",
+                "variable_expense",
                 "debt",
                 "goal"
               ]
@@ -1969,6 +2005,60 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/ImportCandidate"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/imports/{id}/categories/rename": {
+      "post": {
+        "operationId": "renameImportCategory",
+        "summary": "Rename a new category of a verified import batch and every candidate that uses it; refuses a name already open",
+        "security": [
+          {
+            "member": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^\\d+$"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RenameImportCategoryBody"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RenameImportCategoryResponse"
                 }
               }
             }
@@ -2918,6 +3008,7 @@
               "reserve",
               "income",
               "recurring_expense",
+              "variable_expense",
               "debt",
               "goal"
             ]
@@ -2930,7 +3021,7 @@
             "type": "string"
           },
           "detail": {
-            "description": "Category direction, account institution, kind and last four, recurring installments, debt description or goal reserve",
+            "description": "Category direction, account institution, kind and last four, recurring installments, debt description or goal reserve; null for variable expenses",
             "type": [
               "string",
               "null"
@@ -3397,6 +3488,70 @@
             },
             "description": "Totals printed in the source"
           },
+          "consolidation": {
+            "type": "object",
+            "properties": {
+              "merges": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "name": {
+                      "type": "string"
+                    },
+                    "kind": {
+                      "type": "string",
+                      "enum": [
+                        "income",
+                        "expense"
+                      ]
+                    },
+                    "to": {
+                      "type": "string"
+                    },
+                    "candidates": {
+                      "type": "integer",
+                      "minimum": -9007199254740991,
+                      "maximum": 9007199254740991,
+                      "description": "Candidates whose category was rewritten"
+                    }
+                  },
+                  "required": [
+                    "name",
+                    "kind",
+                    "to",
+                    "candidates"
+                  ],
+                  "additionalProperties": false
+                }
+              },
+              "unchecked": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "propertyNames": {
+                    "type": "string"
+                  },
+                  "additionalProperties": {}
+                },
+                "description": "Category subtotals left out of the reconciliation by a merge"
+              },
+              "failure": {
+                "description": "Why the consolidation call failed; the extraction result was kept",
+                "type": [
+                  "string",
+                  "null"
+                ]
+              }
+            },
+            "required": [
+              "merges",
+              "unchecked",
+              "failure"
+            ],
+            "additionalProperties": false,
+            "description": "New categories of the batch merged by one model call after verification"
+          },
           "candidates": {
             "type": "integer",
             "minimum": -9007199254740991,
@@ -3486,6 +3641,7 @@
           "checks",
           "failures",
           "totals",
+          "consolidation",
           "candidates",
           "flagged",
           "openQuestions",
@@ -3537,6 +3693,10 @@
               "edited"
             ]
           },
+          "acceptedByModel": {
+            "type": "boolean",
+            "description": "Accepted by verification: confidence at or above the threshold and every check passing; a person deciding or editing clears it"
+          },
           "payload": {
             "type": "object",
             "propertyNames": {
@@ -3583,6 +3743,7 @@
           "chunk",
           "confidence",
           "status",
+          "acceptedByModel",
           "payload",
           "checks",
           "recordId"
@@ -3633,6 +3794,9 @@
               "string",
               "null"
             ]
+          },
+          "decidedByModel": {
+            "type": "boolean"
           }
         },
         "required": [
@@ -3642,7 +3806,8 @@
           "options",
           "source",
           "chunk",
-          "answer"
+          "answer",
+          "decidedByModel"
         ],
         "additionalProperties": false
       },
@@ -3860,6 +4025,7 @@
               "reserve",
               "income",
               "recurring_expense",
+              "variable_expense",
               "debt",
               "goal"
             ]
@@ -3877,6 +4043,12 @@
           "kind",
           "payload"
         ]
+      },
+      "CreateStarterCategoriesResponse": {
+        "type": "array",
+        "items": {
+          "$ref": "#/components/schemas/SetupRecord"
+        }
       },
       "EditRecordBody": {
         "type": "object",
@@ -4034,6 +4206,30 @@
         "required": [
           "payload"
         ]
+      },
+      "RenameImportCategoryBody": {
+        "type": "object",
+        "properties": {
+          "candidate": {
+            "type": "string",
+            "pattern": "^\\d+$",
+            "description": "Id of an open category candidate of the batch"
+          },
+          "name": {
+            "type": "string",
+            "description": "New name; every candidate, subtotal and merge of the batch naming the old one follows"
+          }
+        },
+        "required": [
+          "candidate",
+          "name"
+        ]
+      },
+      "RenameImportCategoryResponse": {
+        "type": "array",
+        "items": {
+          "$ref": "#/components/schemas/ImportCandidate"
+        }
       },
       "AcceptImportCandidatesBody": {
         "type": "object",

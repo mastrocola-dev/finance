@@ -62,6 +62,11 @@ export const reseed = () => {
   linked = false
 }
 
+export const emptyLedger = () => {
+  run('npm run db:reset && npm run member:add -- Marcio 50 Gabriela 50')
+  linked = false
+}
+
 export const openContext = async (browser: Browser, options: BrowserContextOptions = {}, frozen = true) => {
   const context = await browser.newContext({ locale: 'pt-BR', timezoneId: 'America/Sao_Paulo', ...options })
   if (frozen) await context.clock.setFixedTime(new Date(frozenAt))

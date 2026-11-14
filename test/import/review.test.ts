@@ -4,7 +4,7 @@ import type { Client } from 'pg'
 import { seed } from '../../src/db/seed.ts'
 import type { Actor } from '../../src/db/write.ts'
 import { retryTargets } from '../../src/import/agent.ts'
-import { answerQuestion, askedNames, editCandidate, reviewCandidates } from '../../src/import/review.ts'
+import { answerQuestion, askedNames, editCandidate, renameCategory, reviewCandidates } from '../../src/import/review.ts'
 import { openBatch, stageOutput } from '../../src/import/staging.ts'
 import { verifyBatch } from '../../src/import/verify.ts'
 import { testDatabase } from '../db/database.ts'
@@ -71,7 +71,7 @@ describe('import review', () => {
     const id = candidates[1]
     assert.deepEqual(
       (await candidate(id)).checks.map((check: { code: string }) => check.code),
-      ['low_confidence', 'unknown_member'],
+      ['low_confidence', 'matched_member'],
     )
     const payload = { ...sample.candidates[1]?.payload, member: 'Gabriela', description: ' Farmácia Central ' }
     await editCandidate(client, member, batch, id as bigint, payload)
@@ -110,6 +110,45 @@ describe('import review', () => {
     await assert.rejects(answerQuestion(client, member, batch, 1n << 40n, ' '), /1 to 200/)
   })
 
+  test('renames a new category everywhere the batch uses it', async () => {
+    const { batch, candidates } = await staged()
+    const [, farmacia, , pets, , internet] = candidates
+    await client.query(`update import_candidate set payload = jsonb_set(payload, '{category}', '"pets"') where id = any($1)`, [[farmacia, internet]])
+    const totals = [
+      { direction: 'expense', category: 'Pets', month: '2026-10-01', amountCents: 8990, source: 'A9' },
+      { direction: 'income', category: 'Pets', month: '2026-10-01', amountCents: 1, source: 'A10' },
+    ]
+    const consolidation = { merges: [{ name: 'Gatos', kind: 'expense', to: 'Pets', candidates: 1 }], unchecked: [{ direction: 'expense', category: 'PETS', amountCents: 5 }], failure: null }
+    await client.query('update import_batch set totals = $2, consolidation = $3 where id = $1', [batch, JSON.stringify(totals), JSON.stringify(consolidation)])
+    assert.deepEqual(await renameCategory(client, member, batch, pets as bigint, ' Animais '), [pets, farmacia, internet])
+    assert.deepEqual((await candidate(pets)).payload, { name: 'Animais', kind: 'expense' })
+    assert.equal((await candidate(farmacia)).payload.category, 'Animais')
+    assert.equal((await candidate(internet)).payload.category, 'Animais')
+    const after = (await client.query('select totals, consolidation from import_batch where id = $1', [batch])).rows[0]
+    assert.deepEqual(
+      after.totals.map((item: { category: string }) => item.category),
+      ['Animais', 'Pets'],
+    )
+    assert.equal(after.consolidation.merges[0].to, 'Animais')
+    assert.equal(after.consolidation.unchecked[0].category, 'Animais')
+    const audit = await client.query("select author, entity from audit_log where entity_id = any($1) and action = 'update' and after->'payload' is distinct from before->'payload' and (after->'payload')::text like '%Animais%'", [[pets, farmacia, internet]])
+    assert.equal(audit.rowCount, 3)
+    assert.ok(audit.rows.every((row) => row.author === 'member'))
+    assert.deepEqual(await renameCategory(client, member, batch, pets as bigint, 'Animais'), [])
+    assert.deepEqual(await renameCategory(client, member, batch, pets as bigint, 'animais'), [pets, farmacia, internet])
+  })
+
+  test('refuses renames to an open name or of something else', async () => {
+    const { batch, candidates } = await staged()
+    const [entry, , , pets] = candidates
+    await assert.rejects(renameCategory(client, member, batch, pets as bigint, 'saude'), /category saude is already open/)
+    await assert.rejects(renameCategory(client, member, batch, pets as bigint, ' '), /invalid category name/)
+    await assert.rejects(renameCategory(client, member, batch, entry as bigint, 'Animais'), /is not a new category/)
+    await client.query("update import_candidate set status = 'rejected' where id = $1", [pets])
+    await assert.rejects(renameCategory(client, member, batch, pets as bigint, 'Animais'), /is not a new category/)
+    assert.equal((await candidate(pets)).payload.name, 'Pets')
+  })
+
   test('finds asked names by whole words only', () => {
     const checks = [
       {
@@ -117,20 +156,30 @@ describe('import review', () => {
           { code: 'unknown_member', detail: 'GMA' },
           { code: 'unknown_account', detail: 'Nubank' },
           { code: 'low_confidence', detail: '0.60' },
+          { code: 'matched_category', detail: 'Mercado → Supermercado' },
+          { code: 'member_unmatched', detail: 'Tia Rosa' },
         ],
       },
     ]
     assert.deepEqual(askedNames('GMA é a Gabriela?', checks), [{ reference: 'member', name: 'GMA' }])
     assert.deepEqual(askedNames('Gamado? nubank?', checks), [{ reference: 'account', name: 'Nubank' }])
+    assert.deepEqual(askedNames('Mercado é Supermercado? E a tia rosa?', checks), [
+      { reference: 'category', name: 'Mercado' },
+      { reference: 'member', name: 'Tia Rosa' },
+    ])
   })
 
   test('retries skip chunks holding reviewed rows', async () => {
     const { batch, candidates } = await staged()
-    assert.deepEqual(await retryTargets(client, batch), ['L2@0', 'L7@0'])
+    assert.deepEqual(await retryTargets(client, batch), ['L2@0', 'L4@0', 'L7@0'])
     await reviewCandidates(client, member, batch, [candidates[6] as bigint], 'reject')
+    assert.deepEqual(await retryTargets(client, batch), ['L2@0', 'L4@0'])
+    await client.query("update import_candidate set chunk = 'L4@0' where id = $1 and accepted_by_model", [candidates[0]])
+    assert.deepEqual(await retryTargets(client, batch), ['L2@0', 'L4@0'])
+    await reviewCandidates(client, member, batch, [candidates[0] as bigint], 'accept')
     assert.deepEqual(await retryTargets(client, batch), ['L2@0'])
     const { batch: other, questions } = await staged()
     await answerQuestion(client, member, other, questions[0] as bigint, 'Sim')
-    assert.deepEqual(await retryTargets(client, other), ['L7@0'])
+    assert.deepEqual(await retryTargets(client, other), ['L4@0', 'L7@0'])
   })
 })

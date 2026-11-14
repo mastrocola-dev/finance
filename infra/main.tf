@@ -22,6 +22,7 @@ locals {
   identity_id   = data.azurerm_user_assigned_identity.runtime.id
   api_host      = "${var.name}-api.${azurerm_container_app_environment.main.default_domain}"
   mcp_host      = "${var.name}-mcp.${azurerm_container_app_environment.main.default_domain}"
+  extract_host  = "${var.name}-extract.internal.${azurerm_container_app_environment.main.default_domain}"
 
   entra = {
     AUTH_MODE      = "entra"
@@ -51,21 +52,42 @@ locals {
       image        = var.api_image
       port         = 3200
       min_replicas = var.api_min_replicas
+      external     = true
+      probe        = "/api/health"
 
       env = {
-        API_HOST             = "0.0.0.0"
-        API_PORT             = "3200"
-        API_ALLOWED_HOSTS    = local.api_host
-        API_ALLOWED_ORIGINS  = local.api_host
-        API_PUBLIC_URL       = "https://${local.api_host}"
-        ENTRA_CLIENT_ID      = var.entra_web_client_id
-        IMPORT_DAILY_USD_CAP = tostring(var.import_daily_usd_cap)
+        API_HOST            = "0.0.0.0"
+        API_PORT            = "3200"
+        API_ALLOWED_HOSTS   = local.api_host
+        API_ALLOWED_ORIGINS = local.api_host
+        API_PUBLIC_URL      = "https://${local.api_host}"
+        ENTRA_CLIENT_ID     = var.entra_web_client_id
+        EXTRACT_URL         = "https://${local.extract_host}"
       }
 
       secrets = {
         SESSION_KEY         = "finance-session-key"
         ENTRA_CLIENT_SECRET = "finance-web-secret"
-        ANTHROPIC_API_KEY   = "anthropic-api-key-finance"
+        EXTRACT_KEY         = "finance-extract-key"
+      }
+    }
+
+    extract = {
+      image        = var.extract_image
+      port         = 3300
+      min_replicas = 0
+      external     = false
+      probe        = "/health"
+
+      env = {
+        EXTRACT_HOST         = "0.0.0.0"
+        EXTRACT_PORT         = "3300"
+        IMPORT_DAILY_USD_CAP = tostring(var.import_daily_usd_cap)
+      }
+
+      secrets = {
+        EXTRACT_KEY       = "finance-extract-key"
+        ANTHROPIC_API_KEY = "anthropic-api-key-finance"
       }
     }
 
@@ -73,6 +95,8 @@ locals {
       image        = var.mcp_image
       port         = 3100
       min_replicas = 0
+      external     = true
+      probe        = null
 
       env = {
         MCP_HOST            = "0.0.0.0"
@@ -176,7 +200,7 @@ resource "azurerm_container_app" "app" {
   }
 
   ingress {
-    external_enabled = true
+    external_enabled = each.value.external
     target_port      = each.value.port
     transport        = "auto"
 
@@ -186,7 +210,7 @@ resource "azurerm_container_app" "app" {
     }
 
     dynamic "ip_security_restriction" {
-      for_each = var.allowed_ips
+      for_each = each.value.external ? var.allowed_ips : []
 
       content {
         name             = "allow-${ip_security_restriction.key}"
@@ -207,7 +231,7 @@ resource "azurerm_container_app" "app" {
       memory = "0.5Gi"
 
       dynamic "env" {
-        for_each = merge(local.entra, local.database, each.value.env)
+        for_each = merge(each.value.external ? local.entra : {}, local.database, each.value.env)
 
         content {
           name  = env.key
@@ -221,6 +245,20 @@ resource "azurerm_container_app" "app" {
         content {
           name        = env.key
           secret_name = env.value
+        }
+      }
+
+      dynamic "startup_probe" {
+        for_each = each.value.probe == null ? [] : [each.value.probe]
+
+        content {
+          transport               = "HTTP"
+          port                    = each.value.port
+          path                    = startup_probe.value
+          initial_delay           = 1
+          interval_seconds        = 6
+          timeout                 = 3
+          failure_count_threshold = 10
         }
       }
     }

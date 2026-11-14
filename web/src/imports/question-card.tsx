@@ -1,10 +1,12 @@
 import { useState } from 'react'
 import { Button } from '../components/ui/button.tsx'
+import { chip } from '../decisions/decision-card.tsx'
+import { cn } from '../lib/utils.ts'
 import type { Question } from './review-model.ts'
 
-type Props = { question: Question; about?: string; busy: boolean; onAnswer: (answer: string) => void }
+type Props = { question: Question; choice?: string; about?: string; busy: boolean; onAnswer: (answer: string) => void }
 
-export const QuestionCard = ({ question, about, busy, onAnswer }: Props) => {
+export const QuestionCard = ({ question, choice, about, busy, onAnswer }: Props) => {
   const [other, setOther] = useState('')
   const titleId = `question-title-${question.id}`
   return (
@@ -15,6 +17,7 @@ export const QuestionCard = ({ question, about, busy, onAnswer }: Props) => {
         </span>
         <span className="text-xs text-muted">{[about, question.source && `Origem ${question.source}`].filter(Boolean).join(' · ')}</span>
       </div>
+      {choice && question.answer === null && <span className={cn(chip, 'w-fit bg-claude-soft text-claude')}>Escolha do Claude: {choice}</span>}
       {question.answer !== null ? (
         <span className="text-meta text-ok">Respondida: {question.answer}</span>
       ) : (

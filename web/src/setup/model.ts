@@ -5,11 +5,12 @@ import { ApiFailure } from '../query/client.ts'
 export type SetupRecord = components['schemas']['SetupRecord']
 export type SetupKind = SetupRecord['kind']
 
-export const setupOrder: SetupKind[] = ['income', 'recurring_expense', 'debt', 'account', 'category', 'reserve', 'goal']
+export const setupOrder: SetupKind[] = ['account', 'category', 'income', 'recurring_expense', 'variable_expense', 'debt', 'reserve', 'goal']
 
 export const setupLabels: Record<SetupKind, { one: string; many: string }> = {
   income: { one: 'Receita fixa', many: 'Receitas fixas' },
   recurring_expense: { one: 'Despesa fixa', many: 'Despesas fixas' },
+  variable_expense: { one: 'Despesa variável', many: 'Despesas variáveis' },
   debt: { one: 'Dívida', many: 'Dívidas' },
   account: { one: 'Conta', many: 'Contas' },
   category: { one: 'Categoria', many: 'Categorias' },
@@ -34,6 +35,7 @@ const parts = (record: SetupRecord): (string | null | undefined)[] => {
   if (record.kind === 'reserve') return [`Saldo ${money(record)}`, record.account]
   if (record.kind === 'income') return [`${money(record)} por mês`, `dia ${record.day}`, record.member, record.category]
   if (record.kind === 'recurring_expense') return [`${money(record)} por mês`, `dia ${record.day}`, record.category, who(record), record.detail && `${record.detail} parcelas`]
+  if (record.kind === 'variable_expense') return [`${money(record)} por mês`, record.category, who(record)]
   if (record.kind === 'debt') return [record.detail, `saldo ${money(record)}`, who(record)]
   return [`Meta ${money(record)}`, record.detail && `reserva ${record.detail}`]
 }
@@ -66,3 +68,9 @@ export const closeFailure = (error: Error, name: string) => {
   if (error instanceof ApiFailure && error.status === 422) return `${name} já estava encerrado. A lista foi atualizada.`
   return `Não foi possível encerrar ${name}. Tente de novo.`
 }
+
+type Named = { name: string; direction: string }
+
+const folded = (name: string) => name.trim().toLocaleLowerCase('pt-BR')
+
+export const findCategory = (categories: Named[], name: string, direction: string) => categories.find((category) => category.direction === direction && folded(category.name) === folded(name))

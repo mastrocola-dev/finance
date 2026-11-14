@@ -161,6 +161,24 @@
             "account": "Conta corrente",
             "paid": true
           }
+        },
+        {
+          "kind": "category",
+          "source": "extrato-conjunta!A11:E11",
+          "confidence": 0.8,
+          "payload": {
+            "name": "Transferência",
+            "kind": "income"
+          }
+        },
+        {
+          "kind": "category",
+          "source": "extrato-conjunta!A13:E13",
+          "confidence": 0.8,
+          "payload": {
+            "name": "Tarifas bancárias",
+            "kind": "expense"
+          }
         }
       ],
       "questions": [

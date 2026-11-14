@@ -125,6 +125,7 @@ describe('openapi', () => {
       cancelEntry: { path: '/entries/ENTRY/cancel' },
       listSetup: { path: '/setup' },
       registerRecord: { path: '/setup', body: { kind: 'category', payload: { name: 'Pets', kind: 'expense' } } },
+      createStarterCategories: { path: '/setup/starter-categories' },
       editRecord: { path: '/setup/category/RECORD', body: { name: 'Bichos' } },
       closeRecord: { path: '/setup/category/RECORD/close' },
       updateReserve: { path: '/reserves/Reserva%20de%20emerg%C3%AAncia', body: { target_cents: 3000000 } },
@@ -143,6 +144,7 @@ describe('openapi', () => {
       retryImport: { path: '/imports/IMPORT/retry' },
       answerImportQuestion: { path: '/imports/IMPORT/questions/QUESTION/answer', body: { answer: 'Gabriela' } },
       editImportCandidate: { path: '/imports/IMPORT/candidates/FIRST', body: { payload: extracted.candidates[0]?.payload } },
+      renameImportCategory: { path: '/imports/IMPORT/categories/rename', body: { candidate: 'CATEGORY', name: 'Bichos' } },
       acceptImportCandidates: { path: '/imports/IMPORT/candidates/accept', body: { ids: ['FIRST'] } },
       rejectImportCandidates: { path: '/imports/IMPORT/candidates/reject', body: { ids: ['SECOND'] } },
       commitImport: { path: '/imports/IMPORT/commit' },
@@ -157,7 +159,7 @@ describe('openapi', () => {
         .replace('ENTRY', entry)
         .replace('IMPORT', batch)
         .replace('RECORD', record)
-        .replace(/QUESTION|FIRST|SECOND/g, (key) => staged[key] ?? key)
+        .replace(/QUESTION|FIRST|SECOND|CATEGORY/g, (key) => staged[key] ?? key)
     for (const route of routes) {
       const sample = samples[route.operationId]
       assert.ok(sample, `${route.operationId} has no sample request`)
@@ -178,7 +180,7 @@ describe('openapi', () => {
       if (route.operationId === 'uploadImport' || route.operationId === 'retryImport') {
         await uploads.settled()
         const [candidates, questions] = await Promise.all(['candidates', 'questions'].map(async (list) => (await call('GET', `/imports/${batch}/${list}`)).body))
-        Object.assign(staged, { FIRST: candidates[0].id, SECOND: candidates[1].id, QUESTION: questions[0].id })
+        Object.assign(staged, { FIRST: candidates[0].id, SECOND: candidates[1].id, CATEGORY: candidates.find((item: { kind: string }) => item.kind === 'category').id, QUESTION: questions[0].id })
       }
     }
   })

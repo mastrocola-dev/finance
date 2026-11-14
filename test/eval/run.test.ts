@@ -42,10 +42,11 @@ describe('evaluations', () => {
     assert.ok(result)
     assert.equal(result.file, 'gastos-outubro.txt')
     assert.deepEqual(result.failures, [])
-    assert.deepEqual(result.score.candidates, { expected: 7, predicted: 8, correct: 6, precision: 0.75, recall: 6 / 7 })
+    assert.deepEqual(result.score.candidates, { expected: 9, predicted: 10, correct: 8, precision: 0.8, recall: 8 / 9 })
     assert.equal(result.score.usage.costUsdMicros, 44_700)
     const printed = report([result])
-    assert.match(printed, /^notes \(gastos-outubro\.txt\): candidates P 75\.0% R 85\.7% \(6\/8 of 7\)/)
+    assert.match(printed, /^notes \(gastos-outubro\.txt\): candidates P 80\.0% R 88\.9% \(8\/10 of 9\)/)
+    assert.match(printed, /\n {2}ledger context ≈241 tokens × 3 chunks, 0 rule violations\n/)
     assert.match(printed, /recurring_expense\.installmentsTotal +P 100\.0% R 0\.0% \(0\/0 of 1\)/)
   })
 
@@ -71,8 +72,10 @@ describe('evaluations', () => {
         ['app-json', []],
         ['bank-csv', []],
         ['card-ofx', []],
+        ['context-notes', []],
         ['household-xlsx', []],
         ['loan-xml', []],
+        ['monthly-xlsx', []],
         ['notes', []],
         ['planning-xlsx', []],
         ['statement-pdf', []],
@@ -82,20 +85,36 @@ describe('evaluations', () => {
       results.map(({ score }) => [score.candidates.correct, score.candidates.predicted, score.candidates.expected]),
       [
         [12, 13, 12],
+        [12, 12, 12],
+        [9, 10, 9],
         [10, 10, 10],
-        [8, 9, 8],
         [18, 19, 19],
         [4, 4, 4],
-        [6, 8, 7],
+        [47, 49, 47],
+        [8, 10, 9],
         [9, 10, 10],
-        [7, 7, 7],
+        [8, 8, 8],
       ],
     )
+    assert.deepEqual(
+      results.filter(({ violations }) => violations.length).map(({ name, violations }) => [name, violations.map((item) => item.replace(/^.*\]: /, ''))]),
+      [
+        ['app-json', ['category Freela is neither listed nor proposed', 'category Outros is neither listed nor proposed']],
+        ['card-ofx', ['category Pagamento de fatura is neither listed nor proposed', 'category Transporte is neither listed nor proposed']],
+      ],
+    )
+    const context = results.find(({ name }) => name === 'context-notes')
+    assert.deepEqual(context?.context, { tokens: 128, chunks: 4 })
+    assert.deepEqual(context?.score.fields['entry.category'], { expected: 9, predicted: 9, correct: 9, precision: 1, recall: 1 })
+    assert.deepEqual(context?.score.fields['entry.member'], { expected: 9, predicted: 9, correct: 9, precision: 1, recall: 1 })
     const household = results.find(({ name }) => name === 'household-xlsx')
     assert.deepEqual(household?.score.totals, {
       stated: 4,
       mismatched: ['Set-26!A23:C23: net 2026-09 expected 747520, found 620040', 'Out-26!A26:C26: net 2026-10 expected 798960, found 810960'],
     })
+    const monthly = results.find(({ name }) => name === 'monthly-xlsx')
+    assert.deepEqual(monthly?.score.totals, { stated: 4, mismatched: [] })
+    assert.deepEqual(monthly?.context, { tokens: 66, chunks: 14 })
     const planning = results.find(({ name }) => name === 'planning-xlsx')
     assert.deepEqual(planning?.score.totals, { stated: 2, mismatched: ['Nov-26!A12:C12: net 2026-11 expected 747000, found 768000'] })
     const statement = results.find(({ name }) => name === 'statement-pdf')
@@ -115,7 +134,7 @@ describe('evaluations', () => {
     const folder = await mkdtemp(join(tmpdir(), 'finance-fixtures-'))
     try {
       execFileSync('npm', ['run', '-s', 'eval:fixtures', '--', folder], { stdio: 'ignore' })
-      for (const file of ['household-xlsx/orcamento-casa.xlsx', 'planning-xlsx/planejamento-lado-a-lado.xlsx', 'statement-pdf/extrato-gabriela.pdf']) {
+      for (const file of ['household-xlsx/orcamento-casa.xlsx', 'monthly-xlsx/contas-da-casa.xlsx', 'planning-xlsx/planejamento-lado-a-lado.xlsx', 'statement-pdf/extrato-gabriela.pdf']) {
         assert.ok((await readFile(join(folder, file))).equals(await readFile(join(casesFolder, file))), file)
       }
     } finally {

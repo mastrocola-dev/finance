@@ -1,6 +1,7 @@
 {
   "name": "web",
   "private": true,
+  "version": "0.14.0",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -9,7 +10,9 @@
     "check": "biome ci",
     "test": "vitest run",
     "screenshots": "playwright test",
-    "icons": "node scripts/icons.ts"
+    "icons": "node scripts/icons.ts",
+    "branding": "node scripts/branding.ts",
+    "brand": "node scripts/brand.ts"
   },
   "devDependencies": {
     "@axe-core/playwright": "^4.14.0",

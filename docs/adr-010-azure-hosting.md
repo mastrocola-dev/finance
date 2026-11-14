@@ -27,7 +27,7 @@ The API Container App also serves the web build (`web/dist`) on the same origin,
 ### 2. Hosts and images
 
 - Container Apps consumption, zero to one replica, 0.25 vCPU and 0.5 GiB per app (as in S4); Functions Flex was the alternative and would need a Node adapter for the HTTP API
-- One `Dockerfile`, targets `api` and `mcp`, Node 24 slim, multi-stage, user `node`, production dependencies only; `api` adds uv and Python 3.13 with `ingest/.venv-runtime` built from the lock
+- One `Dockerfile`, targets `api`, `mcp` and `extract` (S14 B2), Node 24 slim, multi-stage, user `node`, production dependencies only; `extract` adds uv and Python 3.13 with `ingest/.venv-runtime` built from the lock and service-agent, so `api` stays small and starts fast
 - Registry: GitHub Container Registry (`ghcr.io/mastrocola-dev/finance-api`, `-mcp`), private, pulled with a read-only token kept in Key Vault as `registry-password` (`registry_server`, `registry_username` in `infra/`); Azure Container Registry Basic costs about US$ 5 a month and is not needed for two images
 - Images tagged with the commit SHA; pin the base images by digest after the first build
 - Migrations stay a manual step (`infra/README.md` step 8) until L178 adds a Container Apps job

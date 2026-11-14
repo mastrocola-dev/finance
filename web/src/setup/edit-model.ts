@@ -10,6 +10,7 @@ const amount = (label: string, type: 'money' | 'balance' = 'money'): Field => ({
 export const editFields: Record<SetupKind, Field[]> = {
   income: [name('Descrição'), amount('Valor mensal'), day, account, { ...category, optional: true }],
   recurring_expense: [name('Descrição'), amount('Valor mensal'), day, account, category],
+  variable_expense: [name('Descrição'), amount('Valor estimado por mês'), account, category],
   debt: [name('Credor'), amount('Saldo devedor', 'balance'), account],
   account: [name('Apelido')],
   category: [name('Nome')],

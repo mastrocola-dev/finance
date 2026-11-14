@@ -3,6 +3,7 @@ import * as z from 'zod'
 import { type Actor, type Writer, write } from '../db/write.ts'
 import { RuleError } from '../ledger/rule.ts'
 import { type CandidateKind, payloads, type Total, total } from './candidate.ts'
+import { bestMatch, normalize } from './match.ts'
 import { maskDigits } from './staging.ts'
 
 export const confidenceThreshold = 0.8
@@ -13,15 +14,11 @@ export type Named = { name: string; kind?: string }
 export type LedgerRow = { id: bigint; key: string }
 export type References = { members: string[]; accounts: Named[]; categories: Named[]; reserves: string[]; existing: LedgerRow[] }
 export type Ask = { name: string; reference: Reference; candidate: bigint; kind?: string }
+export type Resolution = Partial<Record<Reference, string | undefined>>
+export type Missing = { name: string; kind: string; source: string }
 type Reference = 'member' | 'account' | 'category' | 'reserve'
 
-export const normalize = (value: string) =>
-  value
-    .normalize('NFD')
-    .replace(/\p{M}/gu, '')
-    .toLowerCase()
-    .replace(/[^\p{L}\p{N}]+/gu, ' ')
-    .trim()
+export { normalize }
 
 const text = (value: unknown) => (typeof value === 'string' ? value : undefined)
 export const same = (a: string, b: string) => a.trim().toLowerCase() === b.trim().toLowerCase()
@@ -36,7 +33,9 @@ export const duplicateKey = (kind: CandidateKind, payload: Record<string, unknow
   return `${kind}|${part('name')}`
 }
 
-const categoryKind = (kind: CandidateKind, payload: Record<string, unknown>) => (kind === 'entry' ? String(payload.direction) : kind === 'income' ? 'income' : 'expense')
+export const categoryKind = (kind: CandidateKind, payload: Record<string, unknown>) => (kind === 'entry' ? String(payload.direction) : kind === 'income' ? 'income' : 'expense')
+
+const earns = (kind: CandidateKind, payload: Record<string, unknown>) => kind === 'income' || (kind === 'entry' && payload.direction === 'income')
 
 const referencesOf = (kind: CandidateKind, payload: Record<string, unknown>) => {
   const wanted: { reference: Reference; name: string; kind?: string }[] = []
@@ -51,31 +50,49 @@ const referencesOf = (kind: CandidateKind, payload: Record<string, unknown>) => 
   return wanted
 }
 
-export const findChecks = (candidates: Staged[], references: References, threshold = confidenceThreshold) => {
+export const findChecks = (candidates: Staged[], references: References, threshold = confidenceThreshold, refused: Named[] = []) => {
   const live = (kind: CandidateKind) => candidates.filter((item) => item.kind === kind && payloads[kind].safeParse(item.payload).success)
-  const stagedAccounts = live('account').map((item) => String(item.payload.nickname))
   const stagedCategories = live('category').map((item) => ({ name: String(item.payload.name), kind: String(item.payload.kind) }))
-  const stagedReserves = live('reserve').map((item) => String(item.payload.name))
-  const known = {
-    member: (name: string) => references.members.some((item) => same(item, name)),
-    account: (name: string) => [...references.accounts.map((item) => item.name), ...stagedAccounts].some((item) => same(item, name)),
-    category: (name: string, kind?: string) => [...references.categories, ...stagedCategories].some((item) => same(item.name, name) && item.kind === kind),
-    reserve: (name: string) => [...references.reserves, ...stagedReserves].some((item) => same(item, name)),
+  const missing: Missing[] = []
+  const named = (list: Named[], kind?: string) => list.filter((item) => item.kind === kind).map((item) => item.name)
+  const pools = {
+    member: () => references.members,
+    account: () => [...references.accounts.map((item) => item.name), ...live('account').map((item) => String(item.payload.nickname))],
+    category: (kind?: string) => [...named([...references.categories, ...stagedCategories], kind), ...named(missing, kind)],
+    reserve: () => [...references.reserves, ...live('reserve').map((item) => String(item.payload.name))],
   }
   const ledger = new Map(references.existing.map((row) => [row.key, row.id]))
   const seen = new Map<string, string>()
   const asks: Ask[] = []
   const checks = new Map<bigint, Check[]>()
+  const resolved = new Map<bigint, Resolution>()
   for (const item of candidates) {
     const found: Check[] = []
+    const resolution: Resolution = {}
     const parsed = payloads[item.kind].safeParse(item.payload)
     if (!parsed.success) found.push({ code: 'invalid', detail: parsed.error.issues.map(({ path, message }) => `${path.join('.') || 'payload'}: ${message}`).join('; ') })
     if (item.confidence < threshold) found.push({ code: 'low_confidence', detail: item.confidence.toFixed(2) })
     if (parsed.success) {
       for (const wanted of referencesOf(item.kind, item.payload)) {
-        if (known[wanted.reference](wanted.name, wanted.kind)) continue
-        found.push({ code: `unknown_${wanted.reference}`, detail: wanted.name })
-        asks.push({ ...wanted, candidate: item.id })
+        const { reference, kind } = wanted
+        const name = wanted.name.trim()
+        const pool = pools[reference](kind)
+        if (pool.some((known) => same(known, name))) continue
+        const match = bestMatch(name, pool, { initials: reference === 'member' })
+        if (match) {
+          found.push({ code: `matched_${reference}`, detail: `${name} → ${match}` })
+          resolution[reference] = match
+        } else if (reference === 'category' && kind && !bestMatch(name, named(refused, kind))) missing.push({ name, kind, source: item.source })
+        else if (reference === 'member' && !earns(item.kind, item.payload)) {
+          found.push({ code: 'member_unmatched', detail: name })
+          resolution.member = 'joint'
+        } else if (reference === 'account') {
+          found.push({ code: 'account_unmatched', detail: name })
+          resolution.account = undefined
+        } else {
+          found.push({ code: `unknown_${reference}`, detail: name })
+          asks.push({ ...wanted, name, candidate: item.id })
+        }
       }
       const key = duplicateKey(item.kind, item.payload)
       const earlier = seen.get(key)
@@ -83,10 +100,12 @@ export const findChecks = (candidates: Staged[], references: References, thresho
       else seen.set(key, item.source)
       const existing = ledger.get(key)
       if (existing !== undefined) found.push({ code: 'duplicate_in_ledger', detail: `${item.kind} ${existing}` })
+      else if (item.kind === 'account' && references.accounts.some((account) => same(account.name, String(item.payload.nickname ?? '')))) found.push({ code: 'duplicate_in_ledger', detail: `account ${item.payload.nickname}` })
     }
     checks.set(item.id, found)
+    if (Object.keys(resolution).length > 0) resolved.set(item.id, resolution)
   }
-  return { checks, asks: uniqueAsks(asks) }
+  return { checks, asks: uniqueAsks(asks), resolved, missing }
 }
 
 const uniqueAsks = (asks: Ask[]) => {
@@ -150,38 +169,77 @@ export const loadReferences = async (client: Client, candidates: Staged[]): Prom
   }
 }
 
+const informational = ({ code }: Check) => code === 'low_confidence' || code.startsWith('matched_') || code.endsWith('_unmatched')
+
 const sameChecks = (a: Check[], b: Check[]) => JSON.stringify(a) === JSON.stringify(b)
+
+type Open = { id: bigint; question: string; candidate_id: bigint | null; answer: string | null; origin: string }
+
+const orphansOf = (candidates: (Staged & { origin: string; status: string })[], resolved: Map<bigint, Resolution>) => {
+  const uses = (item: Staged, name: string, kind: string) => {
+    const category = resolved.get(item.id)?.category ?? text(item.payload.category)
+    return item.kind !== 'category' && category !== undefined && same(category, name) && categoryKind(item.kind, item.payload) === kind
+  }
+  return candidates.filter((item) => item.kind === 'category' && item.origin === 'verify' && item.status === 'accepted' && !candidates.some((other) => uses(other, String(item.payload.name), String(item.payload.kind))))
+}
+
+const repeatedOf = (open: Open[]) => {
+  const ordered = [...open].sort((a, b) => Number(a.answer === null) - Number(b.answer === null) || Number(a.id - b.id))
+  const seen = new Set<string>()
+  return ordered.filter((item) => {
+    const key = normalize(item.question)
+    const repeated = seen.has(key) && item.answer === null
+    seen.add(key)
+    return repeated
+  })
+}
 
 export const verifyWithin = async (client: Client, ledger: Writer, batchId: bigint, threshold = confidenceThreshold) => {
   const batch = (await client.query<{ status: string; totals: Record<string, unknown>[]; checks: Check[] }>('select status, totals, checks from import_batch where id = $1 and closed_at is null for update', [batchId])).rows[0]
   if (batch?.status !== 'draft' && batch?.status !== 'verified') throw new RuleError(`import batch ${batchId} is not open for verification`)
-  const { rows } = await client.query<Omit<Staged, 'confidence'> & { confidence: string }>("select id, kind, source, confidence, payload, checks from import_candidate where batch_id = $1 and closed_at is null and status <> 'rejected' order by id", [batchId])
-  const candidates = rows.map((row) => ({ ...row, confidence: Number(row.confidence) }))
-  const references = await loadReferences(client, candidates)
-  const { checks, asks } = findChecks(candidates, references, threshold)
+  const { rows } = await client.query<Omit<Staged, 'confidence'> & { confidence: string; origin: string; status: string; accepted_by_model: boolean }>(
+    "select id, kind, source, confidence, payload, checks, origin, status, accepted_by_model from import_candidate where batch_id = $1 and closed_at is null and status <> 'rejected' order by id",
+    [batchId],
+  )
+  const staged = rows.map((row) => ({ ...row, confidence: Number(row.confidence) }))
+  const references = await loadReferences(client, staged)
+  const refused = (await client.query<Named>("select payload->>'name' as name, payload->>'kind' as kind from import_candidate where batch_id = $1 and closed_at is null and status = 'rejected' and kind = 'category'", [batchId])).rows
+  const { checks, asks, resolved, missing } = findChecks(staged, references, threshold, refused)
+  for (const item of missing) await ledger.create('import_candidate', { batch_id: batchId, kind: 'category', source: item.source, confidence: 1, payload: { name: item.name, kind: item.kind }, status: 'accepted', origin: 'verify' })
+  const orphans = orphansOf(staged, resolved)
+  for (const item of orphans) await ledger.close('import_candidate', item.id)
+  const candidates = staged.filter((item) => !orphans.includes(item))
   for (const item of candidates) {
     const found = checks.get(item.id) ?? []
-    if (!sameChecks(found, item.checks)) await ledger.update('import_candidate', item.id, { checks: JSON.stringify(found) })
+    const passing = item.confidence >= threshold && found.every(informational)
+    const status = item.status === 'pending' && passing ? { status: 'accepted', accepted_by_model: true } : item.accepted_by_model && !passing ? { status: 'pending', accepted_by_model: false } : {}
+    const changes = { ...(!sameChecks(found, item.checks) && { checks: JSON.stringify(found) }), ...status }
+    if (Object.keys(changes).length > 0) await ledger.update('import_candidate', item.id, changes)
   }
-  const open = (await client.query<{ question: string; candidate_id: bigint | null }>('select question, candidate_id from import_question where batch_id = $1 and closed_at is null', [batchId])).rows
-  const covered = (ask: Ask, question: string) => open.some((item) => item.question === question || (item.candidate_id === ask.candidate && normalize(item.question).includes(normalize(ask.name))))
+  const wanted = asks.map((ask) => ({ ask, ...questionFor(ask, references) }))
+  const listed = (await client.query<Open>('select id, question, candidate_id, answer, origin from import_question where batch_id = $1 and closed_at is null order by id', [batchId])).rows
+  const stale = listed.filter((item) => item.answer === null && item.origin === 'verify' && !wanted.some(({ question }) => question === item.question))
+  const repeated = repeatedOf(listed.filter((item) => !stale.includes(item)))
+  for (const item of [...stale, ...repeated]) await ledger.close('import_question', item.id)
+  const open = listed.filter((item) => !stale.includes(item) && !repeated.includes(item))
+  const covered = (ask: Ask, question: string) => open.some((item) => normalize(item.question) === normalize(question) || (item.candidate_id === ask.candidate && normalize(item.question).includes(normalize(ask.name))))
   const questions: bigint[] = []
-  for (const ask of asks) {
-    const { question, options } = questionFor(ask, references)
+  for (const { ask, question, options } of wanted) {
     if (covered(ask, question)) continue
-    const row = await ledger.create('import_question', { batch_id: batchId, candidate_id: ask.candidate, question, options: JSON.stringify(options), source: candidates.find((item) => item.id === ask.candidate)?.source ?? null })
+    const row = await ledger.create('import_question', { batch_id: batchId, candidate_id: ask.candidate, question, options: JSON.stringify(options), source: candidates.find((item) => item.id === ask.candidate)?.source ?? null, origin: 'verify' })
     questions.push(row.id as bigint)
   }
   const stated = totals.parse(batch.totals.map(({ chunk, ...item }) => item))
   const mismatches = reconcile(candidates, stated)
   const changes = { ...(batch.status === 'draft' && { status: 'verified' }), ...(!sameChecks(mismatches, batch.checks) && { checks: JSON.stringify(mismatches) }) }
   if (Object.keys(changes).length > 0) await ledger.update('import_batch', batchId, changes)
-  const failed = candidates.filter((item) => checks.get(item.id)?.some((check) => check.code !== 'low_confidence')).map((item) => item.id)
+  const failed = candidates.filter((item) => checks.get(item.id)?.some((check) => !informational(check))).map((item) => item.id)
   const lowConfidence = candidates
     .filter((item) => item.confidence < threshold)
     .sort((a, b) => a.confidence - b.confidence)
     .map((item) => item.id)
-  return { checked: candidates.length, failed, lowConfidence, questions, totals: { checked: stated.length, mismatches } }
+  const closed = { categories: orphans.map((item) => item.id), questions: [...stale, ...repeated].map((item) => item.id) }
+  return { checked: candidates.length, failed, lowConfidence, questions, totals: { checked: stated.length, mismatches }, resolved, created: missing.length, closed }
 }
 
 export const verifyBatch = (client: Client, actor: Actor, batchId: bigint, threshold = confidenceThreshold) => write(client, actor, (ledger) => verifyWithin(client, ledger, batchId, threshold))

@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
 import type { Database } from '../../src/db/connection.ts'
-import type { IngestReadiness } from '../../src/import/ingest.ts'
+import type { IngestReadiness } from '../../src/import/readiness.ts'
 import { importUploads, Unavailable } from '../../src/import/uploads.ts'
 
 const failed: IngestReadiness = { ready: false, cause: 'missing', reason: 'uv is not installed' }

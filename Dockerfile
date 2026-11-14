@@ -6,6 +6,9 @@ COPY package.json package-lock.json ./
 COPY web/package.json web/
 RUN npm ci --omit=dev --workspaces=false --ignore-scripts && npm cache clean --force
 
+FROM modules AS mcp_modules
+RUN npm uninstall --no-save --omit=dev --workspaces=false --ignore-scripts --no-audit --no-fund @modelcontextprotocol/client read-excel-file && npm cache clean --force
+
 FROM node:24-slim AS web
 WORKDIR /app
 COPY package.json package-lock.json ./
@@ -40,34 +43,50 @@ FROM node:24-slim AS base
 LABEL org.opencontainers.image.source=https://github.com/mastrocola-dev/finance
 ENV NODE_ENV=production
 WORKDIR /app
+COPY package.json ./
+
+FROM base AS app
 COPY --from=modules /app/node_modules node_modules
-COPY package.json openapi.json ./
+COPY openapi.json ./
 COPY db db
 COPY src src
 
 FROM base AS mcp
+COPY --from=mcp_modules /app/node_modules node_modules
+COPY src/db src/db
+COPY src/http src/http
+COPY src/import src/import
+COPY src/ledger src/ledger
+COPY src/mcp src/mcp
 ENV MCP_HOST=0.0.0.0 \
     MCP_PORT=3100
 USER node
 EXPOSE 3100
 CMD ["node", "src/mcp/http.ts"]
 
-FROM base AS api
+FROM app AS api
+COPY --from=web /app/web/dist web/dist
+ENV API_HOST=0.0.0.0 \
+    API_PORT=3200 \
+    WEB_ROOT=/app/web/dist
+USER node
+EXPOSE 3200
+CMD ["node", "src/http/api.ts"]
+
+FROM app AS extract
 COPY --from=uv /uv /usr/local/bin/uv
 COPY --from=ingest /opt/python /opt/python
 COPY --from=ingest /app/ingest ingest
 COPY agents agents
-COPY --from=web /app/web/dist web/dist
 COPY --from=agent /opt/service-agent /opt/service-agent
 RUN mkdir /app/.imports && chown node:node /app/.imports
-ENV API_HOST=0.0.0.0 \
-    API_PORT=3200 \
+ENV EXTRACT_HOST=0.0.0.0 \
+    EXTRACT_PORT=3300 \
     IMPORT_UPLOADS=/app/.imports \
-    WEB_ROOT=/app/web/dist \
     SERVICE_AGENT_CLI=/opt/service-agent/src/cli.ts \
     UV_PROJECT_ENVIRONMENT=/app/ingest/.venv-runtime \
     UV_PYTHON_DOWNLOADS=never \
     UV_OFFLINE=1
 USER node
-EXPOSE 3200
-CMD ["node", "src/http/api.ts"]
+EXPOSE 3300
+CMD ["node", "src/http/extract.ts"]

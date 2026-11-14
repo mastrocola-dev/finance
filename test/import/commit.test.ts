@@ -15,7 +15,7 @@ import { freshHash } from './sample.ts'
 
 const importer: Actor = { author: 'import' }
 
-const candidate = (kind: string, payload: Record<string, unknown>) => ({ kind, source: `L-${kind}`, confidence: 0.95, payload })
+const candidate = (kind: string, payload: Record<string, unknown>, confidence = 0.7) => ({ kind, source: `L-${kind}`, confidence, payload })
 
 const output = {
   candidates: [
@@ -29,7 +29,7 @@ const output = {
     candidate('recurring_expense', { description: 'Ração', amountCents: 12000, dayOfMonth: 10, startsOn: '2026-01-01', category: 'Pets', account: 'Conta Pets' }),
     candidate('debt', { creditor: 'Pet Shop Exemplo', description: 'Parcelas do aquário', principalCents: 60000, balanceCents: 40000, installmentsTotal: 6, installmentsPaid: 2, startsOn: '2026-08-01', member: 'joint' }),
   ],
-  questions: [],
+  questions: [] as { question: string; options: string[] }[],
   totals: [],
 }
 
@@ -122,14 +122,60 @@ describe('import commit', () => {
     assert.equal(latest?.member, 'Marcio')
   })
 
+  test('starts confident candidates with passing checks accepted and commits them with no review', async () => {
+    const spent = (description: string, confidence: number, payload: Record<string, unknown> = {}) => candidate('entry', { date: '2026-10-16', description, direction: 'expense', amountCents: 3100, category: 'saúde', member: 'joint', paid: true, ...payload }, confidence)
+    const items = [spent('Curativo', 0.95), spent('Gaze', 0.8), spent('Algodão', 0.79), spent('Curativo', 0.95), spent('Seringa', 0.9), spent('Luvas', 0.9)]
+    const { batch, candidates } = await staged({ candidates: items, questions: [], totals: [] })
+    const states = async () => (await client.query('select status, accepted_by_model as model from import_candidate where id = any($1) order by id', [candidates])).rows.map(({ status, model }) => `${status}${model ? ' by model' : ''}`)
+    assert.deepEqual(await states(), ['accepted by model', 'accepted by model', 'pending', 'pending', 'accepted by model', 'accepted by model'])
+    const [, , , , seringa, luvas] = candidates
+    assert.ok(seringa && luvas)
+    await reviewCandidates(client, member, batch, [seringa], 'reject')
+    await reviewCandidates(client, member, batch, [luvas], 'accept')
+    await client.query(`update import_candidate set payload = payload || '{"amountCents": 0}' where id = $1`, [candidates[1]])
+    await verifyBatch(client, importer, batch)
+    assert.deepEqual(await states(), ['accepted by model', 'pending', 'pending', 'pending', 'rejected', 'accepted'])
+    const committed = await commitBatch(client, committer, batch)
+    assert.deepEqual(
+      committed.map((item) => item.candidate),
+      [candidates[0], luvas],
+    )
+  })
+
   test('refuses an empty commit and candidates with failed checks, writing nothing', async () => {
     const { batch, candidates } = await staged()
     await assert.rejects(commitBatch(client, committer, batch), /no accepted candidates/)
-    await client.query(`update import_candidate set payload = jsonb_set(payload, '{member}', '"GMA"') where id = $1`, [candidates[0]])
     await reviewCandidates(client, member, batch, candidates.slice(0, 2), 'accept')
+    await client.query(`update import_candidate set payload = payload || '{"amountCents": 0}' where id = $1`, [candidates[0]])
     await assert.rejects(commitBatch(client, committer, batch), new RegExp(`candidates ${candidates[0]} have failed checks`))
     assert.equal(await batchStatus(batch), 'verified')
     assert.equal(await ledgerRows(batch), 0)
+  })
+
+  test('commits unknown references with no answers: matched, created, joint or without account', async () => {
+    const spent = (description: string, payload: Record<string, unknown>) => candidate('entry', { date: '2026-10-14', description, direction: 'expense', amountCents: 2000, paid: true, ...payload })
+    const items = [spent('Dipirona', { category: 'Farmácias', member: 'GMA' }), spent('Protetor', { category: 'farmacia', member: 'Tia Rosa', account: 'Nubank' }), spent('Consulta', { category: 'Saude', account: 'conta conjunta', member: 'MMA' })]
+    const { batch, candidates } = await staged({ candidates: items, questions: [{ question: 'GMA é a Gabriela?', options: ['Sim', 'Não'] }], totals: [] })
+    assert.equal((await client.query("select count(*)::int as count from import_question where batch_id = $1 and question like '%nova%'", [batch])).rows[0]?.count, 0)
+    await reviewCandidates(client, member, batch, candidates, 'accept')
+    const committed = await commitBatch(client, committer, batch)
+    assert.deepEqual(
+      committed.map((item) => item.kind),
+      ['category', 'entry', 'entry', 'entry'],
+    )
+    const rows = (
+      await client.query(
+        `select e.description, c.name as category, a.nickname as account, m.name as member
+        from entry e join category c on c.id = e.category_id left join account a on a.id = e.account_id left join member m on m.id = e.member_id
+        where e.import_batch_id = $1 order by e.id`,
+        [batch],
+      )
+    ).rows
+    assert.deepEqual(rows, [
+      { description: 'Dipirona', category: 'Farmácias', account: null, member: 'Gabriela' },
+      { description: 'Protetor', category: 'Farmácias', account: null, member: null },
+      { description: 'Consulta', category: 'Saúde', account: 'Conta conjunta', member: 'Marcio' },
+    ])
   })
 
   test('refuses names whose staged candidate was not accepted', async () => {
@@ -142,6 +188,15 @@ describe('import commit', () => {
     await reviewCandidates(client, member, batch, candidates.slice(0, 2), 'accept')
     await assert.rejects(commitBatch(client, committer, batch), /unknown account Conta Aves/)
     assert.equal((await client.query("select count(*)::int as count from category where name = 'Aves'")).rows[0]?.count, 0)
+  })
+
+  test('flags an account whose nickname is already open in the ledger and keeps it for review', async () => {
+    const account = candidate('account', { institution: 'Banco Ficticio', nickname: 'conta conjunta', lastFour: '1357', kind: 'checking' }, 0.95)
+    const { batch, candidates } = await staged({ candidates: [account], questions: [], totals: [] })
+    const { rows } = await client.query('select status, checks from import_candidate where id = $1', [candidates[0]])
+    assert.deepEqual(rows, [{ status: 'pending', checks: [{ code: 'duplicate_in_ledger', detail: 'account conta conjunta' }] }])
+    await reviewCandidates(client, member, batch, candidates, 'accept')
+    await assert.rejects(commitBatch(client, committer, batch), new RegExp(`candidates ${candidates[0]} have failed checks`))
   })
 
   test('refuses a joint income and a reserve already in the ledger', async () => {

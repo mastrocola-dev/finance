@@ -79,6 +79,13 @@
         "direction": "expense",
         "amountCents": 1290
       }
+    },
+    {
+      "kind": "category",
+      "payload": {
+        "name": "Tarifas",
+        "kind": "expense"
+      }
     }
   ]
 }

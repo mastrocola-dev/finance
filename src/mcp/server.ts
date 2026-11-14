@@ -95,7 +95,8 @@ export const createServer = (client: Database, member?: Member) => {
     'register_record',
     {
       title: 'Register record',
-      description: 'Register a category, account, reserve, income, recurring expense, debt or goal. The payload is camelCase and follows the import candidate schema of its kind (amounts in integer cents; accounts keep institution, nickname and last four digits only).',
+      description:
+        'Register a category, account, reserve, income, recurring expense, variable expense, debt or goal. The payload is camelCase and follows the import candidate schema of its kind (amounts in integer cents; accounts keep institution, nickname and last four digits only). A variable_expense is a monthly estimate for spending with no fixed amount or date, never an entry: description, amountCents, startsOn (YYYY-MM-01), expense category, optional member (omit or joint when shared) and account.',
       inputSchema: z.object({ kind: z.enum(setupKinds), payload: z.record(z.string(), z.unknown()) }),
       annotations: writes,
     },
@@ -109,7 +110,7 @@ export const createServer = (client: Database, member?: Member) => {
     'edit_record',
     {
       title: 'Edit record',
-      description: 'Change the name, amount (integer cents), day of month, account nickname or category of a registered category, account, reserve, income, recurring expense, debt or goal. Only the fields given change; the previous values stay in the audit log.',
+      description: 'Change the name, amount (integer cents), day of month, account nickname or category of a registered category, account, reserve, income, recurring expense, variable expense, debt or goal. Only the fields given change; the previous values stay in the audit log.',
       inputSchema: z.object({ kind: z.enum(setupKinds), id, changes: recordChanges }),
       annotations: writes,
     },
@@ -123,7 +124,7 @@ export const createServer = (client: Database, member?: Member) => {
     'close_record',
     {
       title: 'Close record',
-      description: 'Close a registered category, account, reserve, income, recurring expense, debt or goal; it stays in history and is no longer used for new entries or forecasts.',
+      description: 'Close a registered category, account, reserve, income, recurring expense, variable expense, debt or goal; it stays in history and is no longer used for new entries or forecasts.',
       inputSchema: z.object({ kind: z.enum(setupKinds), id }),
       annotations: writes,
     },
