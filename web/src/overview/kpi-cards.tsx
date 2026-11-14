@@ -6,7 +6,7 @@ const plural = (count: number, one: string, many: string) => `${count} ${count =
 
 export const KpiCards = ({ data }: { data: Overview }) => {
   const kpis = [
-    { label: 'Saldo previsto', value: data.balance, sub: 'Receitas menos despesas do mês' },
+    { label: 'Saldo previsto', value: data.balance, sub: data.unspent > 0n ? `Inclui ${formatBrl(data.unspent)} ainda previstos em variáveis` : 'Receitas menos despesas do mês' },
     { label: 'Recebido', value: data.income.received, sub: `${data.income.receivedCount} de ${plural(data.income.count, 'receita', 'receitas')}`, tone: 'text-income' },
     { label: 'Pago', value: data.expenses.paid, sub: `${data.expenses.paidCount} de ${plural(data.expenses.count, 'conta', 'contas')}` },
     { label: 'Em aberto', value: data.open, sub: data.expenses.late > 0n ? `${formatBrl(data.expenses.late)} em atraso` : 'Nada em atraso', late: data.expenses.late > 0n },

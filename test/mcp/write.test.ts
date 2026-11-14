@@ -162,7 +162,7 @@ describe('mcp write tools', () => {
   })
 
   test('register_record, edit_record and close_record handle a variable expense, audited as claude', async () => {
-    const market = (await call(member, 'register_record', { kind: 'variable_expense', payload: { description: 'Supermercado', amountCents: 150000, startsOn: '2026-11-01', category: 'Alimentação' } })).json()
+    const market = (await call(member, 'register_record', { kind: 'variable_expense', payload: { description: 'Feira', amountCents: 150000, startsOn: '2026-11-01', category: 'Alimentação' } })).json()
     assert.deepEqual([market.kind, market.amount.brl, market.member, market.category], ['variable_expense', 'R$ 1.500,00', null, 'Alimentação'])
     const edited = (await call(member, 'edit_record', { kind: 'variable_expense', id: market.id, changes: { amountCents: 170000 } })).json()
     assert.equal(edited.amount.cents, '170000')

@@ -196,6 +196,7 @@ Write tools `create_entry` (planned or already paid income or expense, member na
 - `GET /api/debts`, `GET /api/reserves`, `GET /api/decisions` (`status`, `limit`)
 - `GET /api/me` (the calling member; needs a member), `GET /api/members`, `GET /api/goals`, `GET /api/net-worth` (reserves plus goals kept outside a reserve, minus debt balances)
 - `GET /api/months/:month/split`: joint expenses paid from a member's account, each member's share by `share_percent`, and who owes whom
+- `GET /api/months/:month/variables` (`member` name or `joint`): per open variable expense, the estimate against what was spent (expense entries of the month in its category and member, recurring and debt entries left out), the month totals and `unspent` (estimate not yet spent, never negative per line), which Visão do mês subtracts from the projected balance
 - `GET /api/audit` (`author`, `member`, `entity`, `limit`, `before` cursor from `next`), newest first with counts per author
 - `POST /api/entries` with the `create_entry` fields, answered `201`
 - `POST /api/entries/:id/paid` with an optional `paid_on`

@@ -53,6 +53,12 @@ const variable = [
   { description: 'Farmácia', category: 'Saúde', account: 'marcioCard', member: null, day: 3, amount: vary(9000n, 1300, 5000) },
 ] as const
 
+const variablePlans = [
+  { description: 'Supermercado', category: 'Alimentação', member: null, account: 'joint', estimate: 130000n },
+  { description: 'Combustível', category: 'Transporte', member: 'marcio', account: 'marcioCard', estimate: 40000n },
+  { description: 'Farmácia', category: 'Saúde', member: null, account: 'marcioCard', estimate: 12000n },
+] as const
+
 const cardInstallments = [
   { description: 'Geladeira', category: 'Casa', member: null, installment: 25000n, total: 10, first_bill: '2026-08-01' },
   { description: 'Notebook', category: 'Lazer', member: 'marcio', installment: 40000n, total: 6, first_bill: '2026-09-01' },
@@ -181,6 +187,10 @@ const plant = async (ledger: Writer, clock: Clock) => {
       if (due_on < firstMonth || due_on.slice(0, 7) > seedToday.slice(0, 7)) continue
       entry({ description: debt.description, due_on, direction: 'expense', amount_cents: debt.installment, category_id: category('Dívidas'), account_id: accountIds[debt.account], member_id: memberOf(debt.member), debt_id, installment_number: index + 1 })
     }
+  }
+
+  for (const plan of variablePlans) {
+    await setup('variable_expense', { description: plan.description, category_id: category(plan.category), member_id: memberOf(plan.member), account_id: accountIds[plan.account], amount_cents: plan.estimate, starts_on: firstMonth })
   }
 
   for (const purchase of cardInstallments) {

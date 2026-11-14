@@ -13,6 +13,7 @@ export const memberHeader = 'x-member'
 const direction = z.enum(['income', 'expense'])
 
 export const monthPath = z.object({ month })
+export const variableQuery = z.object({ member: z.string().optional().describe('Member name or joint') })
 export const cardQuery = z.object({ month: month.describe('Month as YYYY-MM whose bill counts as the current installment') })
 export const idPath = z.object({ id })
 export const namePath = z.object({ name: z.string().describe('Reserve name, percent-encoded') })
@@ -225,6 +226,23 @@ const card = z.strictObject({
   releases: z.array(release).describe('Limit freed per bill, oldest first'),
 })
 
+const variableSpend = z.strictObject({
+  id,
+  description: z.string(),
+  category: z.string(),
+  member: z.string().nullable().describe('null means joint'),
+  estimate: money,
+  spent: money.describe('Expense entries of the month in its category and member, recurring and debt entries left out'),
+})
+
+const variablePlan = z.strictObject({
+  month: date,
+  estimate: money,
+  spent: money,
+  unspent: money.describe('Estimate not yet spent, summed per variable expense and never negative; the projected balance subtracts it'),
+  items: z.array(variableSpend),
+})
+
 const closed = z.strictObject({ id })
 
 const goal = z.strictObject({
@@ -356,6 +374,7 @@ export const schemas = {
   Release: release,
   CardInstallment: cardInstallment,
   Card: card,
+  VariablePlan: variablePlan,
   Closed: closed,
   AuditItem: auditItem,
   AuditPage: auditPage,

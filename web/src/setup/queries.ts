@@ -3,11 +3,11 @@ import { useIdentity } from '../identity/identity-provider.tsx'
 import { unwrap } from '../query/client.ts'
 import type { SetupKind } from './model.ts'
 
-const touched = ['setup', 'categories', 'accounts', 'cards', 'debts', 'savings', 'net-worth', 'audit']
+const touched = [['setup'], ['categories'], ['accounts'], ['cards'], ['debts'], ['savings'], ['net-worth'], ['audit'], ['entries', 'variables']]
 
 const useRefresh = () => {
   const queryClient = useQueryClient()
-  return () => Promise.all(touched.map((key) => queryClient.invalidateQueries({ queryKey: [key] })))
+  return () => Promise.all(touched.map((queryKey) => queryClient.invalidateQueries({ queryKey })))
 }
 
 export const useSetup = () => {

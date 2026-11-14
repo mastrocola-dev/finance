@@ -24,6 +24,7 @@ import { RuleError } from '../ledger/rule.ts'
 import { closeRecord, createStarterCategories, editRecord, listSetup, recordChanges, registerRecord } from '../ledger/setup.ts'
 import { monthSplit } from '../ledger/split.ts'
 import { compareMonths } from '../ledger/summary.ts'
+import { variablePlan } from '../ledger/variables.ts'
 import { netWorth } from '../ledger/worth.ts'
 import { toJson } from '../mcp/json.ts'
 import { HttpError, readBytes, readJson } from './body.ts'
@@ -56,6 +57,7 @@ import {
   summaryQuery,
   uploadHeaders,
   uploadQuery,
+  variableQuery,
 } from './contract.ts'
 import { listOf, originHostnamesOf } from './hosts.ts'
 import { identify, type Verifier, verifierFor } from './identity.ts'
@@ -151,6 +153,7 @@ export const routes: Route[] = [
   route({ method: 'GET', path: '/openapi.json', operationId: 'getOpenApi', summary: 'This OpenAPI document', open: true, response: schemas.OpenApiDocument }, async ({ verify }) => openApi(routes, { bearer: Boolean(verify.issuer) })),
   route({ method: 'GET', path: '/health', operationId: 'getHealth', summary: 'Liveness without identity or database', open: true, response: schemas.Health }, async () => ({ status: 'ok' })),
   route({ method: 'GET', path: '/months/:month/summary', operationId: 'getMonthSummary', summary: 'Month totals compared with another month', params: monthPath, query: summaryQuery, response: schemas.Comparison }, ({ client, params, query }) => compareMonths(client, params.month, query.compare_with, query.today)),
+  route({ method: 'GET', path: '/months/:month/variables', operationId: 'getVariablePlan', summary: 'Variable expenses of a month: estimate against spent', params: monthPath, query: variableQuery, response: schemas.VariablePlan }, ({ client, params, query }) => variablePlan(client, params.month, query.member)),
   route({ method: 'GET', path: '/months/:month/entries', operationId: 'listEntries', summary: 'Entries of a month with filters', params: monthPath, query: entryQuery, response: z.array(schemas.Entry) }, ({ client, params, query: { today, ...filters } }) =>
     listEntries(client, { month: params.month, ...filters }, today),
   ),

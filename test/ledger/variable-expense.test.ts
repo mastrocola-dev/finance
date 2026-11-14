@@ -7,6 +7,7 @@ import { forecastMonth } from '../../src/ledger/forecast.ts'
 import { findMember } from '../../src/ledger/members.ts'
 import { closeRecord, editRecord, listSetup, registerRecord } from '../../src/ledger/setup.ts'
 import { monthSummary } from '../../src/ledger/summary.ts'
+import { bareSeedVariables } from '../db/bare-variable.ts'
 import { testDatabase } from '../db/database.ts'
 
 describe('variable expenses', () => {
@@ -24,6 +25,7 @@ describe('variable expenses', () => {
     db = await testDatabase()
     client = db.client
     await seed(client)
+    await bareSeedVariables(client)
     const marcio = await findMember(client, 'Marcio')
     assert.ok(marcio)
     actor = { author: 'member', memberId: marcio.id }

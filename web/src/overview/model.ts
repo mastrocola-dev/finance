@@ -28,13 +28,14 @@ export const percentOf = (part: bigint, whole: bigint) => (whole > 0n ? Number((
 
 const dueOrder = (a: Entry, b: Entry) => (a.state === b.state ? a.dueOn.localeCompare(b.dueOn) : a.state === 'late' ? -1 : 1)
 
-export const overview = (entries: Entry[]) => {
+export const overview = (entries: Entry[], unspent = 0n) => {
   const income = entries.filter((entry) => entry.direction === 'income')
   const expenses = entries.filter((entry) => entry.direction === 'expense')
   const paidExpenses = byState(expenses, 'paid')
   const open = byState(expenses, 'pending', 'late')
   return {
-    balance: sum(income) - sum(expenses),
+    balance: sum(income) - sum(expenses) - unspent,
+    unspent,
     income: { total: sum(income), received: sum(byState(income, 'paid')), count: income.length, receivedCount: byState(income, 'paid').length },
     expenses: { total: sum(expenses), paid: sum(paidExpenses), pending: sum(byState(expenses, 'pending')), late: sum(byState(expenses, 'late')), count: expenses.length, paidCount: paidExpenses.length },
     open: sum(open),

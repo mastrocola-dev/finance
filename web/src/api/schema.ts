@@ -50,6 +50,23 @@ export type paths = {
         patch?: never;
         trace?: never;
     };
+    "/api/months/{month}/variables": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Variable expenses of a month: estimate against spent */
+        get: operations["getVariablePlan"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/months/{month}/entries": {
         parameters: {
             query?: never;
@@ -944,6 +961,24 @@ export type components = {
             /** @description Limit freed per bill, oldest first */
             releases: components["schemas"]["Release"][];
         };
+        VariablePlan: {
+            /** @description Date as YYYY-MM-DD */
+            month: string;
+            estimate: components["schemas"]["Money"];
+            spent: components["schemas"]["Money"];
+            /** @description Estimate not yet spent, summed per variable expense and never negative; the projected balance subtracts it */
+            unspent: components["schemas"]["Money"];
+            items: {
+                id: string;
+                description: string;
+                category: string;
+                /** @description null means joint */
+                member: string | null;
+                estimate: components["schemas"]["Money"];
+                /** @description Expense entries of the month in its category and member, recurring and debt entries left out */
+                spent: components["schemas"]["Money"];
+            }[];
+        };
         Closed: {
             id: string;
         };
@@ -1248,6 +1283,7 @@ export type SetupRecord = components['schemas']['SetupRecord'];
 export type Release = components['schemas']['Release'];
 export type CardInstallment = components['schemas']['CardInstallment'];
 export type Card = components['schemas']['Card'];
+export type VariablePlan = components['schemas']['VariablePlan'];
 export type Closed = components['schemas']['Closed'];
 export type AuditItem = components['schemas']['AuditItem'];
 export type AuditPage = components['schemas']['AuditPage'];
@@ -1374,6 +1410,41 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["Comparison"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+        };
+    };
+    getVariablePlan: {
+        parameters: {
+            query?: {
+                /** @description Member name or joint */
+                member?: string;
+            };
+            header?: never;
+            path: {
+                /** @description Month as YYYY-MM */
+                month: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["VariablePlan"];
                 };
             };
             /** @description Error */

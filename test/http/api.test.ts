@@ -221,12 +221,12 @@ describe('http api', () => {
   })
 
   test('registers, edits and closes a variable expense as the calling member, audited', async () => {
-    const payload = { description: 'Farmácia', amountCents: 30000, startsOn: '2026-11-01', category: 'Saúde', member: 'Gabriela' }
+    const payload = { description: 'Remédios', amountCents: 30000, startsOn: '2026-11-01', category: 'Saúde', member: 'Gabriela' }
     assert.equal((await post('/setup', { kind: 'variable_expense', payload }, {})).status, 401)
     const created = await post('/setup', { kind: 'variable_expense', payload })
     assert.equal(created.status, 201)
     assert.deepEqual([created.body.kind, created.body.amount.brl, created.body.member, created.body.category, created.body.day], ['variable_expense', 'R$ 300,00', 'Gabriela', 'Saúde', null])
-    assert.equal((await post('/setup', { kind: 'variable_expense', payload: { ...payload, description: 'FARMÁCIA' } })).status, 422)
+    assert.equal((await post('/setup', { kind: 'variable_expense', payload: { ...payload, description: 'REMÉDIOS' } })).status, 422)
     const edited = await send('PATCH', `/setup/variable_expense/${created.body.id}`, { amountCents: 35000, account: 'Conta Gabriela' })
     assert.deepEqual([edited.status, edited.body.amount.cents, edited.body.account], [200, '35000', 'Conta Gabriela'])
     assert.equal((await send('PATCH', `/setup/variable_expense/${created.body.id}`, { dayOfMonth: 3 })).status, 422)
@@ -237,9 +237,21 @@ describe('http api', () => {
       ['Marcio:create', 'Marcio:update', 'Marcio:close'],
     )
     assert.equal(
-      (await get('/setup')).body.some((record: { kind: string }) => record.kind === 'variable_expense'),
+      (await get('/setup')).body.some((record: { kind: string; id: string }) => record.kind === 'variable_expense' && record.id === created.body.id),
       false,
     )
+  })
+
+  test('lists the variable plan of a month, filtered by member', async () => {
+    const plan = await get('/months/2026-09/variables')
+    assert.deepEqual([plan.status, plan.body.estimate.brl, plan.body.spent.brl, plan.body.unspent.brl], [200, 'R$ 1.820,00', 'R$ 1.610,00', 'R$ 210,00'])
+    assert.deepEqual(plan.body.items[0], { id: plan.body.items[0].id, description: 'Supermercado', category: 'Alimentação', member: null, estimate: { cents: '130000', brl: 'R$ 1.300,00' }, spent: { cents: '118000', brl: 'R$ 1.180,00' } })
+    const marcio = await get('/months/2026-09/variables?member=Marcio')
+    assert.deepEqual(
+      marcio.body.items.map((item: { description: string }) => item.description),
+      ['Combustível'],
+    )
+    assert.equal((await get('/months/2026-13/variables')).status, 422)
   })
 
   test('registers a card installment, sets the card limit and lists the cards of a month', async () => {

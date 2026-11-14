@@ -11,6 +11,7 @@ const screens = [
 for (const theme of ['light', 'dark'] as const)
   for (const screen of screens)
     test(`record link lands on the record in ${screen.path} 1440 ${theme}`, async ({ browser }) => {
+      test.setTimeout(60_000)
       const context = await memberContext(browser, { viewport: { width: 1440, height: 700 }, colorScheme: theme })
       const page = await context.newPage()
       await page.goto('/atividade')

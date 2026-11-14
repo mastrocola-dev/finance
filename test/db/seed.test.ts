@@ -80,7 +80,7 @@ describe('fictional seed', () => {
   test('every row is audited as system', async () => {
     const audit = await one("select count(*)::int as total, count(*) filter (where author <> 'system' or action <> 'create')::int as other from audit_log")
     const rows = await one(
-      'select (select count(*) from member) + (select count(*) from account) + (select count(*) from category) + (select count(*) from income) + (select count(*) from recurring_expense) + (select count(*) from debt) + (select count(*) from entry) + (select count(*) from reserve) + (select count(*) from goal) + (select count(*) from card_installment) as total',
+      'select (select count(*) from member) + (select count(*) from account) + (select count(*) from category) + (select count(*) from income) + (select count(*) from recurring_expense) + (select count(*) from debt) + (select count(*) from entry) + (select count(*) from reserve) + (select count(*) from goal) + (select count(*) from card_installment) + (select count(*) from variable_expense) as total',
     )
     assert.equal(BigInt(audit.total), rows.total)
     assert.equal(audit.other, 0)
