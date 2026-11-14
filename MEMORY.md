@@ -2,9 +2,9 @@
 
 ## State
 
-- S14 E3c1 done 2026-11-14 (eval case `monthly-xlsx` plus `test/eval/one-click.test.ts`); next is S14 E3c2 (fake agent merge, Playwright one-click on an empty ledger), then F, B, D. Tests: 416 node (1 skipped: service-agent contract without the sibling), 228 web; `npm test` and `npm run check` green; failing-test run streak 0; next free backlog number L257
+- S14 E3c2 done 2026-11-14 (`web/e2e/one-click.spec.ts`, fake agent merges `Contas da casa` → `Moradia`); next is S14 F (sign-in screen), then B, D (the schedule stops after D). Tests: 416 node (0 skipped with the service-agent sibling cloned), 228 web; `npm test` and `npm run check` green; failing-test run streak 0; next free backlog number L259
 - Do not run Playwright and `npm test` at once: vitest `findByText` times out under load (L213); run import Playwright with `npx playwright test e2e/import.spec.ts --project=local` (about 1 min)
-- Empty-ledger e2e: `emptyLedger()` in `web/e2e/context.ts` (reset plus `member:add -- Marcio 50 Gabriela 50`), used by `web/e2e/setup.spec.ts` with `afterAll(reseed)`. Cadastros "Novo" opens one form at a time (`adding` in `record-list.tsx`); button names `Novo cadastro em <Seção>`
+- Empty-ledger e2e: `emptyLedger()` in `web/e2e/context.ts` (reset plus `member:add -- Marcio 50 Gabriela 50`), used by `web/e2e/setup.spec.ts` and `one-click.spec.ts` with `afterAll(reseed)`; on an empty ledger the sample gives 8 accepted items, 3 pending, nothing blocking. Cadastros "Novo" opens one form at a time (`adding` in `record-list.tsx`); button names `Novo cadastro em <Seção>`
 
 ## Session setup (cloud container, each run, one command per Bash call)
 

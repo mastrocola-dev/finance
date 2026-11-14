@@ -8,6 +8,7 @@ const { values } = parseArgs({ options: { 'agent-dir': { type: 'string' } } })
 const dir = values['agent-dir'] ?? 'agents/import'
 const task = JSON.parse(await text(process.stdin))
 const mode = (task.segment?.source ?? 'consolidate') as string
+const merges: Record<string, string> = { 'Contas da casa': 'Moradia' }
 if (mode === 'crash') throw new Error('Invalid agent config')
 
 const config = JSON.parse(readFileSync(join(dir, 'agent.json'), 'utf8'))
@@ -34,7 +35,7 @@ else if (mode === 'echo') {
   console.log(JSON.stringify({ candidates: [], questions: [], echo }))
 } else if (mode === 'consolidate') {
   end()
-  console.log(JSON.stringify({ categories: task.categories.map(({ name, kind }: { name: string; kind: string }) => ({ name, kind, to: name })) }))
+  console.log(JSON.stringify({ categories: task.categories.map(({ name, kind }: { name: string; kind: string }) => ({ name, kind, to: merges[name] ?? name })) }))
 } else {
   end()
   console.log(JSON.stringify(sample))
