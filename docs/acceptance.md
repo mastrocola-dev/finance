@@ -53,9 +53,9 @@ Use `evals/cases/bank-csv/extrato-conjunta.csv` (invented). With the real model:
 
 The build agent's session cannot pull base images (Docker Hub and ghcr.io are blocked there), so the images were never built by the agent: only the layout they produce was run as a non-root user with production dependencies. CI builds and smoke-tests them in the `images` job.
 
-- [ ] `docker build --target api -t finance-api .` and `docker build --target mcp -t finance-mcp .` succeed
+- [ ] `docker build --target api -t finance-api .`, `docker build --target mcp -t finance-mcp .` and `docker build --target extract -t finance-extract .` succeed
 - [ ] `docker run --rm finance-api id -u` prints a non-zero id
-- [ ] With PostgreSQL on the host: `docker run --rm --network host --env-file .env finance-api` logs `ingest runtime ready` within seconds (no download at start), and `docker run --rm --network host --env-file .env finance-mcp` answers on port 3100
+- [ ] With PostgreSQL on the host and an `EXTRACT_KEY` of at least 32 characters exported: `docker run --rm --network host --env-file .env -e EXTRACT_KEY finance-extract` logs `ingest runtime ready` within seconds (no download at start), `docker run --rm --network host --env-file .env -e EXTRACT_KEY -e EXTRACT_URL=http://127.0.0.1:3300 finance-api` answers `"ready":true` on `/api/imports/runtime`, and `docker run --rm --network host --env-file .env finance-mcp` answers on port 3100
 
 ## 7. Decisions to take
 

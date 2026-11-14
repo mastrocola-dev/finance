@@ -127,7 +127,7 @@ Copy `.env.example` to `.env` and adjust it; every script loads `.env` when pres
 
 ### Continuous integration
 
-`.github/workflows/ci.yml` runs on every push to `poc` and `main` and on pull requests to `main`, on Ubuntu 24.04 with a PostgreSQL 16 service, Node 24 and uv: `npm ci`, `npm run check`, `npm run ingest:check`, `npm run ingest:test`, `npm test`, `npm run web:build` and the first-load budget (`npx playwright test -g budget` in `web/`), in that order. Running the same commands locally reproduces it. When that `test` job passes, the `images` job builds and smoke-tests both images; on pushes to `poc` and `main` it publishes them as `ghcr.io/mastrocola-dev/finance-api:<commit>` and `finance-mcp:<commit>` (the only job with `packages: write`) and writes to the run summary the `Dockerfile` diff that `scripts/pin-bases.sh` makes to pin the base images by digest.
+`.github/workflows/ci.yml` runs on every push to `poc` and `main` and on pull requests to `main`, on Ubuntu 24.04 with a PostgreSQL 16 service, Node 24 and uv: `npm ci`, `npm run check`, `npm run ingest:check`, `npm run ingest:test`, `npm test`, `npm run web:build` and the first-load budget (`npx playwright test -g budget` in `web/`), in that order. Running the same commands locally reproduces it. When that `test` job passes, the `images` job builds the three images and smoke-tests the API against the extraction service; on pushes to `poc` and `main` it publishes them as `ghcr.io/mastrocola-dev/finance-api:<commit>`, `finance-mcp:<commit>` and `finance-extract:<commit>` (the only job with `packages: write`) and writes to the run summary the `Dockerfile` diff that `scripts/pin-bases.sh` makes to pin the base images by digest.
 
 A second job checks the Azure configuration in `infra/` with Terraform 1.16.4: `terraform fmt -check -recursive`, `terraform init -backend=false` and `terraform validate`, then lints every workflow with actionlint. `.github/workflows/deploy.yml` plans `infra/` on pull requests to `main` and, once `ci` passed for a push to `main`, applies it with that commit's images and runs the migration job; its triggers and repository variables are in [infra/README.md](infra/README.md#deploy-pipeline). What it creates, the apply order and the rollback are in [infra/README.md](infra/README.md); the whole deploy (Entra tenant with Google, app registrations, public images, bootstrap, repository variables, the merge to `main` and its deploy run, members, Claude connector, acceptance and rollback) is the runbook [docs/deploy-azure.md](docs/deploy-azure.md); `npm run check` runs `scripts/runbook.ts`, which fails when the runbook, `infra/` and the workflows disagree on a Terraform variable, its Required column, a repository variable or a Key Vault secret.
 
@@ -135,16 +135,18 @@ A third job builds the container images and smoke-tests them against a PostgreSQ
 
 ### Containers
 
-One `Dockerfile` with two targets on Node 24 slim, production dependencies only, user `node`:
+One `Dockerfile` with three targets on Node 24 slim, production dependencies only, user `node`:
 
 ```sh
 docker build --target api -t finance-api .
 docker build --target mcp -t finance-mcp .
-docker run --rm --network host --env-file .env finance-api
+docker build --target extract -t finance-extract .
+docker run --rm --network host --env-file .env -e EXTRACT_KEY finance-extract
+docker run --rm --network host --env-file .env -e EXTRACT_KEY -e EXTRACT_URL=http://127.0.0.1:3300 finance-api
 docker run --rm --network host --env-file .env finance-mcp
 ```
 
-`api` (port 3200) also carries uv and Python 3.13 with `ingest/.venv-runtime` built from the lock, so the start-up check runs offline in seconds; uploads go to `/app/.imports`. It also carries service-agent at the commit pinned by `SERVICE_AGENT_SHA` in the `Dockerfile` (production modules only, `SERVICE_AGENT_CLI=/opt/service-agent/src/cli.ts`); the model key comes from `ANTHROPIC_API_KEY`. `mcp` listens on port 3100. Hosting on Azure is proposed in [ADR-010](docs/adr-010-azure-hosting.md); the author's walkthrough before calling the POC done is [docs/acceptance.md](docs/acceptance.md).
+`api` (port 3200) carries only the source, production modules and the web build (about 33 MB over the base, about 330 ms from spawn to the first `200` on `/api/health`) and hands imports to the extraction service through `EXTRACT_URL`; without it, uploads wait for a uv the image does not have. `extract` (port 3300, `src/http/extract.ts`) carries uv and Python 3.13 with `ingest/.venv-runtime` built from the lock, so the start-up check runs offline in seconds; uploads go to `/app/.imports`. It also carries service-agent at the commit pinned by `SERVICE_AGENT_SHA` in the `Dockerfile` (production modules only, `SERVICE_AGENT_CLI=/opt/service-agent/src/cli.ts`); the model key comes from `ANTHROPIC_API_KEY`. `mcp` listens on port 3100. Hosting on Azure is proposed in [ADR-010](docs/adr-010-azure-hosting.md); the author's walkthrough before calling the POC done is [docs/acceptance.md](docs/acceptance.md).
 
 The Playwright suite never touches the dev ledger: it resets and seeds its own database (`finance_e2e` on the server of `DATABASE_URL`, or `E2E_DATABASE_URL`), starts its API on port 3290 (`E2E_API_PORT`) with uploads under `.imports-e2e/`, and serves the build on port 4273. Outside CI it reuses servers already running on those ports; with `CI` set it starts its own and uses the Chromium installed by `playwright install`.
 

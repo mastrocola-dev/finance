@@ -53,21 +53,28 @@ EXPOSE 3100
 CMD ["node", "src/mcp/http.ts"]
 
 FROM base AS api
+COPY --from=web /app/web/dist web/dist
+ENV API_HOST=0.0.0.0 \
+    API_PORT=3200 \
+    WEB_ROOT=/app/web/dist
+USER node
+EXPOSE 3200
+CMD ["node", "src/http/api.ts"]
+
+FROM base AS extract
 COPY --from=uv /uv /usr/local/bin/uv
 COPY --from=ingest /opt/python /opt/python
 COPY --from=ingest /app/ingest ingest
 COPY agents agents
-COPY --from=web /app/web/dist web/dist
 COPY --from=agent /opt/service-agent /opt/service-agent
 RUN mkdir /app/.imports && chown node:node /app/.imports
-ENV API_HOST=0.0.0.0 \
-    API_PORT=3200 \
+ENV EXTRACT_HOST=0.0.0.0 \
+    EXTRACT_PORT=3300 \
     IMPORT_UPLOADS=/app/.imports \
-    WEB_ROOT=/app/web/dist \
     SERVICE_AGENT_CLI=/opt/service-agent/src/cli.ts \
     UV_PROJECT_ENVIRONMENT=/app/ingest/.venv-runtime \
     UV_PYTHON_DOWNLOADS=never \
     UV_OFFLINE=1
 USER node
-EXPOSE 3200
-CMD ["node", "src/http/api.ts"]
+EXPOSE 3300
+CMD ["node", "src/http/extract.ts"]
