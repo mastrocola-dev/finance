@@ -32,3 +32,8 @@ export const useCreateGoal = () => {
     onSuccess: () => Promise.all(['savings', 'net-worth', 'audit'].map((key) => queryClient.invalidateQueries({ queryKey: [key] }))),
   })
 }
+
+export const useCards = (month: string) => {
+  const { api } = useIdentity()
+  return useQuery({ queryKey: ['cards', month], queryFn: async () => unwrap(await api.GET('/api/cards', { params: { query: { month } } })) })
+}

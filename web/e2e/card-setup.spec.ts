@@ -28,3 +28,17 @@ test('the seeded card shows its limit and installments, takes a new one and clos
   await expect(card.getByRole('heading')).toContainText('2')
   await context.close()
 })
+
+test('Dívidas e reservas shows the seeded card limit in use and when it frees', async ({ browser }) => {
+  const context = await memberContext(browser, { viewport: { width: 1440, height: 1000 } })
+  const page = await context.newPage()
+  await page.goto('/patrimonio?month=2026-11')
+  const card = page.getByRole('region', { name: 'Cartões' }).getByRole('article', { name: 'Cartão Marcio' })
+  await expect(card.getByRole('img', { name: 'R$ 3.350,00 de R$ 8.000,00 do limite em uso' })).toBeVisible()
+  await expect(card).toContainText('Parcelado: R$ 3.350,00')
+  await expect(card).toContainText('Disponível R$ 4.650,00')
+  await expect(card).toContainText('Libera R$ 650,00 em novembro')
+  await expect(card.getByRole('img', { name: /^Liberações nos próximos 12 meses: R\$ 650,00 em novembro, / })).toBeVisible()
+  await expect(card.locator('.recharts-bar-rectangle').first()).toBeVisible()
+  await context.close()
+})

@@ -3,7 +3,7 @@ import { useIdentity } from '../identity/identity-provider.tsx'
 import { unwrap } from '../query/client.ts'
 import type { SetupKind } from './model.ts'
 
-const touched = ['setup', 'categories', 'accounts', 'debts', 'savings', 'net-worth', 'audit']
+const touched = ['setup', 'categories', 'accounts', 'cards', 'debts', 'savings', 'net-worth', 'audit']
 
 const useRefresh = () => {
   const queryClient = useQueryClient()
