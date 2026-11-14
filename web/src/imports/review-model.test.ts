@@ -1,6 +1,6 @@
 import { expect, test } from 'vitest'
 import { ApiFailure } from '../query/client.ts'
-import { acceptable, amountOf, blocked, type Candidate, candidateRecord, checkText, commitFailure, commitPlan, detailsOf, groupCandidates, isBlocking, monthOfCandidate, type Question, reviewCounts, reviewFailure, titleOf, unstagedText, withModelChoices } from './review-model.ts'
+import { acceptable, amountOf, blocked, type Candidate, candidateRecord, checkText, commitFailure, commitPlan, detailsOf, groupCandidates, isBlocking, monthOfCandidate, type Question, reviewCounts, reviewFailure, settled, titleOf, unstagedText, withModelChoices } from './review-model.ts'
 
 const candidate = (id: string, kind: Candidate['kind'], payload: Record<string, unknown>, changes: Partial<Candidate> = {}): Candidate => ({ id, kind, source: 'A1', chunk: null, confidence: '0.90', status: 'pending', acceptedByModel: false, payload, checks: [], recordId: null, ...changes })
 
@@ -23,6 +23,20 @@ test('only pending items without blocking checks are acceptable in bulk', () => 
   expect(blocked({ ...pharmacy, status: 'rejected' })).toBe(false)
   expect(blocked(candidate('7', 'account', {}, { checks: [{ code: 'duplicate_in_ledger', detail: 'account 3' }] }))).toBe(true)
   expect(blocked({ ...rent, checks: [{ code: 'duplicate_in_ledger', detail: 'entry 3' }] })).toBe(false)
+})
+
+test('a group is settled when nothing is pending and nothing blocks', () => {
+  const group = (candidates: Candidate[]) => ({ key: 'k', kind: 'entry' as const, title: 't', candidates })
+  expect(
+    settled(
+      group([
+        { ...rent, status: 'accepted' },
+        { ...pharmacy, status: 'rejected' },
+      ]),
+    ),
+  ).toBe(true)
+  expect(settled(group([{ ...rent, status: 'edited' }, rent]))).toBe(false)
+  expect(settled(group([{ ...pharmacy, status: 'accepted' }]))).toBe(false)
 })
 
 test('describes candidates of every shape, including invalid payloads', () => {

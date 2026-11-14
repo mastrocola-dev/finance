@@ -133,15 +133,20 @@ test('review shows questions and file checks first, then candidates grouped by m
   start()
   const attention = await screen.findByRole('region', { name: 'Precisa de vocês' })
   expect(within(attention).getByText('Total de Outubro!G40 não confere: impresso R$ 1.589,90, lido R$ 1.500,00')).toBeTruthy()
-  expect(within(attention).getByText('GMA é a Gabriela?')).toBeTruthy()
-  expect(within(attention).getByText('Farmácia · Origem Outubro!E4')).toBeTruthy()
+  expect(within(attention).queryByText('GMA é a Gabriela?')).toBeNull()
+  const choices = screen.getByRole('region', { name: 'Escolhas do Claude' })
+  expect((choices.querySelector('details') as HTMLDetailsElement).open).toBe(false)
+  expect(within(choices).getByText('1 pergunta')).toBeTruthy()
+  expect(within(choices).getByText('GMA é a Gabriela?')).toBeTruthy()
+  expect(within(choices).getByText('Escolha do Claude: Gabriela')).toBeTruthy()
+  expect(within(choices).getByText('Farmácia · Origem Outubro!E4')).toBeTruthy()
+  expect(within(choices).getByText('Sem resposta, o modelo escolhe a primeira opção ao importar. Responda para mudar a escolha.')).toBeTruthy()
   const group = screen.getByRole('region', { name: 'Lançamentos · outubro de 2026' })
   const titles = within(group)
     .getAllByRole('listitem')
     .filter((item) => item.getAttribute('aria-labelledby'))
     .map((item) => item.querySelector('[id^="candidate-title"]')?.textContent)
   expect(titles).toEqual(['Farmácia', 'Aluguel', 'Mercado'])
-  expect(within(attention).getByText('Sem resposta, o modelo escolhe a primeira opção ao importar.')).toBeTruthy()
   expect(within(row('Farmácia')).getByText('Pessoa desconhecida: GMA. Sem resposta, fica Gabriela')).toBeTruthy()
   expect(within(row('Farmácia')).getByText('Outubro!A2:G2')).toBeTruthy()
   expect((within(row('Farmácia')).getByRole('button', { name: 'Aceitar Farmácia' }) as HTMLButtonElement).disabled).toBe(false)
@@ -158,10 +163,71 @@ test('an unknown name stays blocking when no open question offers a known name f
   ]
   start()
   const attention = await screen.findByRole('region', { name: 'Precisa de vocês' })
-  expect(within(attention).getByText('Sem resposta, o modelo escolhe a primeira opção ao importar.')).toBeTruthy()
+  expect(within(attention).getByText('Sem resposta, o modelo escolhe a primeira opção ao importar, mas ela não resolve o item.')).toBeTruthy()
+  expect(within(attention).getByText('GMA é a Gabriela?')).toBeTruthy()
+  expect(within(attention).getByText('Quem pagou a farmácia?')).toBeTruthy()
+  expect(within(attention).queryByText('Escolha do Claude: Sim')).toBeNull()
+  expect(screen.queryByRole('region', { name: 'Escolhas do Claude' })).toBeNull()
   expect(within(row('Farmácia')).getByText('Pessoa desconhecida: GMA')).toBeTruthy()
   expect((within(row('Farmácia')).getByRole('button', { name: 'Aceitar Farmácia' }) as HTMLButtonElement).disabled).toBe(true)
   expect(screen.getByText('3 pendentes · 0 aceitos · 0 rejeitados · 1 com bloqueio · 1 pergunta aberta · 1 pergunta com escolha do modelo')).toBeTruthy()
+})
+
+test('model choices and blocking questions split between the two sections', async () => {
+  const [gma] = seedQuestions() as [Question]
+  questions = [gma, { ...gma, id: '10', candidateId: null, question: 'Quem é a Bia?', options: [] }]
+  current = batch({ checks: [] })
+  start()
+  const attention = await screen.findByRole('region', { name: 'Precisa de vocês' })
+  expect(
+    within(attention)
+      .getAllByRole('listitem')
+      .map((item) => item.querySelector('[id^="question-title"]')?.textContent),
+  ).toEqual(['Quem é a Bia?'])
+  expect(within(attention).queryByText(/Sem resposta/)).toBeNull()
+  const choices = screen.getByRole('region', { name: 'Escolhas do Claude' })
+  await userEvent.click(within(choices).getByText('Escolhas do Claude'))
+  expect((choices.querySelector('details') as HTMLDetailsElement).open).toBe(true)
+  await userEvent.click(within(choices).getByRole('button', { name: 'Marcio' }))
+  await waitFor(() => expect(calls).toEqual([{ path: '/api/imports/7/questions/9/answer', body: { answer: 'Marcio' }, member: 'Marcio' }]))
+})
+
+test('model choices alone leave no section asking for you', async () => {
+  current = batch({ checks: [] })
+  start()
+  expect(await screen.findByRole('region', { name: 'Escolhas do Claude' })).toBeTruthy()
+  expect(screen.queryByRole('region', { name: 'Precisa de vocês' })).toBeNull()
+})
+
+test('a group with nothing pending or blocked collapses under its heading', async () => {
+  questions = []
+  candidates = seedCandidates().map((item) => (item.id === '2' ? { ...item, status: 'rejected' } : { ...item, status: 'accepted', acceptedByModel: true }))
+  start()
+  const group = await screen.findByRole('region', { name: 'Lançamentos · outubro de 2026' })
+  const details = group.querySelector('details') as HTMLDetailsElement
+  expect(details.open).toBe(false)
+  expect(within(group).getByText('3 itens')).toBeTruthy()
+  expect(within(group).getByText('2 aceitos · 1 rejeitado')).toBeTruthy()
+  expect(within(group).queryByRole('button', { name: /prontos/ })).toBeNull()
+  await userEvent.click(within(group).getByText('Lançamentos · outubro de 2026'))
+  expect(details.open).toBe(true)
+  await userEvent.click(within(row('Mercado')).getByRole('button', { name: 'Rejeitar Mercado' }))
+  await waitFor(() => expect(calls.at(-1)).toEqual({ path: '/api/imports/7/candidates/reject', body: { ids: ['3'] }, member: 'Marcio' }))
+  await waitFor(() => expect(within(group).getByText('1 aceito · 2 rejeitados')).toBeTruthy())
+  expect(details.open).toBe(true)
+})
+
+test('a group with a pending item stays open and a linked item opens its collapsed group', async () => {
+  questions = []
+  candidates = seedCandidates().map((item) => ({ ...item, status: 'accepted', checks: [] }))
+  render(<App history={createMemoryHistory({ initialEntries: ['/importar/7#candidate-3'] })} fetch={fetch} />)
+  const group = await screen.findByRole('region', { name: 'Lançamentos · outubro de 2026' })
+  expect((group.querySelector('details') as HTMLDetailsElement).open).toBe(true)
+  cleanup()
+  candidates = seedCandidates()
+  start()
+  const open = await screen.findByRole('region', { name: 'Lançamentos · outubro de 2026' })
+  expect(open.querySelector('details')).toBeNull()
 })
 
 test('questions without options need an answer and say nothing about the model', async () => {
@@ -189,7 +255,7 @@ test('free text answers go through the form', async () => {
   await waitFor(() => expect(calls.at(0)?.body).toEqual({ answer: 'Conjunto' }))
 })
 
-test('accepts the ready items of a group at once, rejects and accepts one by one', async () => {
+test('accepts the ready items of a group at once, rejects and accepts one by one, and the settled group stays open', async () => {
   questions = []
   start()
   await userEvent.click(await screen.findByRole('button', { name: 'Aceitar 2 prontos' }))
@@ -204,6 +270,7 @@ test('accepts the ready items of a group at once, rejects and accepts one by one
   await waitFor(() => expect(within(row('Mercado')).getByText('Rejeitado')).toBeTruthy())
   await userEvent.click(within(row('Mercado')).getByRole('button', { name: 'Aceitar Mercado' }))
   await waitFor(() => expect(within(row('Mercado')).getByText('Aceito')).toBeTruthy())
+  expect((screen.getByRole('region', { name: 'Lançamentos · outubro de 2026' }).querySelector('details') as HTMLDetailsElement).open).toBe(true)
 })
 
 test('a batch that is not verified shows why there is nothing to review', async () => {

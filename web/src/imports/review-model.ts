@@ -162,6 +162,8 @@ export const groupCandidates = (candidates: Candidate[]): Group[] => {
   return [...groups.values()].map((group) => ({ ...group, candidates: group.candidates.sort(flaggedFirst) })).sort((left, right) => needs(right) - needs(left) || kindOrder.indexOf(left.kind) - kindOrder.indexOf(right.kind) || (left.month ?? '').localeCompare(right.month ?? ''))
 }
 
+export const settled = (group: Group) => group.candidates.every((candidate) => candidate.status !== 'pending' && !blocked(candidate))
+
 export const acceptable = (group: Group) => group.candidates.filter((candidate) => candidate.status === 'pending' && !blocked(candidate)).map((candidate) => candidate.id)
 
 export const reviewCounts = (candidates: Candidate[]) => ({

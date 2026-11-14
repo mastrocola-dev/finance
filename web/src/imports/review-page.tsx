@@ -11,22 +11,22 @@ import { chip } from '../decisions/decision-card.tsx'
 import { RecordScroll, useRecordHash } from '../lib/record.tsx'
 import { cn } from '../lib/utils.ts'
 import { ApiFailure } from '../query/client.ts'
+import { AttentionCard } from './attention-card.tsx'
 import { useLedger, useNames } from './candidate-form.tsx'
-import { CandidateRow, type EditForm } from './candidate-row.tsx'
+import type { EditForm } from './candidate-row.tsx'
 import type { Rename } from './category-chip.tsx'
 import { CommitCard, CommittedCard } from './commit-card.tsx'
 import { DecidedQuestions } from './decided-questions.tsx'
-import { type Names, serverErrors } from './edit-model.ts'
+import { serverErrors } from './edit-model.ts'
+import { card, GroupCard } from './group-card.tsx'
 import { type Batch, canRetry, closeFailure, formatStamp, phaseLabels, phaseOf, phaseTones, plural, progressText, retryFailure, retryText, type Unavailable, unavailableNotice } from './model.ts'
+import { ModelChoices } from './model-choices.tsx'
 import { useClose, useRetry, useRuntime } from './queries.ts'
-import { QuestionCard } from './question-card.tsx'
-import { acceptable, type Candidate, checkText, commitFailure, commitPlan, type Decision, type Group, groupCandidates, pendingChoice, type Question, renameFailure, reviewCounts, reviewFailure, titleOf, withModelChoices } from './review-model.ts'
+import { type Candidate, commitFailure, commitPlan, type Decision, groupCandidates, pendingChoice, type Question, renameFailure, reviewCounts, reviewFailure, titleOf, withModelChoices } from './review-model.ts'
 import { useAnswer, useBatch, useCandidates, useCommit, useDecide, useEdit, useQuestions, useRename } from './review-queries.ts'
 import { ReviewSummary } from './review-summary.tsx'
-import { reviewSummary } from './summary-model.ts'
+import { blockingQuestions, reviewSummary } from './summary-model.ts'
 import { UnavailableNotice } from './unavailable-notice.tsx'
-
-const card = 'flex min-w-0 flex-col gap-2 rounded-card border bg-surface px-4 py-3 md:px-6 md:py-4'
 
 const Rows = () => (
   <div className="flex flex-col gap-3">
@@ -82,33 +82,6 @@ const Summary = ({ candidates, questions }: { candidates: Candidate[]; questions
   )
 }
 
-type GroupProps = { group: Group; hash: string; names: Record<Names, string[]>; busy: boolean; onDecide: (ids: string[], decision: Decision, label: string) => void; onEdit: (candidate: Candidate, payload: Record<string, unknown>, form: EditForm) => void }
-
-const GroupCard = ({ group, hash, names, busy, onDecide, onEdit }: GroupProps) => {
-  const ready = acceptable(group)
-  const headingId = `group-${group.key}`
-  return (
-    <section aria-labelledby={headingId} className={card}>
-      <div className="flex flex-wrap items-center gap-2">
-        <h2 id={headingId} className="m-0 text-section font-semibold first-letter:uppercase">
-          {group.title}
-        </h2>
-        <span className="text-xs text-muted">{plural(group.candidates.length, 'item', 'itens')}</span>
-        {ready.length > 1 && (
-          <Button variant="ghost" className="ml-auto" disabled={busy} onClick={() => onDecide(ready, 'accept', `${ready.length} itens`)}>
-            Aceitar {ready.length} prontos
-          </Button>
-        )}
-      </div>
-      <ul className="m-0 flex list-none flex-col p-0">
-        {group.candidates.map((candidate) => (
-          <CandidateRow key={candidate.id} candidate={candidate} hash={hash} names={names} busy={busy} onDecide={(decision) => onDecide([candidate.id], decision, titleOf(candidate))} onEdit={(payload, form) => onEdit(candidate, payload, form)} />
-        ))}
-      </ul>
-    </section>
-  )
-}
-
 const decided = (decision: Decision, label: string) => (decision === 'accept' ? `Aceito: ${label}` : `Rejeitado: ${label}`)
 
 const Review = ({ batch, notify, onCommit }: { batch: Batch; notify: (notice: Notice) => void; onCommit: () => void }) => {
@@ -134,6 +107,7 @@ const Review = ({ batch, notify, onCommit }: { batch: Batch; notify: (notice: No
         onError: (error) => (error instanceof ApiFailure && /^invalid \w+ payload/.test(error.message) ? form.refuse(serverErrors(candidate.kind, error.message)) : onError(error)),
       },
     )
+  const onAnswer = (question: Question, text: string) => answer.mutate({ question, answer: text }, { onSuccess: () => notify({ message: `Resposta registrada: ${text}` }), onError })
   const onRename =
     (candidate: string): Rename =>
     (name, form) =>
@@ -161,34 +135,14 @@ const Review = ({ batch, notify, onCommit }: { batch: Batch; notify: (notice: No
             const items = withModelChoices(staged, open, names)
             const titles = new Map(items.map((item) => [item.id, titleOf(item)]))
             const plan = commitPlan(items, ledger)
+            const blocking = blockingQuestions(open, items)
+            const choices = open.filter((question) => !blocking.includes(question))
             return (
               <div className="flex w-full max-w-4xl flex-col gap-5">
                 <Summary candidates={items} questions={asked} />
                 {items.length > 0 && <ReviewSummary summary={reviewSummary(batch, items, open, plan)} busy={busy} onRename={onRename} />}
-                {(open.length > 0 || batch.checks.length > 0) && (
-                  <section aria-labelledby="attention-title" className={cn(card, 'border-accent/40')}>
-                    <h2 id="attention-title" className="m-0 text-section font-semibold">
-                      Precisa de vocês
-                    </h2>
-                    {batch.checks.length > 0 && (
-                      <ul aria-label="Alertas do arquivo" className="m-0 flex list-none flex-col gap-1 p-0">
-                        {batch.checks.map((check) => (
-                          <li key={`${check.code}-${check.detail ?? ''}`} className="text-meta text-late">
-                            {checkText(check)}
-                          </li>
-                        ))}
-                      </ul>
-                    )}
-                    {choosing > 0 && <p className="m-0 text-meta text-muted">Sem resposta, o modelo escolhe a primeira opção ao importar.</p>}
-                    {open.length > 0 && (
-                      <ul aria-label="Perguntas" className="m-0 flex list-none flex-col gap-2.5 p-0">
-                        {open.map((question) => (
-                          <QuestionCard key={question.id} question={question} about={question.candidateId ? titles.get(question.candidateId) : undefined} busy={busy} onAnswer={(text) => answer.mutate({ question, answer: text }, { onSuccess: () => notify({ message: `Resposta registrada: ${text}` }), onError })} />
-                        ))}
-                      </ul>
-                    )}
-                  </section>
-                )}
+                <AttentionCard checks={batch.checks} questions={blocking} titles={titles} busy={busy} onAnswer={onAnswer} />
+                <ModelChoices questions={choices} titles={titles} busy={busy} onAnswer={onAnswer} />
                 <DecidedQuestions questions={asked} titles={titles} />
                 {items.length === 0 ? (
                   <EmptyState title="Nenhum item lido">O Claude não encontrou lançamentos neste arquivo. Volte ao histórico para descartar a importação.</EmptyState>
