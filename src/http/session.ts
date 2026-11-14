@@ -10,6 +10,7 @@ export type SessionConfig = {
   key: Buffer
   keys: KeySource
   publicUrl?: string
+  domainHint?: string
   fetcher?: typeof fetch
   now?: () => number
 }
@@ -68,7 +69,7 @@ const returnPath = (value: string | null) => (value && /^\/(?![/\\])/.test(value
 
 const failed = (reason: string) => new HttpError(400, `sign-in failed: ${reason}`)
 
-export const session = ({ issuer, clientId, clientSecret, scopes = 'openid profile', key, keys, publicUrl, fetcher = fetch, now = Date.now }: SessionConfig): Session => {
+export const session = ({ issuer, clientId, clientSecret, scopes = 'openid profile', key, keys, publicUrl, domainHint, fetcher = fetch, now = Date.now }: SessionConfig): Session => {
   let endpoints: Promise<Endpoints> | undefined
   const discover = () => {
     endpoints ??= fetcher(`${issuer.replace(/\/$/, '')}/.well-known/openid-configuration`)
@@ -106,7 +107,8 @@ export const session = ({ issuer, clientId, clientSecret, scopes = 'openid profi
     const verifier = randomBytes(32).toString('base64url')
     const state = randomBytes(16).toString('base64url')
     const nonce = randomBytes(16).toString('base64url')
-    const to = returnPath(new URL(request.url).searchParams.get('to'))
+    const params = new URL(request.url).searchParams
+    const to = returnPath(params.get('to'))
     const target = new URL(authorization_endpoint)
     const query = {
       client_id: clientId,
@@ -114,13 +116,14 @@ export const session = ({ issuer, clientId, clientSecret, scopes = 'openid profi
       response_mode: 'query',
       redirect_uri: `${originOf(request)}/auth/callback`,
       scope: scopes,
-      prompt: 'select_account',
       state,
       nonce,
       code_challenge: createHash('sha256').update(verifier).digest('base64url'),
       code_challenge_method: 'S256',
     }
     for (const [name, value] of Object.entries(query)) target.searchParams.set(name, value)
+    if (domainHint) target.searchParams.set('domain_hint', domainHint)
+    if (params.get('account') === 'select') target.searchParams.set('prompt', 'select_account')
     return redirect(target.href, cookie(request, loginCookie, seal(key, loginCookie, { state, nonce, verifier, to, exp: now() + loginMs }), '/auth', loginMs / 1000))
   }
 

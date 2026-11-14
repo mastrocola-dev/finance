@@ -65,7 +65,7 @@ const SessionIdentity = ({ children, fetch, session }: ProviderProps & { session
     forget()
     void session.signOut()
   }, [session, forget])
-  const signIn = useCallback(() => session.signIn(`${globalThis.location.pathname}${globalThis.location.search}`), [session])
+  const signIn = useCallback((select?: boolean) => session.signIn(`${globalThis.location.pathname}${globalThis.location.search}`, select), [session])
 
   if (signedOut) return <SignInScreen signIn={signIn} ended={ended} />
   if (!me && !isError) return null

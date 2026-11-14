@@ -2,8 +2,7 @@
 
 ## State
 
-- S14 E3c2 done 2026-11-14 (`web/e2e/one-click.spec.ts`, fake agent merges `Contas da casa` → `Moradia`); next is S14 F (sign-in screen), then B, D (the schedule stops after D). Tests: 416 node (0 skipped with the service-agent sibling cloned), 228 web; `npm test` and `npm run check` green; failing-test run streak 0; next free backlog number L259
-- Do not run Playwright and `npm test` at once: vitest `findByText` times out under load (L213); run import Playwright with `npx playwright test e2e/import.spec.ts --project=local` (about 1 min)
+- S14 F1 done 2026-11-14 (sign-in screen, `domain_hint`, `account=select`); next is S14 F2 (runbook Company branding and `docs/branding/` images), then B, D (the schedule stops after D). Tests: 417 node (0 skipped with the service-agent sibling cloned), 233 web; `npm test` and `npm run check` green; failing-test run streak 0; next free backlog number L261; never run Playwright and `npm test` at once (vitest `findByText` times out, L213)
 - Empty-ledger e2e: `emptyLedger()` in `web/e2e/context.ts` (reset plus `member:add -- Marcio 50 Gabriela 50`), used by `web/e2e/setup.spec.ts` and `one-click.spec.ts` with `afterAll(reseed)`; on an empty ledger the sample gives 8 accepted items, 3 pending, nothing blocking. Cadastros "Novo" opens one form at a time (`adding` in `record-list.tsx`); button names `Novo cadastro em <Seção>`
 
 ## Session setup (cloud container, each run, one command per Bash call)
@@ -37,6 +36,7 @@
 
 ## Web conventions
 
+- Sign-in (F1): `web/src/auth/sign-in-screen.tsx` (+ `google-button.tsx`, `google-mark.tsx`, `sign-in-notice.tsx`); `Session.signIn(to, select)`; e2e `sign-in.spec.ts` (entra only) reaches states by routing `/api/me` (403 unknown, 200 then real 401 expired) and busy by `route.abort('aborted')` on `/auth/login` (a held or 204 request leaves Playwright "waiting for navigation"); app version is `import.meta.env.VITE_APP_VERSION` from `web/package.json` via Vite `define`
 - Tokens only (`bg-surface`, `text-muted`, `rounded-card`); new tokens also go into `extendTailwindMerge` in `web/src/lib/utils.ts`
 - Data: `useIdentity().api`, `unwrap(await api.GET(...))` in `useQuery`, render with `QueryView`. App tests render `<App history={createMemoryHistory(...)} fetch={stub} />` with full API shapes
 - Identity: `IdentityProvider` gets `session?: Session` (`{ failed, signIn(to), signOut }`, `cookieSession()` in `web/src/auth/session.ts`, built by `main.tsx` when `VITE_AUTH_MODE=entra`); without it the local picker and `x-member`, with it `SessionIdentity` (cookie, member from `GET /api/me`, renders nothing while it loads, `signOut` in context, `choose` absent). No MSAL. Tests of signed-in states pass a fake `Session` to `<App session={...} />` with a fetch stub that answers 401 when signed out (`web/src/auth/sign-in.test.tsx`)
