@@ -19,6 +19,7 @@ const batch = (changes: Partial<Batch> = {}): Batch => ({
   checks: [{ code: 'total_mismatch', detail: 'Outubro!G40: expense 2026-10 expected 158990, found 150000' }],
   failures: [],
   totals: [],
+  consolidation: { merges: [], unchecked: [], failure: null },
   candidates: 3,
   flagged: 1,
   openQuestions: 1,
@@ -28,7 +29,7 @@ const batch = (changes: Partial<Batch> = {}): Batch => ({
   ...changes,
 })
 
-const candidate = (id: string, payload: Record<string, unknown>, changes: Partial<Candidate> = {}): Candidate => ({ id, kind: 'entry', source: `Outubro!A${id}:G${id}`, chunk: 'Outubro@0', confidence: '0.95', status: 'pending', payload, checks: [], recordId: null, ...changes })
+const candidate = (id: string, payload: Record<string, unknown>, changes: Partial<Candidate> = {}): Candidate => ({ id, kind: 'entry', source: `Outubro!A${id}:G${id}`, chunk: 'Outubro@0', confidence: '0.95', status: 'pending', acceptedByModel: false, payload, checks: [], recordId: null, ...changes })
 
 const seedCandidates = () => [
   candidate('1', { date: '2026-10-10', description: 'Aluguel', direction: 'expense', amountCents: 150000, category: 'Moradia', member: 'joint', paid: true }),
@@ -46,7 +47,7 @@ const seedCandidates = () => [
   candidate('3', { date: '2026-10-20', description: 'Mercado', direction: 'expense', amountCents: 42000, category: 'Alimentação', paid: true }),
 ]
 
-const seedQuestions = (): Question[] => [{ id: '9', candidateId: '2', question: 'GMA é a Gabriela?', options: ['Gabriela', 'Marcio'], source: 'Outubro!E4', chunk: 'Outubro@0', answer: null }]
+const seedQuestions = (): Question[] => [{ id: '9', candidateId: '2', question: 'GMA é a Gabriela?', options: ['Gabriela', 'Marcio'], source: 'Outubro!E4', chunk: 'Outubro@0', answer: null, decidedByModel: false }]
 
 let current = batch()
 let candidates = seedCandidates()
@@ -85,6 +86,7 @@ const fetch = vi.fn(async (input: Request) => {
     if (refusal) return Response.json({ error: refusal }, { status: 422 })
     const committed = candidates.filter((item) => item.status === 'accepted' || item.status === 'edited').length
     current = url.pathname.endsWith('/commit') ? { ...current, status: 'committed', committed } : { ...current, status: 'closed', closedAt: '2026-10-20T14:00:00.000Z' }
+    if (url.pathname.endsWith('/commit')) questions = questions.map((question) => (question.answer === null && question.options[0] ? { ...question, answer: question.options[0], decidedByModel: true } : question))
     return Response.json(current)
   }
   if (input.method === 'POST') {
@@ -94,6 +96,11 @@ const fetch = vi.fn(async (input: Request) => {
       questions = questions.map((question) => ({ ...question, answer: body.answer }))
       candidates = candidates.map((item) => (item.id === '2' ? { ...item, payload: { ...item.payload, member: 'Gabriela' }, checks: [{ code: 'low_confidence', detail: '0.60' }] } : item))
       return Response.json(questions[0])
+    }
+    if (url.pathname.endsWith('/categories/rename')) {
+      if (refusal) return Response.json({ error: refusal }, { status: 422 })
+      candidates = candidates.map((item) => (item.id === body.candidate ? { ...item, payload: { ...item.payload, name: body.name } } : item.payload.category === 'Pets' ? { ...item, payload: { ...item.payload, category: body.name } } : item))
+      return Response.json(candidates.filter((item) => item.id === body.candidate))
     }
     const status = url.pathname.endsWith('/accept') ? 'accepted' : 'rejected'
     candidates = candidates.map((item) => (body.ids.includes(item.id) ? { ...item, status } : item))
@@ -126,19 +133,111 @@ test('review shows questions and file checks first, then candidates grouped by m
   start()
   const attention = await screen.findByRole('region', { name: 'Precisa de vocês' })
   expect(within(attention).getByText('Total de Outubro!G40 não confere: impresso R$ 1.589,90, lido R$ 1.500,00')).toBeTruthy()
-  expect(within(attention).getByText('GMA é a Gabriela?')).toBeTruthy()
-  expect(within(attention).getByText('Farmácia · Origem Outubro!E4')).toBeTruthy()
+  expect(within(attention).queryByText('GMA é a Gabriela?')).toBeNull()
+  const choices = screen.getByRole('region', { name: 'Escolhas do Claude' })
+  expect((choices.querySelector('details') as HTMLDetailsElement).open).toBe(false)
+  expect(within(choices).getByText('1 pergunta')).toBeTruthy()
+  expect(within(choices).getByText('GMA é a Gabriela?')).toBeTruthy()
+  expect(within(choices).getByText('Escolha do Claude: Gabriela')).toBeTruthy()
+  expect(within(choices).getByText('Farmácia · Origem Outubro!E4')).toBeTruthy()
+  expect(within(choices).getByText('Sem resposta, o modelo escolhe a primeira opção ao importar. Responda para mudar a escolha.')).toBeTruthy()
   const group = screen.getByRole('region', { name: 'Lançamentos · outubro de 2026' })
   const titles = within(group)
     .getAllByRole('listitem')
     .filter((item) => item.getAttribute('aria-labelledby'))
     .map((item) => item.querySelector('[id^="candidate-title"]')?.textContent)
   expect(titles).toEqual(['Farmácia', 'Aluguel', 'Mercado'])
-  expect(within(row('Farmácia')).getByText('Pessoa desconhecida: GMA')).toBeTruthy()
+  expect(within(row('Farmácia')).getByText('Pessoa desconhecida: GMA. Sem resposta, fica Gabriela')).toBeTruthy()
   expect(within(row('Farmácia')).getByText('Outubro!A2:G2')).toBeTruthy()
+  expect((within(row('Farmácia')).getByRole('button', { name: 'Aceitar Farmácia' }) as HTMLButtonElement).disabled).toBe(false)
+  expect(screen.getByText('3 pendentes · 0 aceitos · 0 rejeitados · 1 pergunta com escolha do modelo')).toBeTruthy()
+  expect(screen.queryByRole('region', { name: 'Decididas pelo modelo' })).toBeNull()
+  expect(document.title).toBe('Revisar planilha-casa.xlsx · Caixa')
+})
+
+test('an unknown name stays blocking when no open question offers a known name first', async () => {
+  const [gma] = seedQuestions() as [Question]
+  questions = [
+    { ...gma, options: ['Sim', 'Não'] },
+    { ...gma, id: '10', question: 'Quem pagou a farmácia?', options: [] },
+  ]
+  start()
+  const attention = await screen.findByRole('region', { name: 'Precisa de vocês' })
+  expect(within(attention).getByText('Sem resposta, o modelo escolhe a primeira opção ao importar, mas ela não resolve o item.')).toBeTruthy()
+  expect(within(attention).getByText('GMA é a Gabriela?')).toBeTruthy()
+  expect(within(attention).getByText('Quem pagou a farmácia?')).toBeTruthy()
+  expect(within(attention).queryByText('Escolha do Claude: Sim')).toBeNull()
+  expect(screen.queryByRole('region', { name: 'Escolhas do Claude' })).toBeNull()
+  expect(within(row('Farmácia')).getByText('Pessoa desconhecida: GMA')).toBeTruthy()
+  expect((within(row('Farmácia')).getByRole('button', { name: 'Aceitar Farmácia' }) as HTMLButtonElement).disabled).toBe(true)
+  expect(screen.getByText('3 pendentes · 0 aceitos · 0 rejeitados · 1 com bloqueio · 1 pergunta aberta · 1 pergunta com escolha do modelo')).toBeTruthy()
+})
+
+test('model choices and blocking questions split between the two sections', async () => {
+  const [gma] = seedQuestions() as [Question]
+  questions = [gma, { ...gma, id: '10', candidateId: null, question: 'Quem é a Bia?', options: [] }]
+  current = batch({ checks: [] })
+  start()
+  const attention = await screen.findByRole('region', { name: 'Precisa de vocês' })
+  expect(
+    within(attention)
+      .getAllByRole('listitem')
+      .map((item) => item.querySelector('[id^="question-title"]')?.textContent),
+  ).toEqual(['Quem é a Bia?'])
+  expect(within(attention).queryByText(/Sem resposta/)).toBeNull()
+  const choices = screen.getByRole('region', { name: 'Escolhas do Claude' })
+  await userEvent.click(within(choices).getByText('Escolhas do Claude'))
+  expect((choices.querySelector('details') as HTMLDetailsElement).open).toBe(true)
+  await userEvent.click(within(choices).getByRole('button', { name: 'Marcio' }))
+  await waitFor(() => expect(calls).toEqual([{ path: '/api/imports/7/questions/9/answer', body: { answer: 'Marcio' }, member: 'Marcio' }]))
+})
+
+test('model choices alone leave no section asking for you', async () => {
+  current = batch({ checks: [] })
+  start()
+  expect(await screen.findByRole('region', { name: 'Escolhas do Claude' })).toBeTruthy()
+  expect(screen.queryByRole('region', { name: 'Precisa de vocês' })).toBeNull()
+})
+
+test('a group with nothing pending or blocked collapses under its heading', async () => {
+  questions = []
+  candidates = seedCandidates().map((item) => (item.id === '2' ? { ...item, status: 'rejected' } : { ...item, status: 'accepted', acceptedByModel: true }))
+  start()
+  const group = await screen.findByRole('region', { name: 'Lançamentos · outubro de 2026' })
+  const details = group.querySelector('details') as HTMLDetailsElement
+  expect(details.open).toBe(false)
+  expect(within(group).getByText('3 itens')).toBeTruthy()
+  expect(within(group).getByText('2 aceitos · 1 rejeitado')).toBeTruthy()
+  expect(within(group).queryByRole('button', { name: /prontos/ })).toBeNull()
+  await userEvent.click(within(group).getByText('Lançamentos · outubro de 2026'))
+  expect(details.open).toBe(true)
+  await userEvent.click(within(row('Mercado')).getByRole('button', { name: 'Rejeitar Mercado' }))
+  await waitFor(() => expect(calls.at(-1)).toEqual({ path: '/api/imports/7/candidates/reject', body: { ids: ['3'] }, member: 'Marcio' }))
+  await waitFor(() => expect(within(group).getByText('1 aceito · 2 rejeitados')).toBeTruthy())
+  expect(details.open).toBe(true)
+})
+
+test('a group with a pending item stays open and a linked item opens its collapsed group', async () => {
+  questions = []
+  candidates = seedCandidates().map((item) => ({ ...item, status: 'accepted', checks: [] }))
+  render(<App history={createMemoryHistory({ initialEntries: ['/importar/7#candidate-3'] })} fetch={fetch} />)
+  const group = await screen.findByRole('region', { name: 'Lançamentos · outubro de 2026' })
+  expect((group.querySelector('details') as HTMLDetailsElement).open).toBe(true)
+  cleanup()
+  candidates = seedCandidates()
+  start()
+  const open = await screen.findByRole('region', { name: 'Lançamentos · outubro de 2026' })
+  expect(open.querySelector('details')).toBeNull()
+})
+
+test('questions without options need an answer and say nothing about the model', async () => {
+  const [gma] = seedQuestions() as [Question]
+  questions = [{ ...gma, options: [] }]
+  start()
+  const attention = await screen.findByRole('region', { name: 'Precisa de vocês' })
+  expect(within(attention).queryByText('Sem resposta, o modelo escolhe a primeira opção ao importar.')).toBeNull()
   expect((within(row('Farmácia')).getByRole('button', { name: 'Aceitar Farmácia' }) as HTMLButtonElement).disabled).toBe(true)
   expect(screen.getByText('3 pendentes · 0 aceitos · 0 rejeitados · 1 com bloqueio · 1 pergunta aberta')).toBeTruthy()
-  expect(document.title).toBe('Revisar planilha-casa.xlsx · Caixa')
 })
 
 test('answering a question resolves the blocked candidate', async () => {
@@ -156,7 +255,8 @@ test('free text answers go through the form', async () => {
   await waitFor(() => expect(calls.at(0)?.body).toEqual({ answer: 'Conjunto' }))
 })
 
-test('accepts the ready items of a group at once, rejects and accepts one by one', async () => {
+test('accepts the ready items of a group at once, rejects and accepts one by one, and the settled group stays open', async () => {
+  questions = []
   start()
   await userEvent.click(await screen.findByRole('button', { name: 'Aceitar 2 prontos' }))
   await waitFor(() => expect(calls.at(-1)).toEqual({ path: '/api/imports/7/candidates/accept', body: { ids: ['1', '3'] }, member: 'Marcio' }))
@@ -170,6 +270,7 @@ test('accepts the ready items of a group at once, rejects and accepts one by one
   await waitFor(() => expect(within(row('Mercado')).getByText('Rejeitado')).toBeTruthy())
   await userEvent.click(within(row('Mercado')).getByRole('button', { name: 'Aceitar Mercado' }))
   await waitFor(() => expect(within(row('Mercado')).getByText('Aceito')).toBeTruthy())
+  expect((screen.getByRole('region', { name: 'Lançamentos · outubro de 2026' }).querySelector('details') as HTMLDetailsElement).open).toBe(true)
 })
 
 test('a batch that is not verified shows why there is nothing to review', async () => {
@@ -270,25 +371,35 @@ test('keeps Ler de novo disabled and says why while the ingest runtime is not re
 }, 10000)
 
 test('commit explains the blocking checks of accepted items and stays disabled', async () => {
+  questions = []
   candidates = candidates.map((item) => ({ ...item, status: item.id === '3' ? 'rejected' : 'accepted' }))
   start()
   const commit = await screen.findByRole('region', { name: 'Gravar no livro' })
-  expect(within(commit).getByText('1 item aceito vai para o livro. 1 item pendente ou rejeitado fica de fora. 1 pergunta segue aberta.')).toBeTruthy()
+  expect(within(commit).getByText('1 item aceito vai para o livro. 1 item pendente ou rejeitado fica de fora.')).toBeTruthy()
   expect(within(commit).getByText('Um item aceito tem bloqueio. Edite, responda ou rejeite antes de gravar:')).toBeTruthy()
   expect(within(within(commit).getByRole('list', { name: 'Bloqueios' })).getByRole('listitem').textContent).toBe('Farmácia · Pessoa desconhecida: GMA')
-  expect((within(commit).getByRole('button', { name: 'Gravar 1 item' }) as HTMLButtonElement).disabled).toBe(true)
+  expect((within(commit).getByRole('button', { name: 'Importar 1 item' }) as HTMLButtonElement).disabled).toBe(true)
 })
 
-test('commits the accepted items after confirmation, then closes the batch', async () => {
+test('commits with an unanswered question, then shows it decided by the model and closes the batch', async () => {
   start()
-  await userEvent.click(await screen.findByRole('button', { name: 'Aceitar 2 prontos' }))
+  await userEvent.click(await screen.findByRole('button', { name: 'Aceitar 3 prontos' }))
   const commit = screen.getByRole('region', { name: 'Gravar no livro' })
-  await waitFor(() => expect(within(commit).getByText('2 itens aceitos vão para o livro. 1 item pendente ou rejeitado fica de fora. 1 pergunta segue aberta.')).toBeTruthy())
-  await userEvent.click(within(commit).getByRole('button', { name: 'Gravar 2 itens' }))
-  await userEvent.click(within(commit).getByRole('button', { name: 'Confirmar gravação' }))
-  expect(await screen.findByText('Gravado no livro: 2 itens')).toBeTruthy()
+  await waitFor(() => expect(within(commit).getByText('3 itens aceitos vão para o livro. 1 pergunta sem resposta fica com a primeira opção.')).toBeTruthy())
+  await userEvent.click(within(commit).getByRole('button', { name: 'Importar 3 itens' }))
+  expect(await screen.findByText('Gravado no livro: 3 itens')).toBeTruthy()
   const done = await screen.findByRole('region', { name: 'Gravada no livro' })
-  expect(within(done).getByText(/^2 itens gravados\./)).toBeTruthy()
+  expect(within(done).getByText(/^3 itens gravados\./)).toBeTruthy()
+  const decided = await screen.findByRole('region', { name: 'Decididas pelo modelo' })
+  const list = within(decided).getByRole('list', { name: 'Perguntas decididas pelo modelo', hidden: true })
+  expect(list.closest('details')?.open).toBe(false)
+  await userEvent.click(within(decided).getByText('Decididas pelo modelo'))
+  expect(list.closest('details')?.open).toBe(true)
+  const item = within(list).getByRole('listitem')
+  expect(within(item).getByText('GMA é a Gabriela?')).toBeTruthy()
+  expect(within(item).getByText('Resposta: Gabriela')).toBeTruthy()
+  expect(within(item).getByText('decidido pelo modelo')).toBeTruthy()
+  expect(within(item).getByText('Farmácia · Origem Outubro!E4')).toBeTruthy()
   expect(within(done).getByRole('link', { name: 'Ver lançamentos' }).getAttribute('href')).toContain('/lancamentos')
   expect(screen.queryByRole('region', { name: 'Gravar no livro' })).toBeNull()
   await userEvent.click(within(done).getByRole('button', { name: 'Encerrar' }))
@@ -309,7 +420,7 @@ test('commit lists accepted items naming what only a pending item creates', asyn
   const commit = await screen.findByRole('region', { name: 'Gravar no livro' })
   await waitFor(() => expect(within(commit).getByText('Um item aceito usa um nome que só existe num item não aceito. Aceite esse item ou edite o que usa o nome:')).toBeTruthy())
   expect(within(within(commit).getByRole('list', { name: 'Nomes não aceitos' })).getByRole('listitem').textContent).toBe('Aluguel · Conta Conta nova está num item pendente')
-  expect((within(commit).getByRole('button', { name: 'Gravar 1 item' }) as HTMLButtonElement).disabled).toBe(true)
+  expect((within(commit).getByRole('button', { name: 'Importar 1 item' }) as HTMLButtonElement).disabled).toBe(true)
   const creator = within(commit).getByRole('link', { name: 'Conta Conta nova está num item pendente' })
   expect(creator.getAttribute('href')).toMatch(/\/importar\/7#candidate-4$/)
   expect(document.querySelectorAll('[aria-current="true"]')).toHaveLength(0)
@@ -318,7 +429,19 @@ test('commit lists accepted items naming what only a pending item creates', asyn
   expect(document.querySelectorAll('[aria-current="true"]')).toHaveLength(1)
   await userEvent.click(screen.getByRole('button', { name: 'Aceitar Conta nova' }))
   await waitFor(() => expect(within(commit).queryByRole('list', { name: 'Nomes não aceitos' })).toBeNull())
-  expect((within(commit).getByRole('button', { name: 'Gravar 2 itens' }) as HTMLButtonElement).disabled).toBe(false)
+  expect((within(commit).getByRole('button', { name: 'Importar 2 itens' }) as HTMLButtonElement).disabled).toBe(false)
+})
+
+test('items the Claude accepted say so and import in one click with nothing blocking', async () => {
+  questions = []
+  candidates = candidates.filter((item) => item.id !== '2').map((item) => ({ ...item, status: 'accepted', acceptedByModel: item.id === '1' }))
+  start()
+  const commit = await screen.findByRole('region', { name: 'Gravar no livro' })
+  expect(within(screen.getByText('Aluguel').closest('li') as HTMLElement).getByText('Aceito pelo Claude')).toBeTruthy()
+  expect(within(screen.getByText('Mercado').closest('li') as HTMLElement).getByText('Aceito', { exact: true })).toBeTruthy()
+  await userEvent.click(within(commit).getByRole('button', { name: 'Importar 2 itens' }))
+  expect(await screen.findByText('Gravado no livro: 2 itens')).toBeTruthy()
+  expect(calls.at(-1)).toEqual({ path: '/api/imports/7/commit', body: null, member: 'Marcio' })
 })
 
 test('explains a commit the API refuses', async () => {
@@ -326,8 +449,50 @@ test('explains a commit the API refuses', async () => {
   refusal = 'unknown account Conta antiga'
   start()
   const commit = await screen.findByRole('region', { name: 'Gravar no livro' })
-  await userEvent.click(within(commit).getByRole('button', { name: 'Gravar 1 item' }))
-  await userEvent.click(within(commit).getByRole('button', { name: 'Confirmar gravação' }))
+  await userEvent.click(within(commit).getByRole('button', { name: 'Importar 1 item' }))
   expect(await screen.findByText('Conta antiga não existe no livro nem entre os itens aceitos. Aceite o item que cria esse nome ou edite os itens que o usam.')).toBeTruthy()
   expect(screen.getByRole('region', { name: 'Gravar no livro' })).toBeTruthy()
+})
+
+test('review leads with a summary of the consolidation and what still blocks', async () => {
+  current = batch({ consolidation: { merges: [{ name: 'Farmácia', kind: 'expense', to: 'Saúde', candidates: 1 }], unchecked: [{ source: 'Outubro!G12', month: '2026-10-01', direction: 'expense', category: 'Farmácia', amountCents: 8990 }], failure: null } })
+  candidates = [...candidates.map((item) => (item.id === '1' ? { ...item, status: 'accepted' as const, acceptedByModel: true } : item)), candidate('4', { name: 'Pets', kind: 'expense' }, { kind: 'category' })]
+  start()
+  const summary = await screen.findByRole('region', { name: 'Resumo' })
+  expect(within(summary).getByText('1 item pronto para importar')).toBeTruthy()
+  expect(within(summary).getByText('1 aceito pelo Claude')).toBeTruthy()
+  expect(within(summary).getByText('Nada bloqueia a importação')).toBeTruthy()
+  expect(within(within(summary).getByRole('list', { name: 'Categorias novas' })).getByText('Pets')).toBeTruthy()
+  expect(within(summary).getByRole('list', { name: 'Categorias juntadas' }).textContent).toBe('FarmáciaparaSaúde1 item')
+  expect(within(summary).getByText('Subtotal de Farmácia em outubro de 2026 (R$ 89,90) ficou sem conferência')).toBeTruthy()
+  expect(screen.getAllByRole('region')[0]).toBe(summary)
+})
+
+test('renames a new category from the summary and keeps refused names in the form', async () => {
+  candidates = [...candidates, candidate('4', { name: 'Pets', kind: 'expense' }, { kind: 'category' })]
+  start()
+  const summary = await screen.findByRole('region', { name: 'Resumo' })
+  await userEvent.click(within(summary).getByRole('button', { name: 'Renomear Pets' }))
+  const field = within(summary).getByRole('textbox', { name: 'Novo nome de Pets' })
+  expect(document.activeElement).toBe(field)
+  refusal = 'category Lazer is already open; answer or edit the items to use it'
+  await userEvent.clear(field)
+  await userEvent.type(field, 'Lazer{Enter}')
+  expect((await within(summary).findByRole('alert')).textContent).toBe('Já existe uma categoria com esse nome. Escolha outro.')
+  expect(field.getAttribute('aria-invalid')).toBe('true')
+  refusal = undefined
+  await userEvent.clear(field)
+  await userEvent.type(field, ' Animais ')
+  await userEvent.click(within(summary).getByRole('button', { name: 'Salvar' }))
+  expect(await screen.findByText('Categoria renomeada: Animais')).toBeTruthy()
+  expect(calls.filter((call) => call.path.endsWith('/rename'))).toEqual([
+    { path: '/api/imports/7/categories/rename', body: { candidate: '4', name: 'Lazer' }, member: 'Marcio' },
+    { path: '/api/imports/7/categories/rename', body: { candidate: '4', name: 'Animais' }, member: 'Marcio' },
+  ])
+  const renamed = await within(summary).findByRole('button', { name: 'Renomear Animais' })
+  await waitFor(() => expect(document.activeElement).toBe(renamed))
+  await userEvent.click(renamed)
+  await userEvent.click(within(summary).getByRole('button', { name: 'Cancelar' }))
+  expect(within(summary).queryByRole('textbox')).toBeNull()
+  expect(document.activeElement).toBe(within(summary).getByRole('button', { name: 'Renomear Animais' }))
 })

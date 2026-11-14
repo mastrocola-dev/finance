@@ -39,3 +39,12 @@ export const useRecentActivity = (limit = 5) => {
   const { api, member } = useIdentity()
   return useQuery({ queryKey: ['audit', 'recent', limit, member], enabled: Boolean(member), queryFn: async () => unwrap(await api.GET('/api/audit', { params: { query: { limit } } })) })
 }
+
+export const useVariablePlan = (month: string, member: string | undefined, enabled = true) => {
+  const { api } = useIdentity()
+  return useQuery({
+    queryKey: ['entries', 'variables', month, member ?? 'all'],
+    enabled,
+    queryFn: async () => unwrap(await api.GET('/api/months/{month}/variables', { params: { path: { month }, query: member ? { member } : {} } })),
+  })
+}

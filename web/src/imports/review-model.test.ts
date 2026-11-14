@@ -1,8 +1,8 @@
 import { expect, test } from 'vitest'
 import { ApiFailure } from '../query/client.ts'
-import { acceptable, amountOf, blocked, type Candidate, candidateRecord, checkText, commitFailure, commitPlan, detailsOf, groupCandidates, monthOfCandidate, reviewCounts, reviewFailure, titleOf, unstagedText } from './review-model.ts'
+import { acceptable, amountOf, blocked, type Candidate, candidateRecord, checkText, commitFailure, commitPlan, detailsOf, groupCandidates, isBlocking, monthOfCandidate, type Question, reviewCounts, reviewFailure, settled, titleOf, unstagedText, withModelChoices } from './review-model.ts'
 
-const candidate = (id: string, kind: Candidate['kind'], payload: Record<string, unknown>, changes: Partial<Candidate> = {}): Candidate => ({ id, kind, source: 'A1', chunk: null, confidence: '0.90', status: 'pending', payload, checks: [], recordId: null, ...changes })
+const candidate = (id: string, kind: Candidate['kind'], payload: Record<string, unknown>, changes: Partial<Candidate> = {}): Candidate => ({ id, kind, source: 'A1', chunk: null, confidence: '0.90', status: 'pending', acceptedByModel: false, payload, checks: [], recordId: null, ...changes })
 
 const rent = candidate('1', 'entry', { date: '2026-10-10', description: 'Aluguel', direction: 'expense', amountCents: 150000, category: 'Moradia', member: 'joint', paid: true })
 const pharmacy = candidate('2', 'entry', { date: '2026-10-15', description: 'Farmácia', direction: 'expense', amountCents: 8990, category: 'Saúde', member: 'GMA', paid: false, installment: { number: 2, total: 3 } }, { checks: [{ code: 'unknown_member', detail: 'GMA' }] })
@@ -25,6 +25,20 @@ test('only pending items without blocking checks are acceptable in bulk', () => 
   expect(blocked({ ...rent, checks: [{ code: 'duplicate_in_ledger', detail: 'entry 3' }] })).toBe(false)
 })
 
+test('a group is settled when nothing is pending and nothing blocks', () => {
+  const group = (candidates: Candidate[]) => ({ key: 'k', kind: 'entry' as const, title: 't', candidates })
+  expect(
+    settled(
+      group([
+        { ...rent, status: 'accepted' },
+        { ...pharmacy, status: 'rejected' },
+      ]),
+    ),
+  ).toBe(true)
+  expect(settled(group([{ ...rent, status: 'edited' }, rent]))).toBe(false)
+  expect(settled(group([{ ...pharmacy, status: 'accepted' }]))).toBe(false)
+})
+
 test('describes candidates of every shape, including invalid payloads', () => {
   expect(titleOf(debt)).toBe('Financeira Exemplo · Carro')
   expect(titleOf(pets)).toBe('Pets')
@@ -41,6 +55,11 @@ test('describes candidates of every shape, including invalid payloads', () => {
 test('explains checks in Portuguese', () => {
   expect(checkText({ code: 'unknown_member', detail: 'GMA' })).toBe('Pessoa desconhecida: GMA')
   expect(checkText({ code: 'low_confidence', detail: '0.60' })).toBe('Leitura incerta (60%)')
+  expect(checkText({ code: 'matched_category', detail: 'Mercado → Supermercado' })).toBe('Categoria reconhecida: Mercado → Supermercado')
+  expect(checkText({ code: 'matched_member', detail: 'GMA → Gabriela' })).toBe('Pessoa reconhecida: GMA → Gabriela')
+  expect(checkText({ code: 'member_unmatched', detail: 'Tia Rosa' })).toBe('Pessoa não encontrada: Tia Rosa, fica como conjunto')
+  expect(checkText({ code: 'account_unmatched', detail: 'Nubank' })).toBe('Conta não encontrada: Nubank, fica sem conta')
+  expect(isBlocking('entry', { code: 'matched_category', detail: 'Mercado → Supermercado' })).toBe(false)
   expect(checkText({ code: 'duplicate_in_ledger', detail: 'entry 4' })).toBe('Já existe no livro')
   expect(checkText({ code: 'total_mismatch', detail: 'Outubro!G40: expense 2026-10 expected 158990, found 150000' })).toBe('Total de Outubro!G40 não confere: impresso R$ 1.589,90, lido R$ 1.500,00')
   expect(checkText({ code: 'total_mismatch', detail: 'Outubro!A40:G40: net 2026-10 expected -100, found 0' })).toBe('Total de Outubro!A40:G40 não confere: impresso -R$ 1,00, lido R$ 0,00')
@@ -74,6 +93,16 @@ test('commit plan lists accepted items naming what only an unaccepted item stage
   expect(commitPlan([vet, pets, card]).unstaged).toEqual([])
   expect(commitPlan([vet, { ...pets, status: 'accepted' }, { ...card, status: 'edited' }], ledger).unstaged).toEqual([])
   expect(commitPlan([vet, pets, card], { ...ledger, accounts: ['cartão novo'], categories: [{ name: 'Pets', direction: 'expense' }] }).unstaged).toEqual([])
+
+  const matched = {
+    ...vet,
+    payload: { ...vet.payload, category: 'Petz' },
+    checks: [
+      { code: 'matched_category', detail: 'Petz → Pets' },
+      { code: 'account_unmatched', detail: 'Cartão Novo' },
+    ],
+  }
+  expect(commitPlan([matched, pets, card], ledger).unstaged[0]?.references.map(unstagedText)).toEqual(['Categoria Pets está num item pendente'])
 })
 
 test('commit refusals become Portuguese', () => {
@@ -85,4 +114,25 @@ test('commit refusals become Portuguese', () => {
   expect(failure(422, 'income Aluguel recebido needs a member')).toBe('A receita Aluguel recebido precisa de uma pessoa. Edite o item e escolha quem recebe.')
   expect(failure(401, 'x-member header required')).toBe('Escolha quem você é para gravar.')
   expect(commitFailure(new Error('network'))).toBe('Não foi possível gravar. Tente de novo.')
+})
+
+const question = (id: string, text: string, options: string[], answer: string | null = null): Question => ({ id, candidateId: null, question: text, options, source: null, chunk: null, answer, decidedByModel: false })
+
+const names = { members: ['Conjunto', 'Marcio', 'Gabriela'], accounts: ['Conta conjunta'], categories: ['Saúde', 'Pets'], reserves: [] }
+
+test('an unknown name an open question would settle with its first option is shown as the model choice, not as a block', () => {
+  const vet = candidate('6', 'entry', { date: '2026-10-02', description: 'Veterinário', direction: 'expense', amountCents: 300, category: 'Bichos', paid: true }, { checks: [{ code: 'unknown_category', detail: 'Bichos' }], status: 'accepted' })
+  const choices = withModelChoices([pharmacy, vet], [question('1', 'Quem é "gma"?', ['Gabriela', 'Conjunto']), question('2', 'Bichos é Saúde?', ['Sim']), question('3', 'Qual categoria é "Bichos"?', ['pets', 'Nova categoria'])], names)
+  expect(choices.map((item) => item.checks)).toEqual([[{ code: 'model_member', detail: 'GMA → Gabriela' }], [{ code: 'model_category', detail: 'Bichos → Pets' }]])
+  expect(choices.some(blocked)).toBe(false)
+  expect(checkText({ code: 'model_category', detail: 'Bichos → Pets' })).toBe('Categoria desconhecida: Bichos. Sem resposta, fica Pets')
+  expect(commitPlan(choices, { accounts: [], categories: [{ name: 'Saúde', direction: 'expense' }], reserves: [] }).unstaged).toEqual([])
+})
+
+test('answered questions, empty options and a first option that names nothing known leave the block', () => {
+  const keep = (questions: Question[]) => withModelChoices([pharmacy], questions, names)[0]?.checks
+  expect(keep([question('1', 'GMA é a Gabriela?', ['Gabriela'], 'Marcio')])).toEqual(pharmacy.checks)
+  expect(keep([question('1', 'GMA é a Gabriela?', [])])).toEqual(pharmacy.checks)
+  expect(keep([question('1', 'GMA é a Gabriela?', ['Sim', 'Não'])])).toEqual(pharmacy.checks)
+  expect(keep([question('1', 'Quem é GMAX?', ['Gabriela'])])).toEqual(pharmacy.checks)
 })

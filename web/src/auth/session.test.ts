@@ -14,6 +14,8 @@ test('signs in through the API with the current path to come back to', () => {
   expect(history.replaceState).not.toHaveBeenCalled()
   session.signIn('/decisoes?month=2026-10')
   expect(location.assign).toHaveBeenCalledWith('/auth/login?to=%2Fdecisoes%3Fmonth%3D2026-10')
+  session.signIn('/', true)
+  expect(location.assign).toHaveBeenLastCalledWith('/auth/login?to=%2F&account=select')
 })
 
 test('a failed sign-in is read once from the address and removed from it', () => {

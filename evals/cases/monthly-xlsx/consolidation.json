@@ -1,0 +1,91 @@
+{
+  "output": {
+    "categories": [
+      {
+        "name": "Moradia",
+        "kind": "expense",
+        "to": "Moradia"
+      },
+      {
+        "name": "Contas da casa",
+        "kind": "expense",
+        "to": "Contas da casa"
+      },
+      {
+        "name": "Educação",
+        "kind": "expense",
+        "to": "Educação"
+      },
+      {
+        "name": "Saúde",
+        "kind": "expense",
+        "to": "Saúde"
+      },
+      {
+        "name": "Supermercado",
+        "kind": "expense",
+        "to": "Supermercado"
+      },
+      {
+        "name": "Combustível",
+        "kind": "expense",
+        "to": "Combustível"
+      },
+      {
+        "name": "Restaurantes",
+        "kind": "expense",
+        "to": "Restaurantes"
+      },
+      {
+        "name": "Assinaturas",
+        "kind": "expense",
+        "to": "Assinaturas"
+      },
+      {
+        "name": "Mercado",
+        "kind": "expense",
+        "to": "Supermercado"
+      },
+      {
+        "name": "Drogaria",
+        "kind": "expense",
+        "to": "Farmácia"
+      },
+      {
+        "name": "Farmácia",
+        "kind": "expense",
+        "to": "Farmácia"
+      },
+      {
+        "name": "Transporte",
+        "kind": "expense",
+        "to": "Transporte"
+      },
+      {
+        "name": "Salário",
+        "kind": "income",
+        "to": "Salário"
+      },
+      {
+        "name": "Presentes",
+        "kind": "expense",
+        "to": "Presentes"
+      },
+      {
+        "name": "Pets",
+        "kind": "expense",
+        "to": "Pets"
+      },
+      {
+        "name": "Freela",
+        "kind": "income",
+        "to": "Freela"
+      }
+    ]
+  },
+  "usage": {
+    "inputTokens": 1800,
+    "outputTokens": 420,
+    "costUsdMicros": 11700
+  }
+}

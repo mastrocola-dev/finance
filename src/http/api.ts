@@ -7,9 +7,10 @@ import { findBatch, listBatches, listCandidates, listQuestions } from '../import
 import { maxBytes } from '../import/cli.ts'
 import { closeBatch } from '../import/close.ts'
 import { commitBatch } from '../import/commit.ts'
-import { answerQuestion, editCandidate, reviewCandidates } from '../import/review.ts'
-import { Busy, type ImportUploads, importUploads, Unavailable } from '../import/uploads.ts'
+import { answerQuestion, editCandidate, renameCategory, reviewCandidates } from '../import/review.ts'
+import { Busy, type Imports, importUploads, Unavailable, warmedUploads } from '../import/uploads.ts'
 import { listAudit } from '../ledger/audit.ts'
+import { cardLimits } from '../ledger/cards.ts'
 import { listAccounts, listCategories } from '../ledger/catalog.ts'
 import { listDebts } from '../ledger/debts.ts'
 import { findDecision, listDecisions } from '../ledger/decisions.ts'
@@ -20,9 +21,10 @@ import { listMembers, type Member } from '../ledger/members.ts'
 import { cancelEntry, confirmDecision, correctEntry, createEntry, markPaid, markUnpaid, type NewEntry, proposeDecision, rejectDecision, updateReserve, withdrawDecision } from '../ledger/record.ts'
 import { findReserve, listReserves } from '../ledger/reserves.ts'
 import { RuleError } from '../ledger/rule.ts'
-import { closeRecord, editRecord, listSetup, recordChanges, registerRecord } from '../ledger/setup.ts'
+import { closeRecord, createStarterCategories, editRecord, listSetup, recordChanges, registerRecord } from '../ledger/setup.ts'
 import { monthSplit } from '../ledger/split.ts'
 import { compareMonths } from '../ledger/summary.ts'
+import { variablePlan } from '../ledger/variables.ts'
 import { netWorth } from '../ledger/worth.ts'
 import { toJson } from '../mcp/json.ts'
 import { HttpError, readBytes, readJson } from './body.ts'
@@ -32,7 +34,9 @@ import {
   candidateEdit,
   candidateIds,
   candidatePath,
+  cardQuery,
   categoryQuery,
+  categoryRename,
   decisionQuery,
   entryQuery,
   idPath,
@@ -53,11 +57,13 @@ import {
   summaryQuery,
   uploadHeaders,
   uploadQuery,
+  variableQuery,
 } from './contract.ts'
 import { listOf, originHostnamesOf } from './hosts.ts'
 import { identify, type Verifier, verifierFor } from './identity.ts'
 import { listen } from './node.ts'
 import { openApi } from './openapi.ts'
+import { extractKeyOf, remoteUploads } from './remote-uploads.ts'
 import { type Site, site } from './site.ts'
 
 export const apiPrefix = '/api'
@@ -65,7 +71,7 @@ export const apiPrefix = '/api'
 type Schema = z.ZodType
 type Parsed<T> = T extends Schema ? z.output<T> : undefined
 type Spec = { method: string; path: string; operationId: string; summary: string; params?: Schema; query?: Schema; headers?: Schema; body?: Schema; upload?: true; response: Schema; status?: number; identified?: true; open?: true }
-type Input<S extends Spec> = { request: Request; params: Parsed<S['params']>; query: Parsed<S['query']>; headers: Parsed<S['headers']>; body: Parsed<S['body']>; member?: Member; client: Database; imports: ImportUploads; verify: Verifier }
+type Input<S extends Spec> = { request: Request; params: Parsed<S['params']>; query: Parsed<S['query']>; headers: Parsed<S['headers']>; body: Parsed<S['body']>; member?: Member; client: Database; imports: Imports; verify: Verifier }
 export type Route = Spec & { pattern: URLPattern; handle: (input: Input<Spec>) => Promise<unknown> }
 
 const writing = async <T>({ client, member }: { client: Database; member?: Member }, work: (connection: PoolClient, actor: Actor) => Promise<T>) => {
@@ -94,10 +100,25 @@ const entryOf = (body: z.output<typeof newEntry>): NewEntry => ({
 
 const cents = (value: number | undefined) => (value === undefined ? undefined : BigInt(value))
 
-const batchView = async ({ client, imports }: { client: Database; imports: ImportUploads }, id: bigint) => {
+const progressOf = (imports: Imports, ids: bigint[]) =>
+  Promise.resolve()
+    .then(() => imports.progressOf(ids))
+    .catch(refused)
+
+const batchView = async ({ client, imports }: { client: Database; imports: Imports }, id: bigint) => {
   const batch = await findBatch(client, id)
   if (!batch) throw new HttpError(404, `import batch ${id} not found`)
-  return { ...batch, progress: imports.progressOf(id) }
+  return (await withProgress(imports, [batch]))[0]
+}
+
+const extracting = (batch: { status: string; closedAt: unknown }) => batch.closedAt === null && (batch.status === 'draft' || batch.status === 'verified')
+
+const withProgress = async (imports: Imports, batches: { id: string; status: string; closedAt: unknown }[]) => {
+  const progress = await progressOf(
+    imports,
+    batches.filter(extracting).map((batch) => BigInt(batch.id)),
+  )
+  return batches.map((batch) => ({ ...batch, progress: progress.get(BigInt(batch.id)) ?? null }))
 }
 
 const existingBatch = async (client: Database, id: string) => {
@@ -106,9 +127,9 @@ const existingBatch = async (client: Database, id: string) => {
   return BigInt(id)
 }
 
-const reviewableBatch = async ({ client, imports }: { client: Database; imports: ImportUploads }, id: string) => {
+const reviewableBatch = async ({ client, imports }: { client: Database; imports: Imports }, id: string) => {
   const batchId = await existingBatch(client, id)
-  if (imports.progressOf(batchId)?.state === 'extracting') throw new HttpError(409, `import batch ${id} is still extracting`)
+  if ((await progressOf(imports, [batchId])).get(batchId)?.state === 'extracting') throw new HttpError(409, `import batch ${id} is still extracting`)
   return batchId
 }
 
@@ -118,7 +139,7 @@ const refused = (caught: unknown): never => {
   throw caught
 }
 
-const removeUpload = (imports: ImportUploads, batchId: bigint) => imports.discard(batchId).catch(() => [])
+const removeUpload = (imports: Imports, batchId: bigint) => imports.discard(batchId).catch(() => [])
 
 const reviewSummaries = { accept: 'Accept open candidates of a verified import batch', reject: 'Reject open candidates of a verified import batch' } as const
 
@@ -132,6 +153,7 @@ export const routes: Route[] = [
   route({ method: 'GET', path: '/openapi.json', operationId: 'getOpenApi', summary: 'This OpenAPI document', open: true, response: schemas.OpenApiDocument }, async ({ verify }) => openApi(routes, { bearer: Boolean(verify.issuer) })),
   route({ method: 'GET', path: '/health', operationId: 'getHealth', summary: 'Liveness without identity or database', open: true, response: schemas.Health }, async () => ({ status: 'ok' })),
   route({ method: 'GET', path: '/months/:month/summary', operationId: 'getMonthSummary', summary: 'Month totals compared with another month', params: monthPath, query: summaryQuery, response: schemas.Comparison }, ({ client, params, query }) => compareMonths(client, params.month, query.compare_with, query.today)),
+  route({ method: 'GET', path: '/months/:month/variables', operationId: 'getVariablePlan', summary: 'Variable expenses of a month: estimate against spent', params: monthPath, query: variableQuery, response: schemas.VariablePlan }, ({ client, params, query }) => variablePlan(client, params.month, query.member)),
   route({ method: 'GET', path: '/months/:month/entries', operationId: 'listEntries', summary: 'Entries of a month with filters', params: monthPath, query: entryQuery, response: z.array(schemas.Entry) }, ({ client, params, query: { today, ...filters } }) =>
     listEntries(client, { month: params.month, ...filters }, today),
   ),
@@ -144,6 +166,7 @@ export const routes: Route[] = [
   route({ method: 'GET', path: '/accounts', operationId: 'listAccounts', summary: 'Active accounts by nickname and last four digits, joint first', response: z.array(schemas.Account) }, ({ client }) => listAccounts(client)),
   route({ method: 'GET', path: '/goals', operationId: 'listGoals', summary: 'Goals with progress, nearest due first', response: z.array(schemas.Goal) }, ({ client }) => listGoals(client)),
   route({ method: 'GET', path: '/net-worth', operationId: 'getNetWorth', summary: 'Reserves and goals minus debt balances', response: schemas.NetWorth }, ({ client }) => netWorth(client)),
+  route({ method: 'GET', path: '/cards', operationId: 'listCards', summary: 'Open credit cards with limit, installments, committed and available limit and the releases of the coming bills', query: cardQuery, response: z.array(schemas.Card) }, ({ client, query }) => cardLimits(client, query.month)),
   route({ method: 'GET', path: '/months/:month/split', operationId: 'getMonthSplit', summary: 'Who owes whom from joint expenses paid from member accounts', params: monthPath, response: schemas.Split }, ({ client, params }) => monthSplit(client, params.month)),
   route({ method: 'GET', path: '/audit', operationId: 'listAudit', summary: 'Audit log, newest first, with counts per author; needs a member', identified: true, query: auditQuery, response: schemas.AuditPage }, ({ client, query: { before, ...filter } }) =>
     listAudit(client, { ...filter, before: before === undefined ? undefined : BigInt(before) }),
@@ -169,10 +192,14 @@ export const routes: Route[] = [
     const cancelled = await writing(input, (connection, actor) => cancelEntry(connection, actor, BigInt(input.params.id)))
     return { id: String(cancelled) }
   }),
-  route({ method: 'GET', path: '/setup', operationId: 'listSetup', summary: 'Open categories, accounts, reserves, incomes, recurring expenses, debts and goals', response: z.array(schemas.SetupRecord) }, ({ client }) => listSetup(client)),
-  route({ method: 'POST', path: '/setup', operationId: 'registerRecord', summary: 'Register a category, account, reserve, income, recurring expense, debt or goal', body: newRecord, response: schemas.SetupRecord, status: 201 }, async (input) => {
+  route({ method: 'GET', path: '/setup', operationId: 'listSetup', summary: 'Open categories, accounts, reserves, incomes, recurring expenses, variable expenses, card installments, debts and goals', response: z.array(schemas.SetupRecord) }, ({ client }) => listSetup(client)),
+  route({ method: 'POST', path: '/setup', operationId: 'registerRecord', summary: 'Register a category, account, reserve, income, recurring expense, variable expense, card installment, debt or goal', body: newRecord, response: schemas.SetupRecord, status: 201 }, async (input) => {
     const created = String(await writing(input, (connection, actor) => registerRecord(connection, actor, input.body.kind, input.body.payload)))
     return (await listSetup(input.client)).find((record) => record.kind === input.body.kind && record.id === created)
+  }),
+  route({ method: 'POST', path: '/setup/starter-categories', operationId: 'createStarterCategories', summary: 'Create the suggested household categories that are not open yet, in one audited write; returns the ones created', response: z.array(schemas.SetupRecord), status: 201 }, async (input) => {
+    const created = new Set(await writing(input, (connection, actor) => createStarterCategories(connection, actor)))
+    return (await listSetup(input.client)).filter((record) => record.kind === 'category' && created.has(record.id))
   }),
   route({ method: 'PATCH', path: '/setup/:kind/:id', operationId: 'editRecord', summary: 'Change the name, amount, day, account or category of a registered record; audited, history keeps the previous values', params: setupPath, body: recordChanges, response: schemas.SetupRecord }, async (input) => {
     const edited = String(await writing(input, (connection, actor) => editRecord(connection, actor, input.params.kind, BigInt(input.params.id), input.body)))
@@ -215,9 +242,7 @@ export const routes: Route[] = [
     const id = await input.imports.start({ author: 'import', memberId: input.member.id }, input.headers['x-file-name'], bytes).catch(refused)
     return batchView(input, id)
   }),
-  route({ method: 'GET', path: '/imports', operationId: 'listImports', summary: 'Import batches, newest first', query: importQuery, response: z.array(schemas.ImportBatch) }, async ({ client, imports, query }) =>
-    (await listBatches(client, query.status)).map((batch) => ({ ...batch, progress: imports.progressOf(BigInt(batch.id)) })),
-  ),
+  route({ method: 'GET', path: '/imports', operationId: 'listImports', summary: 'Import batches, newest first', query: importQuery, response: z.array(schemas.ImportBatch) }, async ({ client, imports, query }) => withProgress(imports, await listBatches(client, query.status))),
   route({ method: 'GET', path: '/imports/runtime', operationId: 'getImportRuntime', summary: 'Whether the ingest runtime can read uploads, and why not', response: schemas.ImportRuntime }, async ({ imports }) => imports.runtime()),
   route({ method: 'GET', path: '/imports/:id', operationId: 'getImport', summary: 'One import batch with its extraction progress', params: idPath, response: schemas.ImportBatch }, (input) => batchView(input, BigInt(input.params.id))),
   route({ method: 'GET', path: '/imports/:id/candidates', operationId: 'listImportCandidates', summary: 'Open candidates of an import batch', params: idPath, response: z.array(schemas.ImportCandidate) }, async ({ client, params }) => listCandidates(client, await existingBatch(client, params.id))),
@@ -238,6 +263,15 @@ export const routes: Route[] = [
     await writing(input, (connection, actor) => editCandidate(connection, actor, batchId, BigInt(input.params.candidate), input.body.payload))
     return (await listCandidates(input.client, batchId)).find((item) => item.id === input.params.candidate)
   }),
+  route(
+    { method: 'POST', path: '/imports/:id/categories/rename', operationId: 'renameImportCategory', summary: 'Rename a new category of a verified import batch and every candidate that uses it; refuses a name already open', params: idPath, body: categoryRename, response: z.array(schemas.ImportCandidate) },
+    async (input) => {
+      const batchId = await reviewableBatch(input, input.params.id)
+      const ids = await writing(input, (connection, actor) => renameCategory(connection, actor, batchId, BigInt(input.body.candidate), input.body.name))
+      const changed = new Set(ids.map(String))
+      return (await listCandidates(input.client, batchId)).filter((item) => changed.has(item.id))
+    },
+  ),
   ...(['accept', 'reject'] as const).map((decision) =>
     route({ method: 'POST', path: `/imports/:id/candidates/${decision}`, operationId: `${decision}ImportCandidates`, summary: reviewSummaries[decision], params: idPath, body: candidateIds, response: z.array(schemas.ImportCandidate) }, async (input) => {
       const batchId = await reviewableBatch(input, input.params.id)
@@ -277,7 +311,7 @@ export const apiHosts = (env = process.env) => listOf(env.API_ALLOWED_HOSTS, loc
 export const apiOrigins = (env = process.env) => originHostnamesOf(env.API_ALLOWED_ORIGINS, localhostAllowedOrigins())
 
 export const api =
-  (client: Database, imports = importUploads(client), verify: Verifier = verifierFor(process.env.AUTH_MODE, true), hosts = apiHosts(), origins = apiOrigins(), web: Site | undefined = site(process.env.WEB_ROOT)) =>
+  (client: Database, imports: Imports = importUploads(client), verify: Verifier = verifierFor(process.env.AUTH_MODE, true), hosts = apiHosts(), origins = apiOrigins(), web: Site | undefined = site(process.env.WEB_ROOT)) =>
   async (request: Request) => {
     const rejected = hostHeaderValidationResponse(request, hosts) ?? originValidationResponse(request, origins)
     if (rejected) return rejected
@@ -311,13 +345,11 @@ export const api =
     }
   }
 
-export const serveApi = (client: Database, port = Number(process.env.API_PORT ?? 3200), host = process.env.API_HOST ?? '127.0.0.1', imports?: ImportUploads) => listen(api(client, imports), port, host)
+export const serveApi = (client: Database, port = Number(process.env.API_PORT ?? 3200), host = process.env.API_HOST ?? '127.0.0.1', imports?: Imports) => listen(api(client, imports), port, host)
 
 if (import.meta.main) {
   const pool = connectPool()
-  const imports = importUploads(pool, { onWarmed: (readiness) => console.error(readiness.ready ? 'ingest runtime ready' : `ingest runtime not ready (${readiness.reason}): uploads wait until uv can sync ingest/.venv-runtime`) })
-  await imports.sweep()
-  await imports.warm()
+  const imports = process.env.EXTRACT_URL ? remoteUploads(process.env.EXTRACT_URL, extractKeyOf()) : await warmedUploads(pool)
   const server = await serveApi(pool, undefined, undefined, imports)
   console.error(`finance api on ${server.url}${apiPrefix}`)
   const stop = async () => {

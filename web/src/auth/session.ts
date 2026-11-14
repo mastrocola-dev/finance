@@ -1,6 +1,6 @@
 export type Session = {
   failed: boolean
-  signIn: (to: string) => void
+  signIn: (to: string, select?: boolean) => void
   signOut: () => Promise<void>
 }
 
@@ -15,7 +15,7 @@ export const cookieSession = (location: Location = globalThis.location, history:
   }
   return {
     failed,
-    signIn: (to) => location.assign(`/auth/login?${new URLSearchParams({ to })}`),
+    signIn: (to, select = false) => location.assign(`/auth/login?${new URLSearchParams(select ? { to, account: 'select' } : { to })}`),
     signOut: async () => {
       const answer = await fetch('/auth/logout', { method: 'POST', credentials: 'same-origin' }).catch(() => undefined)
       const body = answer?.ok ? await answer.json().catch(() => ({})) : {}

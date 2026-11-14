@@ -44,7 +44,7 @@ export const CandidateRow = ({ candidate, hash, names, busy, onDecide, onEdit }:
         </ul>
       )}
       <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
-        <span className={cn(chip, statusTones[candidate.status])}>{statusLabels[candidate.status]}</span>
+        <span className={cn(chip, statusTones[candidate.status])}>{candidate.acceptedByModel ? 'Aceito pelo Claude' : statusLabels[candidate.status]}</span>
         <span className="min-w-0 truncate rounded-control bg-sunken px-1.5 py-0.5 font-mono text-xs text-muted" title={candidate.source}>
           {candidate.source}
         </span>

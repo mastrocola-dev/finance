@@ -6,10 +6,13 @@ import { join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import * as z from 'zod'
 import { RuleError } from '../ledger/rule.ts'
-import { type Extraction, ExtractionError, type Extractor, type Task, type Usage } from './agent.ts'
+import { type Extraction, ExtractionError, type Extractor, type Usage } from './agent.ts'
+import type { Consolidator } from './consolidate.ts'
 import { maskDigits } from './staging.ts'
 
 export type ServiceAgent = { folder: string; cli?: string; agentDir?: string; timeoutMs?: number }
+
+type Job = { maxTokens: number }
 
 type Exit = { code: number | null; signal: NodeJS.Signals | null; stdout: string; stderr: string; failure?: string }
 
@@ -87,7 +90,7 @@ const headline = (stderr: string) => {
   return lines.find((line) => /^([A-Z]\w*)?Error\b/.test(line)) ?? lines.find((line) => /error/i.test(line)) ?? lines[0]
 }
 
-const execute = (cli: string, agentDir: string, task: Task, timeoutMs: number) =>
+const execute = (cli: string, agentDir: string, task: Job, timeoutMs: number) =>
   new Promise<Exit>((done) => {
     const child = spawn(process.execPath, [cli, '--agent-dir', agentDir], { cwd: root, env: childEnvironment(agentDir), stdio: ['pipe', 'pipe', 'pipe'], timeout: timeoutMs })
     let stdout = ''
@@ -113,7 +116,7 @@ const reasonOf = (exit: Exit, error: string | undefined, output: unknown) => {
   return [`service-agent exited with ${exit.code}`, headline(exit.stderr)].filter(Boolean).join(': ')
 }
 
-export const run = async ({ folder, cli = defaultCli(), agentDir = 'agents/import', timeoutMs = 300_000 }: ServiceAgent, task: Task): Promise<Extraction> => {
+export const run = async ({ folder, cli = defaultCli(), agentDir = 'agents/import', timeoutMs = 300_000 }: ServiceAgent, task: Job): Promise<Extraction> => {
   const { dir, model } = await renderAgent(resolve(root, agentDir), folder, task.maxTokens)
   try {
     const exit = await execute(resolve(cli), dir, task, timeoutMs)
@@ -127,8 +130,17 @@ export const run = async ({ folder, cli = defaultCli(), agentDir = 'agents/impor
   }
 }
 
-export const serviceAgentExtractor = (agent: ServiceAgent): Extractor => {
-  const cli = agent.cli ?? defaultCli()
+const located = (cli = defaultCli()) => {
   if (!existsSync(cli)) throw new RuleError(`service-agent CLI not found at ${cli}, set SERVICE_AGENT_CLI`)
+  return cli
+}
+
+export const serviceAgentExtractor = (agent: ServiceAgent): Extractor => {
+  const cli = located(agent.cli)
   return { extract: (task) => run({ ...agent, cli }, task) }
+}
+
+export const serviceAgentConsolidator = (agent: Omit<ServiceAgent, 'folder'> = {}): Consolidator => {
+  const cli = located(agent.cli)
+  return { consolidate: (task) => run({ agentDir: 'agents/import-consolidate', ...agent, folder: '.', cli }, task) }
 }

@@ -1,3 +1,4 @@
+import { useSearch } from '@tanstack/react-router'
 import { useCallback, useRef, useState } from 'react'
 import { EmptyState } from '../components/empty-state.tsx'
 import { QueryView } from '../components/query-view.tsx'
@@ -6,14 +7,17 @@ import { type Notice, Toast } from '../components/toast.tsx'
 import { useIdentity } from '../identity/identity-provider.tsx'
 import { formatBrl, today } from '../lib/format.ts'
 import { RecordScroll, useRecordHash } from '../lib/record.tsx'
+import { monthOf } from '../lib/search.ts'
 import { ApiFailure } from '../query/client.ts'
 import { screenOf } from '../shell/nav.ts'
 import { PageHeader } from '../shell/page-header.tsx'
+import { CardLimitCard } from './card-limit-card.tsx'
+import { cardView } from './card-model.ts'
 import { DebtCard } from './debt-card.tsx'
 import { goalFailure, type NewGoal } from './goal.ts'
 import { GoalForm } from './goal-form.tsx'
 import { debtView, formatSignedBrl, monthlyInstallments, savings } from './model.ts'
-import { useCreateGoal, useDebts, useNetWorth, useSavings } from './queries.ts'
+import { useCards, useCreateGoal, useDebts, useNetWorth, useSavings } from './queries.ts'
 import { SavingCard } from './saving-card.tsx'
 
 const CardsSkeleton = ({ height }: { height: string }) => (
@@ -53,6 +57,25 @@ const Debts = () => {
             <RecordScroll />
           </>
         )}
+      </QueryView>
+    </section>
+  )
+}
+
+const Cards = () => {
+  const month = monthOf(useSearch({ from: '__root__' }))
+  const cards = useCards(month)
+  if (cards.isSuccess && cards.data.length === 0) return null
+  return (
+    <section aria-labelledby="cards" className="flex min-w-0 flex-col gap-2.5">
+      <div className="flex flex-col gap-0.5">
+        <h2 id="cards" className="m-0 text-section font-semibold">
+          Cartões
+        </h2>
+        <p className="m-0 text-meta text-muted">As parcelas já estão na fatura do cartão; aqui aparece quanto do limite elas ocupam e quando ele volta.</p>
+      </div>
+      <QueryView query={cards} skeleton={<CardsSkeleton height="h-40" />}>
+        {(data) => data.map((card) => <CardLimitCard key={card.id} card={cardView(card, month)} />)}
       </QueryView>
     </section>
   )
@@ -126,7 +149,10 @@ export const WorthPage = () => (
       <NetWorth />
     </div>
     <div className="grid w-full max-w-5xl gap-5 lg:grid-cols-2 lg:items-start">
-      <Debts />
+      <div className="flex min-w-0 flex-col gap-5">
+        <Debts />
+        <Cards />
+      </div>
       <Savings />
     </div>
   </>

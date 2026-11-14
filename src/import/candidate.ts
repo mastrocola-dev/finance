@@ -84,6 +84,37 @@ export const recurringExpensePayload = z
   })
   .refine(ordered('startsOn', 'endsOn'), 'endsOn is before startsOn')
 
+export const variableExpensePayload = z.strictObject({
+  description: text('Variable expense description, such as Supermercado'),
+  amountCents: cents('Monthly estimate'),
+  startsOn: z.iso
+    .date()
+    .refine((value) => value.endsWith('-01'), 'startsOn must be the first day of the month')
+    .describe('First competence month it applies, YYYY-MM-01'),
+  category,
+  account,
+  member,
+})
+
+const firstOfMonth = (description: string) =>
+  z.iso
+    .date()
+    .refine((value) => value.endsWith('-01'), 'must be the first day of the month')
+    .describe(`${description}, YYYY-MM-01`)
+
+export const cardInstallmentPayload = z
+  .strictObject({
+    description: text('Purchase paid in installments on a credit card, such as Geladeira'),
+    account: text('Credit card account nickname'),
+    amountCents: cents('Installment amount charged on each bill'),
+    installmentsTotal: z.int().min(2).max(120).describe('Total installments'),
+    currentInstallment: count('Installment charged on the bill of billMonth, the 3 of "parcela 3 de 10"'),
+    billMonth: firstOfMonth('Competence of the bill that charges currentInstallment'),
+    category: category.optional(),
+    member,
+  })
+  .refine(({ currentInstallment, installmentsTotal }) => currentInstallment <= installmentsTotal, 'currentInstallment exceeds installmentsTotal')
+
 export const debtPayload = z
   .strictObject({
     creditor: text('Creditor name'),

@@ -148,6 +148,15 @@
             "account": "Cartão final 8765",
             "paid": false
           }
+        },
+        {
+          "kind": "category",
+          "source": "$.OFX.CREDITCARDMSGSRSV1.CCSTMTTRNRS.CCSTMTRS.BANKTRANLIST.STMTTRN[7]",
+          "confidence": 0.8,
+          "payload": {
+            "name": "Tarifas",
+            "kind": "expense"
+          }
         }
       ],
       "questions": [],

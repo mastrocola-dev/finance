@@ -17,9 +17,10 @@ import { FlowChart } from './flow-chart.tsx'
 import { KpiCards } from './kpi-cards.tsx'
 import { categories, flow, overview } from './model.ts'
 import { PendingDecisions } from './pending-decisions.tsx'
-import { useMonthEntries, useMonthFlow, useMonthSplit, useRecentActivity } from './queries.ts'
+import { useMonthEntries, useMonthFlow, useMonthSplit, useRecentActivity, useVariablePlan } from './queries.ts'
 import { RecentActivity } from './recent-activity.tsx'
 import { SettlementCard } from './settlement-card.tsx'
+import { VariableSpend } from './variable-spend.tsx'
 
 const monthName = (month: string) => formatMonth(firstDay(month)).replace(/ de \d{4}$/, '')
 
@@ -59,10 +60,29 @@ const MonthCategories = ({ month }: { month: string }) => {
   )
 }
 
+const MonthVariables = ({ month }: { month: string }) => {
+  const member = useSelectedMember()
+  const variables = useVariablePlan(month, member, !useMembers().isPending)
+  if (variables.data?.items.length === 0) return null
+  return (
+    <QueryView query={variables} skeleton={<CardSkeleton />}>
+      {(data) => <VariableSpend plan={data} />}
+    </QueryView>
+  )
+}
+
 const MonthSection = ({ month }: { month: string }) => {
   const member = useSelectedMember()
-  const entries = useMonthEntries(month, member, !useMembers().isPending)
+  const ready = !useMembers().isPending
+  const entries = useMonthEntries(month, member, ready)
+  const variables = useVariablePlan(month, member, ready)
   const wide = useMediaQuery(desktop, true)
+  if (variables.isPending)
+    return (
+      <div aria-busy="true">
+        <MonthSkeleton />
+      </div>
+    )
   return (
     <QueryView
       query={entries}
@@ -80,7 +100,7 @@ const MonthSection = ({ month }: { month: string }) => {
       }
     >
       {(data) => {
-        const summary = overview(data.current)
+        const summary = overview(data.current, variables.data ? BigInt(variables.data.unspent.cents) : 0n)
         return (
           <>
             <BalanceHero data={summary} />
@@ -111,6 +131,7 @@ export const OverviewPage = () => {
       <div className="flex flex-wrap items-start gap-4">
         <MonthCategories month={month} />
         <div className="flex min-w-0 flex-[1_1_300px] flex-col gap-4">
+          <MonthVariables month={month} />
           <QueryView query={split} skeleton={<CardSkeleton />}>
             {(data) => <SettlementCard split={data} members={members.data ?? []} />}
           </QueryView>

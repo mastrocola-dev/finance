@@ -50,6 +50,23 @@ export type paths = {
         patch?: never;
         trace?: never;
     };
+    "/api/months/{month}/variables": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Variable expenses of a month: estimate against spent */
+        get: operations["getVariablePlan"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/months/{month}/entries": {
         parameters: {
             query?: never;
@@ -222,6 +239,23 @@ export type paths = {
         patch?: never;
         trace?: never;
     };
+    "/api/cards": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Open credit cards with limit, installments, committed and available limit and the releases of the coming bills */
+        get: operations["listCards"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/months/{month}/split": {
         parameters: {
             query?: never;
@@ -348,11 +382,28 @@ export type paths = {
             path?: never;
             cookie?: never;
         };
-        /** Open categories, accounts, reserves, incomes, recurring expenses, debts and goals */
+        /** Open categories, accounts, reserves, incomes, recurring expenses, variable expenses, card installments, debts and goals */
         get: operations["listSetup"];
         put?: never;
-        /** Register a category, account, reserve, income, recurring expense, debt or goal */
+        /** Register a category, account, reserve, income, recurring expense, variable expense, card installment, debt or goal */
         post: operations["registerRecord"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/setup/starter-categories": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Create the suggested household categories that are not open yet, in one audited write; returns the ones created */
+        post: operations["createStarterCategories"];
         delete?: never;
         options?: never;
         head?: never;
@@ -615,6 +666,23 @@ export type paths = {
         patch: operations["editImportCandidate"];
         trace?: never;
     };
+    "/api/imports/{id}/categories/rename": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Rename a new category of a verified import batch and every candidate that uses it; refuses a name already open */
+        post: operations["renameImportCategory"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/imports/{id}/candidates/accept": {
         parameters: {
             query?: never;
@@ -840,16 +908,76 @@ export type components = {
         };
         SetupRecord: {
             /** @enum {string} */
-            kind: "category" | "account" | "reserve" | "income" | "recurring_expense" | "debt" | "goal";
+            kind: "category" | "account" | "reserve" | "income" | "recurring_expense" | "variable_expense" | "card_installment" | "debt" | "goal";
             id: string;
             name: string;
-            /** @description Category direction, account institution, kind and last four, recurring installments, debt description or goal reserve */
+            /** @description Category direction, account institution, kind and last four, recurring installments, card installments and first bill, debt description or goal reserve; null for variable expenses */
             detail: string | null;
+            /** @description Credit limit of an account, monthly amount, installment, balance or target */
             amount: components["schemas"]["Money"] | null;
             day: number | null;
             member: string | null;
             category: string | null;
             account: string | null;
+        };
+        Release: {
+            /** @description Bill competence */
+            month: string;
+            /** @description Limit freed when this bill is paid */
+            amount: components["schemas"]["Money"];
+        };
+        CardInstallment: {
+            id: string;
+            description: string;
+            member: string | null;
+            category: string | null;
+            installment: components["schemas"]["Money"];
+            installmentsTotal: number;
+            /** @description Installment on the bill of the month; null before the first bill */
+            current: number | null;
+            /** @description Installments still to be billed, the current one included */
+            remaining: number;
+            /** @description Date as YYYY-MM-DD */
+            firstBill: string;
+            /** @description Date as YYYY-MM-DD */
+            lastBill: string;
+            /** @description Installment times remaining */
+            committed: components["schemas"]["Money"];
+        };
+        Card: {
+            id: string;
+            nickname: string;
+            institution: string;
+            /** @description Last four digits only */
+            lastFour: string;
+            /** @description Owner; null means joint */
+            member: string | null;
+            limit: components["schemas"]["Money"] | null;
+            /** @description Limit held by open installments, the bill of the month included */
+            committed: components["schemas"]["Money"];
+            /** @description Limit minus committed; null without a limit */
+            available: components["schemas"]["Money"] | null;
+            installments: components["schemas"]["CardInstallment"][];
+            /** @description Limit freed per bill, oldest first */
+            releases: components["schemas"]["Release"][];
+        };
+        VariablePlan: {
+            /** @description Date as YYYY-MM-DD */
+            month: string;
+            estimate: components["schemas"]["Money"];
+            spent: components["schemas"]["Money"];
+            /** @description Estimate not yet spent, summed per variable expense and never negative; the projected balance subtracts it */
+            unspent: components["schemas"]["Money"];
+            items: {
+                id: string;
+                description: string;
+                category: string;
+                /** @description null means joint */
+                member: string | null;
+                estimate: components["schemas"]["Money"];
+                /** @description Expense entries of the month in its category and member, recurring and debt entries left out */
+                spent: components["schemas"]["Money"];
+            }[];
         };
         Closed: {
             id: string;
@@ -945,6 +1073,23 @@ export type components = {
             totals: {
                 [key: string]: unknown;
             }[];
+            /** @description New categories of the batch merged by one model call after verification */
+            consolidation: {
+                merges: {
+                    name: string;
+                    /** @enum {string} */
+                    kind: "income" | "expense";
+                    to: string;
+                    /** @description Candidates whose category was rewritten */
+                    candidates: number;
+                }[];
+                /** @description Category subtotals left out of the reconciliation by a merge */
+                unchecked: {
+                    [key: string]: unknown;
+                }[];
+                /** @description Why the consolidation call failed; the extraction result was kept */
+                failure: string | null;
+            };
             /** @description Open candidates */
             candidates: number;
             /** @description Open candidates with at least one check */
@@ -975,6 +1120,8 @@ export type components = {
             confidence: string;
             /** @enum {string} */
             status: "pending" | "accepted" | "rejected" | "edited";
+            /** @description Accepted by verification: confidence at or above the threshold and every check passing; a person deciding or editing clears it */
+            acceptedByModel: boolean;
             /** @description Candidate fields in camelCase, amounts in integer cents */
             payload: {
                 [key: string]: unknown;
@@ -994,6 +1141,7 @@ export type components = {
             source: string | null;
             chunk: string | null;
             answer: string | null;
+            decidedByModel: boolean;
         };
         ImportRuntime: {
             ready: boolean;
@@ -1024,6 +1172,7 @@ export type components = {
         ListCategoriesResponse: components["schemas"]["Category"][];
         ListAccountsResponse: components["schemas"]["Account"][];
         ListGoalsResponse: components["schemas"]["Goal"][];
+        ListCardsResponse: components["schemas"]["Card"][];
         CreateEntryBody: {
             /** @description Month as YYYY-MM */
             month: string;
@@ -1047,16 +1196,17 @@ export type components = {
         ListSetupResponse: components["schemas"]["SetupRecord"][];
         RegisterRecordBody: {
             /** @enum {string} */
-            kind: "category" | "account" | "reserve" | "income" | "recurring_expense" | "debt" | "goal";
+            kind: "category" | "account" | "reserve" | "income" | "recurring_expense" | "variable_expense" | "card_installment" | "debt" | "goal";
             /** @description Payload in camelCase, checked against the schema of its kind (same as import candidates) */
             payload: {
                 [key: string]: unknown;
             };
         };
+        CreateStarterCategoriesResponse: components["schemas"]["SetupRecord"][];
         EditRecordBody: {
             /** @description New name, description, nickname or creditor */
             name?: string;
-            /** @description New amount: monthly amount, balance of a reserve or debt, target of a goal, integer cents of BRL */
+            /** @description New amount: monthly amount, installment of a card purchase, limit of a credit card account, balance of a reserve or debt, target of a goal, integer cents of BRL */
             amountCents?: number;
             /** @description Day of the month it falls due */
             dayOfMonth?: number;
@@ -1095,6 +1245,13 @@ export type components = {
                 [key: string]: unknown;
             };
         };
+        RenameImportCategoryBody: {
+            /** @description Id of an open category candidate of the batch */
+            candidate: string;
+            /** @description New name; every candidate, subtotal and merge of the batch naming the old one follows */
+            name: string;
+        };
+        RenameImportCategoryResponse: components["schemas"]["ImportCandidate"][];
         AcceptImportCandidatesBody: {
             ids: string[];
         };
@@ -1123,6 +1280,10 @@ export type Category = components['schemas']['Category'];
 export type Account = components['schemas']['Account'];
 export type Goal = components['schemas']['Goal'];
 export type SetupRecord = components['schemas']['SetupRecord'];
+export type Release = components['schemas']['Release'];
+export type CardInstallment = components['schemas']['CardInstallment'];
+export type Card = components['schemas']['Card'];
+export type VariablePlan = components['schemas']['VariablePlan'];
 export type Closed = components['schemas']['Closed'];
 export type AuditItem = components['schemas']['AuditItem'];
 export type AuditPage = components['schemas']['AuditPage'];
@@ -1145,10 +1306,12 @@ export type ListMembersResponse = components['schemas']['ListMembersResponse'];
 export type ListCategoriesResponse = components['schemas']['ListCategoriesResponse'];
 export type ListAccountsResponse = components['schemas']['ListAccountsResponse'];
 export type ListGoalsResponse = components['schemas']['ListGoalsResponse'];
+export type ListCardsResponse = components['schemas']['ListCardsResponse'];
 export type CreateEntryBody = components['schemas']['CreateEntryBody'];
 export type MarkPaidBody = components['schemas']['MarkPaidBody'];
 export type ListSetupResponse = components['schemas']['ListSetupResponse'];
 export type RegisterRecordBody = components['schemas']['RegisterRecordBody'];
+export type CreateStarterCategoriesResponse = components['schemas']['CreateStarterCategoriesResponse'];
 export type EditRecordBody = components['schemas']['EditRecordBody'];
 export type UpdateReserveBody = components['schemas']['UpdateReserveBody'];
 export type CreateGoalBody = components['schemas']['CreateGoalBody'];
@@ -1158,6 +1321,8 @@ export type ListImportCandidatesResponse = components['schemas']['ListImportCand
 export type ListImportQuestionsResponse = components['schemas']['ListImportQuestionsResponse'];
 export type AnswerImportQuestionBody = components['schemas']['AnswerImportQuestionBody'];
 export type EditImportCandidateBody = components['schemas']['EditImportCandidateBody'];
+export type RenameImportCategoryBody = components['schemas']['RenameImportCategoryBody'];
+export type RenameImportCategoryResponse = components['schemas']['RenameImportCategoryResponse'];
 export type AcceptImportCandidatesBody = components['schemas']['AcceptImportCandidatesBody'];
 export type AcceptImportCandidatesResponse = components['schemas']['AcceptImportCandidatesResponse'];
 export type RejectImportCandidatesResponse = components['schemas']['RejectImportCandidatesResponse'];
@@ -1245,6 +1410,41 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["Comparison"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+        };
+    };
+    getVariablePlan: {
+        parameters: {
+            query?: {
+                /** @description Member name or joint */
+                member?: string;
+            };
+            header?: never;
+            path: {
+                /** @description Month as YYYY-MM */
+                month: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["VariablePlan"];
                 };
             };
             /** @description Error */
@@ -1632,6 +1832,38 @@ export interface operations {
             };
         };
     };
+    listCards: {
+        parameters: {
+            query: {
+                /** @description Month as YYYY-MM whose bill counts as the current installment */
+                month: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ListCardsResponse"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+        };
+    };
     getMonthSplit: {
         parameters: {
             query?: never;
@@ -1941,12 +2173,41 @@ export interface operations {
             };
         };
     };
+    createStarterCategories: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CreateStarterCategoriesResponse"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+        };
+    };
     editRecord: {
         parameters: {
             query?: never;
             header?: never;
             path: {
-                kind: "category" | "account" | "reserve" | "income" | "recurring_expense" | "debt" | "goal";
+                kind: "category" | "account" | "reserve" | "income" | "recurring_expense" | "variable_expense" | "card_installment" | "debt" | "goal";
                 id: string;
             };
             cookie?: never;
@@ -1982,7 +2243,7 @@ export interface operations {
             query?: never;
             header?: never;
             path: {
-                kind: "category" | "account" | "reserve" | "income" | "recurring_expense" | "debt" | "goal";
+                kind: "category" | "account" | "reserve" | "income" | "recurring_expense" | "variable_expense" | "card_installment" | "debt" | "goal";
                 id: string;
             };
             cookie?: never;
@@ -2455,6 +2716,41 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ImportCandidate"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+        };
+    };
+    renameImportCategory: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RenameImportCategoryBody"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RenameImportCategoryResponse"];
                 };
             };
             /** @description Error */

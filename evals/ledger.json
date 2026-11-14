@@ -1,0 +1,48 @@
+{
+  "members": [
+    {
+      "name": "Marcio",
+      "initials": "M"
+    },
+    {
+      "name": "Gabriela",
+      "initials": "G"
+    }
+  ],
+  "categories": {
+    "income": ["Freelance", "Salário"],
+    "expense": ["Alimentação", "Casa", "Contas da casa", "Dívidas", "Lazer", "Moradia", "Saúde", "Transporte"]
+  },
+  "accounts": [
+    {
+      "nickname": "Cartão Marcio",
+      "institution": "Banco Horizonte",
+      "lastFour": "•8812"
+    },
+    {
+      "nickname": "Conta Gabriela",
+      "institution": "Banco Horizonte",
+      "lastFour": "•3150"
+    },
+    {
+      "nickname": "Conta Marcio",
+      "institution": "Banco Aurora",
+      "lastFour": "•6093"
+    },
+    {
+      "nickname": "Conta conjunta",
+      "institution": "Banco Aurora",
+      "lastFour": "•0427"
+    },
+    {
+      "nickname": "Poupança conjunta",
+      "institution": "Banco Aurora",
+      "lastFour": "•0428"
+    }
+  ],
+  "reserves": ["Reserva de emergência"],
+  "proposed": {
+    "income": [],
+    "expense": []
+  }
+}

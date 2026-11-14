@@ -3,7 +3,7 @@ set -euo pipefail
 
 file="${1:-Dockerfile}"
 
-for ref in $(awk '$1 == "FROM" && $2 ~ /:/ && $2 !~ /@/ { print $2 }' "$file" | sort -u); do
+awk '$1 == "FROM" && $2 ~ /:/ && $2 !~ /@/ { print $2 }' "$file" | sort -u | while read -r ref; do
   docker pull -q "$ref" > /dev/null
   digest="$(docker image inspect --format '{{index .RepoDigests 0}}' "$ref")"
   digest="${digest#*@}"

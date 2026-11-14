@@ -76,6 +76,20 @@
         "member": "Gabriela",
         "paid": true
       }
+    },
+    {
+      "kind": "category",
+      "payload": {
+        "name": "Educação",
+        "kind": "expense"
+      }
+    },
+    {
+      "kind": "category",
+      "payload": {
+        "name": "Empréstimos",
+        "kind": "expense"
+      }
     }
   ]
 }

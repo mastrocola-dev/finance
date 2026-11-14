@@ -94,7 +94,7 @@ export const stageOutput = (client: Client, actor: Actor, batchId: bigint, outpu
 
 const replaceChunks = async (client: Client, ledger: Writer, batchId: bigint, chunks: string[]) => {
   if (chunks.length === 0) return []
-  const stale = await client.query<{ id: bigint }>("select id from import_candidate where batch_id = $1 and closed_at is null and status = 'pending' and chunk = any($2) order by id", [batchId, chunks])
+  const stale = await client.query<{ id: bigint }>("select id from import_candidate where batch_id = $1 and closed_at is null and (status = 'pending' or accepted_by_model) and chunk = any($2) order by id", [batchId, chunks])
   const ids = stale.rows.map((row) => row.id)
   const questions = await client.query<{ id: bigint }>('select id from import_question where batch_id = $1 and closed_at is null and (chunk = any($2) or candidate_id = any($3)) order by id', [batchId, chunks, ids])
   for (const { id } of questions.rows) await ledger.close('import_question', id)

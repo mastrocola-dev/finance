@@ -5,6 +5,7 @@ import type { AddressInfo } from 'node:net'
 import { dirname, resolve } from 'node:path'
 import { test } from 'node:test'
 import type { Task } from '../../src/import/agent.ts'
+import { emptyContext } from '../../src/import/context.ts'
 import { run } from '../../src/import/service-agent.ts'
 
 const cli = resolve(process.env.SERVICE_AGENT_CLI ?? '../service-agent/src/cli.ts')
@@ -42,10 +43,11 @@ test('the real service-agent CLI loads the import agent and reaches the ingest t
   process.env.ANTHROPIC_API_KEY = 'test-key'
   process.env.ANTHROPIC_BASE_URL = `http://127.0.0.1:${(server.address() as AddressInfo).port}`
   try {
-    const task: Task = { file: 'extrato.csv', segment: { id: 'table-1', kind: 'table', source: 'table-1', shape: { rows: 3 } }, strategy: 'records', offset: 0, limit: 3, maxTokens: 5000 }
+    const task: Task = { file: 'extrato.csv', segment: { id: 'table-1', kind: 'table', source: 'table-1', shape: { rows: 3 } }, strategy: 'records', offset: 0, limit: 3, maxTokens: 5000, ledger: { ...emptyContext(), categories: { income: [], expense: ['Mercado'] } } }
     const result = await run({ folder: 'ingest/tests/fixtures', cli, timeoutMs: 60_000 }, task)
     assert.deepEqual(result, { output: answer, usage: { inputTokens: 2000, outputTokens: 200, costUsdMicros: 8460 } })
     assert.deepEqual((requests[0]?.tools ?? []).map(({ name }) => name).sort(), ['ingest__apply_mapping', 'ingest__list_segments', 'ingest__read_segment'])
+    assert.match(JSON.stringify(requests[0]?.messages[0]?.content), /ledger.*Mercado/)
     assert.match(JSON.stringify(requests[1]?.messages.at(-1)?.content), /tool_result.*segments/)
   } finally {
     server.close()

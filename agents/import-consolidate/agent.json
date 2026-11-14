@@ -1,0 +1,8 @@
+{
+  "model": "claude-sonnet-4-5",
+  "maxSteps": 2,
+  "maxTokens": 8000,
+  "maxRunTokens": 40000,
+  "runTimeoutMs": 120000,
+  "toolTimeoutMs": 30000
+}

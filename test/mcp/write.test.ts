@@ -5,6 +5,7 @@ import { connectPool } from '../../src/db/connection.ts'
 import { seed, seedToday } from '../../src/db/seed.ts'
 import { findMember, type Member } from '../../src/ledger/members.ts'
 import { createServer } from '../../src/mcp/server.ts'
+import { bareSeedCard } from '../db/bare-card.ts'
 import { testDatabase } from '../db/database.ts'
 
 const groceries = { month: '2026-10', due_on: '2026-10-25', description: 'Farmers market', direction: 'expense', amount_cents: 12345, category: 'alimentação', member: 'joint', today: seedToday }
@@ -36,6 +37,7 @@ describe('mcp write tools', () => {
   before(async () => {
     db = await testDatabase()
     await seed(db.client)
+    await bareSeedCard(db.client)
     pool = connectPool(db.url)
     const found = await findMember(pool, 'Marcio')
     assert.ok(found)
@@ -157,6 +159,39 @@ describe('mcp write tools', () => {
     assert.deepEqual((await call(member, 'close_record', { kind: 'category', id: pets.id })).json(), { id: pets.id })
     const again = (await call(member, 'register_record', { kind: 'category', payload: { name: 'Bichos', kind: 'expense' } })).json()
     assert.notEqual(again.id, pets.id)
+  })
+
+  test('register_record, edit_record and close_record handle a variable expense, audited as claude', async () => {
+    const market = (await call(member, 'register_record', { kind: 'variable_expense', payload: { description: 'Feira', amountCents: 150000, startsOn: '2026-11-01', category: 'Alimentação' } })).json()
+    assert.deepEqual([market.kind, market.amount.brl, market.member, market.category], ['variable_expense', 'R$ 1.500,00', null, 'Alimentação'])
+    const edited = (await call(member, 'edit_record', { kind: 'variable_expense', id: market.id, changes: { amountCents: 170000 } })).json()
+    assert.equal(edited.amount.cents, '170000')
+    assert.equal((await call(member, 'edit_record', { kind: 'variable_expense', id: market.id, changes: { dayOfMonth: 5 } })).isError, true)
+    assert.deepEqual((await call(member, 'close_record', { kind: 'variable_expense', id: market.id })).json(), { id: market.id })
+    const { rows } = await pool.query<{ author: string; action: string }>("select author, action from audit_log where entity = 'variable_expense' and entity_id = $1 order by id", [market.id])
+    assert.deepEqual(
+      rows.map((row) => `${row.author}:${row.action}`),
+      ['claude:create', 'claude:update', 'claude:close'],
+    )
+  })
+
+  test('register_record takes a card installment and edit_record a card limit, audited as claude', async () => {
+    const payload = { description: 'Bicicleta', account: 'Cartão Marcio', amountCents: 30000, installmentsTotal: 5, currentInstallment: 1, billMonth: '2026-12-01', category: 'Lazer' }
+    const bike = (await call(member, 'register_record', { kind: 'card_installment', payload })).json()
+    assert.deepEqual([bike.kind, bike.detail, bike.amount.brl, bike.category], ['card_installment', '5 installments from 2026-12-01', 'R$ 300,00', 'Lazer'])
+    const card = (await call(member, 'list_setup', {})).json().find((record: { kind: string; name: string }) => record.kind === 'account' && record.name === 'Cartão Marcio')
+    assert.equal((await call(member, 'edit_record', { kind: 'account', id: card.id, changes: { amountCents: 500000 } })).json().amount.brl, 'R$ 5.000,00')
+    const [limits] = (await call(member, 'card_limits', { month: '2026-11' })).json()
+    assert.deepEqual([limits.available.brl, limits.installments[0].current, limits.releases[0].month], ['R$ 3.500,00', null, '2026-12-01'])
+    assert.deepEqual((await call(member, 'close_record', { kind: 'card_installment', id: bike.id })).json(), { id: bike.id })
+    const { rows } = await pool.query<{ author: string; entity: string; action: string }>(
+      "select author, entity, action from audit_log where id >= (select min(id) from audit_log where entity = 'card_installment' and entity_id = $1) and ((entity = 'card_installment' and entity_id = $1) or (entity = 'account' and entity_id = $2)) order by id",
+      [bike.id, card.id],
+    )
+    assert.deepEqual(
+      rows.map((row) => `${row.author}:${row.entity}:${row.action}`),
+      ['claude:card_installment:create', 'claude:account:update', 'claude:card_installment:close'],
+    )
   })
 
   test('forecast_month plans a month once, audited as claude for the member', async () => {

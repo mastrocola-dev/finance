@@ -55,6 +55,11 @@ variable "mcp_image" {
   description = "Public image of the MCP server, ghcr.io/mastrocola-dev/finance-mcp:<commit>"
 }
 
+variable "extract_image" {
+  type        = string
+  description = "Public image of the extraction service the API calls for imports, ghcr.io/mastrocola-dev/finance-extract:<commit>"
+}
+
 variable "entra_issuer" {
   type        = string
   description = "Issuer of the access tokens, https://<tenant id>.ciamlogin.com/<tenant id>/v2.0 for External ID"
@@ -113,7 +118,7 @@ variable "log_daily_cap_gb" {
 
 variable "import_daily_usd_cap" {
   type        = number
-  description = "Daily spend of the import agent in US$; new uploads and retries are refused past it"
+  description = "Daily spend of the import agent in US$, enforced by the extraction service; new uploads and retries are refused past it"
   default     = 2
 
   validation {

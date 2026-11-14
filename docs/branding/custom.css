@@ -1,0 +1,41 @@
+.ext-background-image,
+.ext-background {
+  background-color: #f6f6f3;
+}
+
+.ext-sign-in-box {
+  background-color: #ffffff;
+  border: 1px solid #e3e3dd;
+  border-radius: 14px;
+  box-shadow: none;
+  color: #15171c;
+}
+
+.ext-title {
+  color: #15171c;
+}
+
+.ext-subtitle,
+.ext-boilerplate-text {
+  color: #5b606b;
+}
+
+.ext-button.ext-primary {
+  background-color: #2b54d9;
+  color: #ffffff;
+  border-radius: 10px;
+}
+
+.ext-button.ext-primary:hover,
+.ext-button.ext-primary:focus {
+  background-color: #2b54d9;
+  outline: 2px solid #2b54d9;
+  outline-offset: 2px;
+}
+
+.ext-button.ext-secondary {
+  background-color: #ffffff;
+  color: #15171c;
+  border: 1px solid #e3e3dd;
+  border-radius: 10px;
+}

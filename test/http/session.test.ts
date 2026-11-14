@@ -5,7 +5,7 @@ import { connectPool } from '../../src/db/connection.ts'
 import { linkMember } from '../../src/db/link-member.ts'
 import { seed } from '../../src/db/seed.ts'
 import { api } from '../../src/http/api.ts'
-import { entraVerifier, localVerifier, verifierFor } from '../../src/http/identity.ts'
+import { domainHintOf, entraVerifier, localVerifier, verifierFor } from '../../src/http/identity.ts'
 import { cookiesOf, loginCookie, seal, session, sessionCookie, sessionKeyOf, sessionMs, signInFailed, unseal } from '../../src/http/session.ts'
 import { testDatabase } from '../db/database.ts'
 
@@ -84,7 +84,8 @@ describe('authorization code flow', () => {
     assert.equal(query.response_type, 'code')
     assert.equal(query.redirect_uri, 'http://localhost:3200/auth/callback')
     assert.equal(query.scope, 'openid profile')
-    assert.equal(query.prompt, 'select_account')
+    assert.equal(query.prompt, undefined)
+    assert.equal(query.domain_hint, undefined)
     assert.equal(query.code_challenge_method, 'S256')
     const opened = unseal(key, loginCookie, pending)
     assert.equal(query.state, opened.state)
@@ -93,6 +94,23 @@ describe('authorization code flow', () => {
     assert.equal(opened.to, '/decisoes')
     const header = answer.headers.getSetCookie()[0] as string
     assert.match(header, /; Path=\/auth; Max-Age=600; HttpOnly; SameSite=Lax$/)
+  })
+
+  test('the domain hint goes straight to Google and another account asks Entra to choose one', async () => {
+    const { fetcher } = provider()
+    const hinted = session({ issuer, clientId, key, keys, fetcher, domainHint: 'google' })
+    const { location } = await loginFlow(hinted)
+    assert.equal(location.searchParams.get('domain_hint'), 'google')
+    assert.equal(location.searchParams.get('prompt'), null)
+    const other = await hinted.handle(new Request('http://localhost:3200/auth/login?to=%2F&account=select'))
+    const chosen = new URL(other?.headers.get('location') ?? '')
+    assert.equal(chosen.searchParams.get('prompt'), 'select_account')
+    assert.equal(chosen.searchParams.get('domain_hint'), 'google')
+    const plain = await session({ issuer, clientId, key, keys, fetcher }).handle(new Request('http://localhost:3200/auth/login?account=select'))
+    const unhinted = new URL(plain?.headers.get('location') ?? '')
+    assert.equal(unhinted.searchParams.get('prompt'), 'select_account')
+    assert.equal(unhinted.searchParams.get('domain_hint'), null)
+    assert.deepEqual([domainHintOf(undefined), domainHintOf(''), domainHintOf(' facebook '), domainHintOf('none')], ['google', 'google', 'facebook', undefined])
   })
 
   test('the return path stays on this origin and cookies are Secure outside localhost', async () => {

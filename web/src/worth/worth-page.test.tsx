@@ -57,7 +57,7 @@ const fetch = vi.fn(async (input: Request) => {
   return Response.json({ error: 'not found' }, { status: 404 })
 }) as unknown as typeof globalThis.fetch
 
-const filled = () => ({ '/api/debts': debts, '/api/reserves': reserves, '/api/goals': goals, '/api/net-worth': { reserves: money(1800000), goals: money(450000), debts: money(3680000), netWorth: money(-1430000) } })
+const filled = () => ({ '/api/cards': [], '/api/debts': debts, '/api/reserves': reserves, '/api/goals': goals, '/api/net-worth': { reserves: money(1800000), goals: money(450000), debts: money(3680000), netWorth: money(-1430000) } })
 
 afterEach(() => {
   cleanup()
@@ -107,4 +107,61 @@ test('marks the debt, reserve or goal named in the link', async () => {
   expect(goal.closest('article')?.getAttribute('aria-current')).toBe('true')
   expect(screen.getByRole('heading', { name: 'Reserva de emergência' }).closest('article')?.hasAttribute('aria-current')).toBe(false)
   expect(document.querySelectorAll('[aria-current="true"]')).toHaveLength(1)
+})
+
+const installment = { id: '1', description: 'Geladeira', member: null, category: 'Casa', installment: money(25000), installmentsTotal: 10, current: 4, remaining: 7, firstBill: '2026-08-01', lastBill: '2027-05-01', committed: money(175000) }
+
+const card = (overrides: Record<string, unknown> = {}) => ({
+  id: '3',
+  nickname: 'Cartão Marcio',
+  institution: 'Banco Exemplo',
+  lastFour: '4242',
+  member: 'Marcio',
+  limit: money(800000),
+  committed: money(335000),
+  available: money(465000),
+  installments: [installment],
+  releases: [
+    { month: '2026-11-01', amount: money(65000) },
+    { month: '2027-02-01', amount: money(65000) },
+  ],
+  ...overrides,
+})
+
+test('shows each card with the limit in use, what is available and when it frees', async () => {
+  data = { ...filled(), '/api/cards': [card(), card({ id: '4', nickname: 'Cartão Gabriela', member: 'Gabriela', limit: null, available: null, committed: money(0), installments: [], releases: [] })] }
+  render(<App history={createMemoryHistory({ initialEntries: ['/patrimonio?month=2026-11'] })} fetch={fetch} />)
+  const cards = await screen.findByRole('region', { name: 'Cartões' })
+  expect(within(cards).getByText(/já estão na fatura do cartão/)).toBeTruthy()
+  const marcio = await within(cards).findByRole('article', { name: 'Cartão Marcio' })
+  expect(within(marcio).getByRole('img', { name: 'R$ 3.350,00 de R$ 8.000,00 do limite em uso' })).toBeTruthy()
+  expect(marcio.textContent).toContain('Parcelado: R$ 3.350,00')
+  expect(marcio.textContent).toContain('Disponível R$ 4.650,00')
+  expect(within(marcio).getByText('Libera R$ 650,00 em novembro')).toBeTruthy()
+  expect(within(marcio).getByRole('img', { name: 'Liberações nos próximos 12 meses: R$ 650,00 em novembro, R$ 650,00 em fevereiro de 2027' })).toBeTruthy()
+  const gabriela = within(cards).getByRole('article', { name: 'Cartão Gabriela' })
+  expect(gabriela.textContent).toContain('Parcelado: R$ 0,00')
+  expect(within(gabriela).getByRole('link', { name: 'Informar o limite em Cadastros' }).getAttribute('href')).toMatch(/^\/cadastros/)
+  expect(within(gabriela).queryByRole('img')).toBeNull()
+  const fetched = vi
+    .mocked(fetch)
+    .mock.calls.map(([request]) => new URL((request as Request).url))
+    .find((url) => url.pathname === '/api/cards')
+  expect(fetched?.searchParams.get('month')).toBe('2026-11')
+})
+
+test('says in words when the installments go over the limit', async () => {
+  data = { ...filled(), '/api/cards': [card({ limit: money(300000), available: money(-35000) })] }
+  start()
+  const marcio = await screen.findByRole('article', { name: 'Cartão Marcio' })
+  expect(within(marcio).getByRole('img', { name: 'R$ 3.350,00 de R$ 3.000,00 do limite em uso, acima do limite' })).toBeTruthy()
+  expect(marcio.textContent).toContain('Disponível − R$ 350,00 · acima do limite')
+})
+
+test('leaves the cards region out when the household has no card', async () => {
+  data = filled()
+  start()
+  await screen.findByRole('region', { name: 'Dívidas' })
+  await screen.findByRole('img', { name: '24 de 48 parcelas pagas' })
+  expect(screen.queryByRole('region', { name: 'Cartões' })).toBeNull()
 })

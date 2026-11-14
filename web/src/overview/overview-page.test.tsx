@@ -35,6 +35,16 @@ const responses: Record<string, unknown> = {
   ],
   '/api/decisions': [{ id: '7', title: 'Trocar plano de internet', description: '', amount: money(4000, 'R$ 40,00'), status: 'proposed', proposedBy: 'Gabriela', origin: 'claude', confirmedBy: ['Gabriela'], awaiting: ['Marcio'], createdAt: '2026-10-19T12:00:00.000Z', closedAt: null }],
   '/api/months/2026-10/split': { month: '2026-10-01', total: money(42860, ''), members: [], transfers: [{ from: 'Marcio', to: 'Gabriela', amount: money(21430, 'R$ 214,30') }] },
+  '/api/months/2026-10/variables': {
+    month: '2026-10-01',
+    estimate: money(160_000, ''),
+    spent: money(155_000, ''),
+    unspent: money(15_000, ''),
+    items: [
+      { id: '1', description: 'Supermercado', category: 'Alimentação', member: null, estimate: money(120_000, ''), spent: money(105_000, '') },
+      { id: '2', description: 'Combustível', category: 'Transporte', member: 'Marcio', estimate: money(40_000, ''), spent: money(50_000, '') },
+    ],
+  },
   '/api/audit': {
     items: [{ id: '3', at: '2026-10-20T12:14:00.000Z', author: 'claude', member: 'Marcio', entity: 'entry', entityId: '9', action: 'update', subject: 'Energia', before: { description: 'Energia', status: 'planned' }, after: { description: 'Energia', status: 'paid' } }],
     counts: { member: 0, claude: 1, import: 0, system: 0 },
@@ -50,7 +60,8 @@ const fetch = vi.fn(async (input: Request) => {
   calls.push(url)
   const month = url.pathname.match(/^\/api\/months\/(\d{4}-\d{2})\/entries$/)?.[1]
   if (month) return Response.json(months[month] ?? [])
-  const body = responses[url.pathname]
+  const empty = url.pathname.match(/^\/api\/months\/(\d{4}-\d{2})\/variables$/) && { month: '', estimate: money(0, ''), spent: money(0, ''), unspent: money(0, ''), items: [] }
+  const body = responses[url.pathname] ?? empty
   return body ? Response.json(body) : Response.json({ error: 'not found' }, { status: 404 })
 }) as unknown as typeof globalThis.fetch
 
@@ -68,7 +79,8 @@ const start = (url: string) => render(<App history={createMemoryHistory({ initia
 test('shows the month KPIs, open bills, categories, settlement, decisions and activity', async () => {
   start('/?month=2026-10')
   const kpis = await screen.findByRole('region', { name: 'Indicadores' })
-  expect(within(kpis).getByText('R$ 8.250,00')).toBeTruthy()
+  expect(within(kpis).getByText('R$ 8.100,00')).toBeTruthy()
+  expect(within(kpis).getByText('Inclui R$ 150,00 ainda previstos em variáveis')).toBeTruthy()
   expect(within(kpis).getByText('R$ 750,00 em atraso')).toBeTruthy()
   const due = screen.getByRole('region', { name: 'Para pagar' })
   expect(within(due).getByText('Plano de saúde')).toBeTruthy()
@@ -90,6 +102,28 @@ test('shows the month KPIs, open bills, categories, settlement, decisions and ac
   expect(await screen.findByText('Marcou Energia como paga')).toBeTruthy()
   expect(screen.getByText('Claude, a pedido de Marcio')).toBeTruthy()
   expect(screen.getByRole('link', { name: 'Histórico' }).getAttribute('href')).toContain('/atividade')
+})
+
+test('compares each variable expense with what was spent and flags the ones above the estimate', async () => {
+  start('/?month=2026-10')
+  const card = await screen.findByRole('region', { name: 'Variáveis do mês' })
+  expect(within(card).getByText('R$ 150,00 ainda previstos')).toBeTruthy()
+  expect(within(card).getByRole('img', { name: 'Supermercado: 88% do previsto' })).toBeTruthy()
+  expect(within(card).getByRole('img', { name: 'Combustível: 125% do previsto' }).firstElementChild?.className).toContain('bg-late')
+  expect(
+    within(card)
+      .getAllByText(/acima do previsto/)
+      .map((node) => node.textContent),
+  ).toEqual(['acima do previsto em R$ 100,00'])
+  expect(within(card).getByText('· Marcio')).toBeTruthy()
+  expect(within(card).getByText('Total do mês').nextElementSibling?.textContent).toBe('R$ 1.550,00 de R$ 1.600,00')
+})
+
+test('hides the variable card in a month without variable expenses and keeps the balance', async () => {
+  start('/?month=2026-09')
+  expect(await screen.findByRole('region', { name: 'Indicadores' })).toBeTruthy()
+  expect(within(screen.getByRole('region', { name: 'Indicadores' })).getByText('Receitas menos despesas do mês')).toBeTruthy()
+  expect(screen.queryByRole('region', { name: 'Variáveis do mês' })).toBeNull()
 })
 
 test('filters entries by the chosen member and shows an empty month', async () => {

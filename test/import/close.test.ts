@@ -51,6 +51,7 @@ describe('import close', () => {
   test('closes a committed batch with its candidates and questions while ledger rows stay', async () => {
     const { batch, candidates, hash } = await staged()
     await reviewCandidates(client, member, batch, candidates.slice(0, 1), 'accept')
+    await reviewCandidates(client, member, batch, candidates.slice(1), 'reject')
     await commitBatch(client, { author: 'import', memberId: member.memberId }, batch)
     assert.deepEqual(await closeBatch(client, member, batch), { batchId: batch, outcome: 'closed' })
     assert.deepEqual(await batchRow(batch), { status: 'closed', closed: true })

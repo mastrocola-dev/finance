@@ -67,6 +67,11 @@ describe('fictional seed', () => {
     )
   })
 
+  test('one card with a limit and two installments', async () => {
+    assert.deepEqual(await one("select credit_limit_cents::int as limit from account where kind = 'credit_card'"), { limit: 800000 })
+    assert.equal((await one('select count(*)::int as total from card_installment where closed_at is null')).total, 2)
+  })
+
   test('one reserve and one goal', async () => {
     assert.equal((await one('select count(*)::int as total from reserve')).total, 1)
     assert.equal((await one('select count(*)::int as total from goal')).total, 1)
@@ -75,7 +80,7 @@ describe('fictional seed', () => {
   test('every row is audited as system', async () => {
     const audit = await one("select count(*)::int as total, count(*) filter (where author <> 'system' or action <> 'create')::int as other from audit_log")
     const rows = await one(
-      'select (select count(*) from member) + (select count(*) from account) + (select count(*) from category) + (select count(*) from income) + (select count(*) from recurring_expense) + (select count(*) from debt) + (select count(*) from entry) + (select count(*) from reserve) + (select count(*) from goal) as total',
+      'select (select count(*) from member) + (select count(*) from account) + (select count(*) from category) + (select count(*) from income) + (select count(*) from recurring_expense) + (select count(*) from debt) + (select count(*) from entry) + (select count(*) from reserve) + (select count(*) from goal) + (select count(*) from card_installment) + (select count(*) from variable_expense) as total',
     )
     assert.equal(BigInt(audit.total), rows.total)
     assert.equal(audit.other, 0)

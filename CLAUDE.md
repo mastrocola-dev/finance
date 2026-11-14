@@ -6,13 +6,14 @@ Household finance ledger for two people (Marcio and Gabriela) and Claude. This r
 
 1. `git fetch origin && git checkout poc && git pull --rebase origin poc`. Never commit to `main`, never merge, never force-push
 2. Prepare the session: `npm i -g node@24` when `node -v` is below 24; `pg_ctlcluster 16 main start`; `npm ci`; `npm run db:reset` once the script exists
-3. Pick the first item in `BACKLOG.md` under **Next** that is not blocked. Work on that item only
-4. Implement it with tests; `npm test` and `npm run check` must pass
-5. Review your own diff as a stranger would: correctness, missing tests, security rules below, naming, dead code. Fix what you find now; write what you will not fix as new backlog items
-6. Move the item to **Done** with one line on what was built; add suggested improvements and next steps under **Next** or **Later**
-7. Rewrite `MEMORY.md` (never append): at most 60 lines, only what the next run needs and cannot see in the code
-8. One commit per run, message `<item id>: <what changed>`, then `git push origin poc`. On a rebase conflict, stop and report it
-9. Finish with a short report: item done, tests count, what is next, what needs the author
+3. Check CI of the head of `poc` with the GitHub MCP tools (`actions_list` `list_workflow_runs` on branch `poc`, then `get_job_logs` with `failed_only` for a failed run). If any job of the last `ci` or `deploy` run failed, fixing it is this run's item, ahead of the backlog (commit `ci: <what changed>`, record the cause under **Done**); a run still in progress counts as unknown. If the tools are unavailable, say so in the report and go on
+4. Pick the first item in `BACKLOG.md` under **Next** that is not blocked. Work on that item only
+5. Implement it with tests; `npm test` and `npm run check` must pass
+6. Review your own diff as a stranger would: correctness, missing tests, security rules below, naming, dead code. Fix what you find now; write what you will not fix as new backlog items
+7. Move the item to **Done** with one line on what was built; add suggested improvements and next steps under **Next** or **Later**
+8. Rewrite `MEMORY.md` (never append): at most 60 lines, only what the next run needs and cannot see in the code
+9. One commit per run, message `<item id>: <what changed>`, then `git push origin poc`. On a rebase conflict, stop and report it
+10. Finish with a short report: item done, tests count, CI state of the previous commit, what is next, what needs the author
 
 Stop the schedule (`update_trigger` with `enabled: false` on this task) and say why when **Next** has no unblocked item, or after three runs in a row with failing tests.
 

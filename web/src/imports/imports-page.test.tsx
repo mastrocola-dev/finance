@@ -18,6 +18,7 @@ const batch = (id: string, fileName: string, changes: Partial<Batch> = {}): Batc
   checks: [],
   failures: [],
   totals: [],
+  consolidation: { merges: [], unchecked: [], failure: null },
   candidates: 14,
   flagged: 2,
   openQuestions: 1,

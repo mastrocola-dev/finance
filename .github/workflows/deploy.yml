@@ -57,14 +57,18 @@ jobs:
       - name: Images
         run: |
           set -euo pipefail
-          echo "TF_VAR_api_image=ghcr.io/mastrocola-dev/finance-api:$COMMIT" >> "$GITHUB_ENV"
-          echo "TF_VAR_mcp_image=ghcr.io/mastrocola-dev/finance-mcp:$COMMIT" >> "$GITHUB_ENV"
+          {
+            echo "TF_VAR_api_image=ghcr.io/mastrocola-dev/finance-api:$COMMIT"
+            echo "TF_VAR_mcp_image=ghcr.io/mastrocola-dev/finance-mcp:$COMMIT"
+            echo "TF_VAR_extract_image=ghcr.io/mastrocola-dev/finance-extract:$COMMIT"
+          } >> "$GITHUB_ENV"
       - name: Images published
         if: env.APPLY == 'true'
         run: |
           set -euo pipefail
           docker manifest inspect "$TF_VAR_api_image" > /dev/null
           docker manifest inspect "$TF_VAR_mcp_image" > /dev/null
+          docker manifest inspect "$TF_VAR_extract_image" > /dev/null
       - name: Terraform init
         run: |
           set -euo pipefail

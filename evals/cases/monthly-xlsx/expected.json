@@ -1,0 +1,466 @@
+{
+  "file": "contas-da-casa.xlsx",
+  "candidates": [
+    {
+      "kind": "entry",
+      "payload": {
+        "date": "2026-09-10",
+        "description": "Aluguel",
+        "direction": "expense",
+        "amountCents": 220000,
+        "member": "joint",
+        "paid": true
+      }
+    },
+    {
+      "kind": "entry",
+      "payload": {
+        "date": "2026-09-10",
+        "description": "Condomínio",
+        "direction": "expense",
+        "amountCents": 65000,
+        "member": "joint",
+        "paid": true
+      }
+    },
+    {
+      "kind": "entry",
+      "payload": {
+        "date": "2026-09-18",
+        "description": "Luz",
+        "direction": "expense",
+        "amountCents": 21000,
+        "member": "joint",
+        "paid": true
+      }
+    },
+    {
+      "kind": "entry",
+      "payload": {
+        "date": "2026-09-15",
+        "description": "Internet",
+        "direction": "expense",
+        "amountCents": 12000,
+        "member": "joint",
+        "paid": true
+      }
+    },
+    {
+      "kind": "entry",
+      "payload": {
+        "date": "2026-09-05",
+        "description": "Inglês",
+        "direction": "expense",
+        "amountCents": 39000,
+        "member": "Gabriela",
+        "paid": true
+      }
+    },
+    {
+      "kind": "entry",
+      "payload": {
+        "date": "2026-09-07",
+        "description": "Academia",
+        "direction": "expense",
+        "amountCents": 11990,
+        "member": "Marcio",
+        "paid": true
+      }
+    },
+    {
+      "kind": "entry",
+      "payload": {
+        "date": "2026-09-03",
+        "description": "Supermercado Fictício",
+        "direction": "expense",
+        "amountCents": 81240,
+        "member": "Marcio",
+        "paid": true
+      }
+    },
+    {
+      "kind": "entry",
+      "payload": {
+        "date": "2026-09-09",
+        "description": "Posto Avenida",
+        "direction": "expense",
+        "amountCents": 26000,
+        "member": "Marcio",
+        "paid": true
+      }
+    },
+    {
+      "kind": "entry",
+      "payload": {
+        "date": "2026-09-14",
+        "description": "Restaurante Sabor",
+        "direction": "expense",
+        "amountCents": 14850,
+        "member": "Marcio",
+        "paid": true
+      }
+    },
+    {
+      "kind": "entry",
+      "payload": {
+        "date": "2026-09-20",
+        "description": "Streaming",
+        "direction": "expense",
+        "amountCents": 5590,
+        "member": "Marcio",
+        "paid": true
+      }
+    },
+    {
+      "kind": "entry",
+      "payload": {
+        "date": "2026-09-06",
+        "description": "Mercadinho da Vila",
+        "direction": "expense",
+        "amountCents": 23370,
+        "member": "Gabriela",
+        "paid": true
+      }
+    },
+    {
+      "kind": "entry",
+      "payload": {
+        "date": "2026-09-11",
+        "description": "Drogaria Fictícia",
+        "direction": "expense",
+        "amountCents": 7430,
+        "member": "Gabriela",
+        "paid": true
+      }
+    },
+    {
+      "kind": "entry",
+      "payload": {
+        "date": "2026-09-22",
+        "description": "Farmácia Central",
+        "direction": "expense",
+        "amountCents": 4190,
+        "member": "Gabriela",
+        "paid": true
+      }
+    },
+    {
+      "kind": "entry",
+      "payload": {
+        "date": "2026-09-25",
+        "description": "Transporte por app",
+        "direction": "expense",
+        "amountCents": 6320,
+        "member": "Gabriela",
+        "paid": true
+      }
+    },
+    {
+      "kind": "entry",
+      "payload": {
+        "date": "2026-09-05",
+        "description": "Salário",
+        "direction": "income",
+        "amountCents": 680000,
+        "member": "Marcio",
+        "paid": true
+      }
+    },
+    {
+      "kind": "entry",
+      "payload": {
+        "date": "2026-09-05",
+        "description": "Salário",
+        "direction": "income",
+        "amountCents": 590000,
+        "member": "Gabriela",
+        "paid": true
+      }
+    },
+    {
+      "kind": "entry",
+      "payload": {
+        "date": "2026-10-10",
+        "description": "Aluguel",
+        "direction": "expense",
+        "amountCents": 220000,
+        "member": "joint",
+        "paid": true
+      }
+    },
+    {
+      "kind": "entry",
+      "payload": {
+        "date": "2026-10-10",
+        "description": "Condomínio",
+        "direction": "expense",
+        "amountCents": 65000,
+        "member": "joint",
+        "paid": true
+      }
+    },
+    {
+      "kind": "entry",
+      "payload": {
+        "date": "2026-10-18",
+        "description": "Luz",
+        "direction": "expense",
+        "amountCents": 19840,
+        "member": "joint",
+        "paid": false
+      }
+    },
+    {
+      "kind": "entry",
+      "payload": {
+        "date": "2026-10-15",
+        "description": "Internet",
+        "direction": "expense",
+        "amountCents": 12000,
+        "member": "joint",
+        "paid": true
+      }
+    },
+    {
+      "kind": "entry",
+      "payload": {
+        "date": "2026-10-05",
+        "description": "Inglês",
+        "direction": "expense",
+        "amountCents": 39000,
+        "member": "Gabriela",
+        "paid": true
+      }
+    },
+    {
+      "kind": "entry",
+      "payload": {
+        "date": "2026-10-07",
+        "description": "Academia",
+        "direction": "expense",
+        "amountCents": 11990,
+        "member": "Marcio",
+        "paid": true
+      }
+    },
+    {
+      "kind": "entry",
+      "payload": {
+        "date": "2026-10-02",
+        "description": "Supermercado Fictício",
+        "direction": "expense",
+        "amountCents": 90515,
+        "member": "Marcio",
+        "paid": false
+      }
+    },
+    {
+      "kind": "entry",
+      "payload": {
+        "date": "2026-10-08",
+        "description": "Posto Avenida",
+        "direction": "expense",
+        "amountCents": 28000,
+        "member": "Marcio",
+        "paid": false
+      }
+    },
+    {
+      "kind": "entry",
+      "payload": {
+        "date": "2026-10-16",
+        "description": "Presente aniversário",
+        "direction": "expense",
+        "amountCents": 18000,
+        "member": "Marcio",
+        "paid": false
+      }
+    },
+    {
+      "kind": "entry",
+      "payload": {
+        "date": "2026-10-20",
+        "description": "Streaming",
+        "direction": "expense",
+        "amountCents": 5590,
+        "member": "Marcio",
+        "paid": false
+      }
+    },
+    {
+      "kind": "entry",
+      "payload": {
+        "date": "2026-10-05",
+        "description": "Mercadinho da Vila",
+        "direction": "expense",
+        "amountCents": 19840,
+        "member": "Gabriela",
+        "paid": false
+      }
+    },
+    {
+      "kind": "entry",
+      "payload": {
+        "date": "2026-10-12",
+        "description": "Drogaria Fictícia",
+        "direction": "expense",
+        "amountCents": 5260,
+        "member": "Gabriela",
+        "paid": false
+      }
+    },
+    {
+      "kind": "entry",
+      "payload": {
+        "date": "2026-10-19",
+        "description": "Pet shop",
+        "direction": "expense",
+        "amountCents": 14500,
+        "member": "Gabriela",
+        "paid": false
+      }
+    },
+    {
+      "kind": "entry",
+      "payload": {
+        "date": "2026-10-24",
+        "description": "Transporte por app",
+        "direction": "expense",
+        "amountCents": 7180,
+        "member": "Gabriela",
+        "paid": false
+      }
+    },
+    {
+      "kind": "entry",
+      "payload": {
+        "date": "2026-10-05",
+        "description": "Salário",
+        "direction": "income",
+        "amountCents": 680000,
+        "member": "Marcio",
+        "paid": true
+      }
+    },
+    {
+      "kind": "entry",
+      "payload": {
+        "date": "2026-10-05",
+        "description": "Salário",
+        "direction": "income",
+        "amountCents": 590000,
+        "member": "Gabriela",
+        "paid": true
+      }
+    },
+    {
+      "kind": "entry",
+      "payload": {
+        "date": "2026-10-20",
+        "description": "Freela site",
+        "direction": "income",
+        "amountCents": 120000,
+        "member": "Marcio",
+        "paid": false
+      }
+    },
+    {
+      "kind": "category",
+      "payload": {
+        "name": "Moradia",
+        "kind": "expense"
+      }
+    },
+    {
+      "kind": "category",
+      "payload": {
+        "name": "Contas da casa",
+        "kind": "expense"
+      }
+    },
+    {
+      "kind": "category",
+      "payload": {
+        "name": "Educação",
+        "kind": "expense"
+      }
+    },
+    {
+      "kind": "category",
+      "payload": {
+        "name": "Saúde",
+        "kind": "expense"
+      }
+    },
+    {
+      "kind": "category",
+      "payload": {
+        "name": "Supermercado",
+        "kind": "expense"
+      }
+    },
+    {
+      "kind": "category",
+      "payload": {
+        "name": "Combustível",
+        "kind": "expense"
+      }
+    },
+    {
+      "kind": "category",
+      "payload": {
+        "name": "Restaurantes",
+        "kind": "expense"
+      }
+    },
+    {
+      "kind": "category",
+      "payload": {
+        "name": "Assinaturas",
+        "kind": "expense"
+      }
+    },
+    {
+      "kind": "category",
+      "payload": {
+        "name": "Farmácia",
+        "kind": "expense"
+      }
+    },
+    {
+      "kind": "category",
+      "payload": {
+        "name": "Transporte",
+        "kind": "expense"
+      }
+    },
+    {
+      "kind": "category",
+      "payload": {
+        "name": "Salário",
+        "kind": "income"
+      }
+    },
+    {
+      "kind": "category",
+      "payload": {
+        "name": "Presentes",
+        "kind": "expense"
+      }
+    },
+    {
+      "kind": "category",
+      "payload": {
+        "name": "Pets",
+        "kind": "expense"
+      }
+    },
+    {
+      "kind": "category",
+      "payload": {
+        "name": "Freela",
+        "kind": "income"
+      }
+    }
+  ]
+}

@@ -45,21 +45,49 @@ describe('import verification rules', () => {
     assert.match(checks.get(4n)?.[0]?.detail ?? '', /^amountCents:/)
   })
 
-  test('asks once per unknown name and accepts names staged in the same batch', () => {
+  test('resolves names by similarity and plans missing categories once per batch', () => {
     const pets: Staged = { id: 9n, kind: 'category', source: '$.categories[0]', confidence: 1, checks: [], payload: { name: 'Pets', kind: 'expense' } }
-    const { checks, asks } = findChecks([entry(1, { member: 'GMA', category: 'pets' }), entry(2, { member: 'gma', account: 'Nubank', description: 'Padaria' }), entry(3, { member: 'joint', category: 'Salário', description: 'Bônus' }), pets], references)
-    assert.deepEqual(checks.get(1n), [{ code: 'unknown_member', detail: 'GMA' }])
-    assert.deepEqual(checks.get(3n), [{ code: 'unknown_category', detail: 'Salário' }])
+    const { checks, asks, resolved, missing } = findChecks(
+      [entry(1, { member: 'GMA', category: 'pets' }), entry(2, { member: 'Tia Rosa', account: 'Nubank', description: 'Padaria', category: 'Alimentacao' }), entry(3, { category: 'Farmácias', description: 'Remédio' }), entry(4, { category: 'farmacia', description: 'Vitamina' }), pets],
+      references,
+    )
+    assert.deepEqual(checks.get(1n), [{ code: 'matched_member', detail: 'GMA → Gabriela' }])
+    assert.deepEqual(checks.get(2n), [
+      { code: 'member_unmatched', detail: 'Tia Rosa' },
+      { code: 'account_unmatched', detail: 'Nubank' },
+      { code: 'matched_category', detail: 'Alimentacao → Alimentação' },
+    ])
+    assert.deepEqual(checks.get(3n), [])
+    assert.deepEqual(checks.get(4n), [{ code: 'matched_category', detail: 'farmacia → Farmácias' }])
+    assert.deepEqual(missing, [{ name: 'Farmácias', kind: 'expense', source: '2026-10!A3:G3' }])
+    assert.deepEqual(resolved.get(1n), { member: 'Gabriela' })
+    assert.deepEqual(resolved.get(2n), { member: 'joint', account: undefined, category: 'Alimentação' })
+    assert.deepEqual(asks, [])
+  })
+
+  test('still asks for the member of an income and for unknown reserves', () => {
+    const goal: Staged = { id: 5n, kind: 'goal', source: 'G2', confidence: 1, checks: [], payload: { name: 'Viagem', targetCents: 500000, savedCents: 0, reserve: 'Cofrinho' } }
+    const { checks, asks } = findChecks([entry(1, { direction: 'income', description: 'Bônus', category: 'Salario', member: 'Tia Rosa' }), goal], references)
+    assert.deepEqual(checks.get(1n), [
+      { code: 'unknown_member', detail: 'Tia Rosa' },
+      { code: 'matched_category', detail: 'Salario → Salário' },
+    ])
+    assert.deepEqual(checks.get(5n), [{ code: 'unknown_reserve', detail: 'Cofrinho' }])
     assert.deepEqual(
       asks.map(({ reference, name, candidate }) => [reference, name, candidate]),
       [
-        ['member', 'GMA', 1n],
-        ['account', 'Nubank', 2n],
-        ['category', 'Salário', 3n],
+        ['member', 'Tia Rosa', 1n],
+        ['reserve', 'Cofrinho', 5n],
       ],
     )
-    assert.deepEqual(questionFor(asks[0] ?? assert.fail(), references), { question: 'Quem é "GMA"?', options: ['Marcio', 'Gabriela', 'Conjunto'] })
-    assert.deepEqual(questionFor(asks[2] ?? assert.fail(), references), { question: 'Qual categoria é "Salário"?', options: ['Alimentação', 'Nova categoria'] })
+    assert.deepEqual(questionFor(asks[0] ?? assert.fail(), references), { question: 'Quem é "Tia Rosa"?', options: ['Marcio', 'Gabriela', 'Conjunto'] })
+  })
+
+  test('does not plan again a category the reviewers rejected', () => {
+    const { checks, missing, asks } = findChecks([entry(1, { category: 'Pets' })], references, 0.8, [{ name: 'pets', kind: 'expense' }])
+    assert.deepEqual(missing, [])
+    assert.deepEqual(checks.get(1n), [{ code: 'unknown_category', detail: 'Pets' }])
+    assert.deepEqual(questionFor(asks[0] ?? assert.fail(), references), { question: 'Qual categoria é "Pets"?', options: ['Alimentação', 'Nova categoria'] })
   })
 
   test('reconciles printed totals with valid entries by month, direction and category', () => {
@@ -114,19 +142,26 @@ describe('verifyBatch', () => {
     return { batch, ids: staged.candidates }
   }
 
-  test('stores checks, asks for unknown names and marks the batch verified', async () => {
+  test('stores checks, resolves names, creates missing categories and marks the batch verified', async () => {
     const { batch, ids } = await stage('outubro.xlsx')
     const result = await verifyBatch(client, actor, batch)
-    assert.deepEqual(result.failed, [ids[0], ids[1], ids[2], ids[3], ids[5]])
+    assert.deepEqual(result.failed, [ids[0], ids[2], ids[5]])
     assert.deepEqual(result.lowConfidence, [ids[1]])
     assert.equal(result.checked, 6)
-    const { rows } = await client.query<{ id: bigint; checks: { code: string }[] }>('select id, checks from import_candidate where batch_id = $1 order by id', [batch])
+    assert.equal(result.created, 1)
+    assert.deepEqual(result.questions, [])
+    const { rows } = await client.query<{ kind: string; status: string; source: string; payload: unknown; checks: { code: string }[] }>('select kind, status, source, payload, checks from import_candidate where batch_id = $1 order by id', [batch])
     assert.deepEqual(
       rows.map((row) => row.checks.map((check) => check.code)),
-      [['duplicate_in_ledger'], ['low_confidence', 'unknown_member'], ['unknown_member', 'duplicate_in_file'], ['unknown_category'], [], ['duplicate_in_ledger']],
+      [['duplicate_in_ledger'], ['low_confidence', 'matched_member'], ['matched_member', 'duplicate_in_file'], [], [], ['duplicate_in_ledger'], []],
     )
-    const questions = await client.query('select candidate_id, question, options, source from import_question where batch_id = $1 order by id', [batch])
-    assert.deepEqual(questions.rows.slice(1), [{ candidate_id: ids[3], question: 'Qual categoria é "Mercado"?', options: ['Alimentação', 'Casa', 'Contas da casa', 'Dívidas', 'Lazer', 'Nova categoria'], source: 'out!A5:G5' }])
+    assert.deepEqual(
+      rows.map((row) => row.status),
+      ['pending', 'pending', 'pending', 'accepted', 'accepted', 'pending', 'accepted'],
+    )
+    assert.deepEqual(rows[6], { kind: 'category', status: 'accepted', source: 'out!A5:G5', payload: { name: 'Mercado', kind: 'expense' }, checks: [] })
+    const questions = await client.query('select question from import_question where batch_id = $1 order by id', [batch])
+    assert.deepEqual(questions.rows, [{ question: 'GMA é a Gabriela?' }])
     const status = await client.query('select status from import_batch where id = $1', [batch])
     assert.equal(status.rows[0]?.status, 'verified')
     const mismatch = { code: 'total_mismatch', detail: 'out!G8: expense 2026-10 pets expected 18990, found 37980' }
@@ -134,7 +169,7 @@ describe('verifyBatch', () => {
     const checks = await client.query('select checks from import_batch where id = $1', [batch])
     assert.deepEqual(checks.rows[0]?.checks, [mismatch])
     const audit = await client.query<{ author: string; total: number }>("select author, count(*)::int as total from audit_log where entity in ('import_candidate', 'import_question', 'import_batch') and action = 'update' group by author")
-    assert.deepEqual(audit.rows, [{ author: 'import', total: 7 }])
+    assert.deepEqual(audit.rows, [{ author: 'import', total: 8 }])
   })
 
   test('is idempotent: a second run writes nothing new', async () => {

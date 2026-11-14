@@ -6,6 +6,7 @@ import { seed, seedToday } from '../../src/db/seed.ts'
 import { api, apiHosts, apiOrigins, serveApi } from '../../src/http/api.ts'
 import { bodyLimit } from '../../src/http/body.ts'
 import type { Verifier } from '../../src/http/identity.ts'
+import { bareSeedCard } from '../db/bare-card.ts'
 import { testDatabase } from '../db/database.ts'
 
 const groceries = { month: '2026-10', due_on: '2026-10-25', description: 'Farmers market', direction: 'expense', amount_cents: 12345, category: 'alimentação', member: 'joint' }
@@ -32,6 +33,7 @@ describe('http api', () => {
   before(async () => {
     db = await testDatabase()
     await seed(db.client)
+    await bareSeedCard(db.client)
     pool = connectPool(db.url)
     server = await serveApi(pool, 0, '127.0.0.1')
   })
@@ -216,6 +218,66 @@ describe('http api', () => {
     assert.equal((await post('/goals', { name: 'Viagem', target_cents: 0 })).status, 400)
     assert.equal((await post('/goals', { name: 'Viagem', target_cents: 1, due_on: '2027-13-01' })).status, 400)
     assert.equal((await post('/goals', { name: 'Viagem', target_cents: 1 }, {})).status, 401)
+  })
+
+  test('registers, edits and closes a variable expense as the calling member, audited', async () => {
+    const payload = { description: 'Remédios', amountCents: 30000, startsOn: '2026-11-01', category: 'Saúde', member: 'Gabriela' }
+    assert.equal((await post('/setup', { kind: 'variable_expense', payload }, {})).status, 401)
+    const created = await post('/setup', { kind: 'variable_expense', payload })
+    assert.equal(created.status, 201)
+    assert.deepEqual([created.body.kind, created.body.amount.brl, created.body.member, created.body.category, created.body.day], ['variable_expense', 'R$ 300,00', 'Gabriela', 'Saúde', null])
+    assert.equal((await post('/setup', { kind: 'variable_expense', payload: { ...payload, description: 'REMÉDIOS' } })).status, 422)
+    const edited = await send('PATCH', `/setup/variable_expense/${created.body.id}`, { amountCents: 35000, account: 'Conta Gabriela' })
+    assert.deepEqual([edited.status, edited.body.amount.cents, edited.body.account], [200, '35000', 'Conta Gabriela'])
+    assert.equal((await send('PATCH', `/setup/variable_expense/${created.body.id}`, { dayOfMonth: 3 })).status, 422)
+    assert.deepEqual((await post(`/setup/variable_expense/${created.body.id}/close`, {})).body, { id: created.body.id })
+    const { rows } = await pool.query<{ action: string; name: string }>("select a.action, m.name from audit_log a join member m on m.id = a.member_id where a.entity = 'variable_expense' and a.entity_id = $1 order by a.id", [created.body.id])
+    assert.deepEqual(
+      rows.map((row) => `${row.name}:${row.action}`),
+      ['Marcio:create', 'Marcio:update', 'Marcio:close'],
+    )
+    assert.equal(
+      (await get('/setup')).body.some((record: { kind: string; id: string }) => record.kind === 'variable_expense' && record.id === created.body.id),
+      false,
+    )
+  })
+
+  test('lists the variable plan of a month, filtered by member', async () => {
+    const plan = await get('/months/2026-09/variables')
+    assert.deepEqual([plan.status, plan.body.estimate.brl, plan.body.spent.brl, plan.body.unspent.brl], [200, 'R$ 1.820,00', 'R$ 1.610,00', 'R$ 210,00'])
+    assert.deepEqual(plan.body.items[0], { id: plan.body.items[0].id, description: 'Supermercado', category: 'Alimentação', member: null, estimate: { cents: '130000', brl: 'R$ 1.300,00' }, spent: { cents: '118000', brl: 'R$ 1.180,00' } })
+    const marcio = await get('/months/2026-09/variables?member=Marcio')
+    assert.deepEqual(
+      marcio.body.items.map((item: { description: string }) => item.description),
+      ['Combustível'],
+    )
+    assert.equal((await get('/months/2026-13/variables')).status, 422)
+  })
+
+  test('registers a card installment, sets the card limit and lists the cards of a month', async () => {
+    const payload = { description: 'Notebook', account: 'Cartão Marcio', amountCents: 50000, installmentsTotal: 4, currentInstallment: 2, billMonth: '2026-11-01' }
+    const created = await post('/setup', { kind: 'card_installment', payload })
+    assert.deepEqual([created.status, created.body.detail, created.body.amount.brl, created.body.account], [201, '4 installments from 2026-10-01', 'R$ 500,00', 'Cartão Marcio'])
+    assert.equal((await post('/setup', { kind: 'card_installment', payload: { ...payload, account: 'Conta conjunta' } })).status, 422)
+    const account = (await get('/setup')).body.find((record: { kind: string; name: string }) => record.kind === 'account' && record.name === 'Cartão Marcio')
+    const limited = await send('PATCH', `/setup/account/${account.id}`, { amountCents: 600000 })
+    assert.deepEqual([limited.status, limited.body.amount.brl], [200, 'R$ 6.000,00'])
+    const { status, body } = await get('/cards?month=2026-11')
+    assert.equal(status, 200)
+    const card = body.find((item: { nickname: string }) => item.nickname === 'Cartão Marcio')
+    assert.deepEqual([card.limit.brl, card.committed.brl, card.available.brl, card.lastFour, card.installments[0].current, card.installments[0].installment.cents], ['R$ 6.000,00', 'R$ 1.500,00', 'R$ 4.500,00', '8812', 2, '50000'])
+    assert.deepEqual(
+      card.releases.map((release: { month: string; amount: { cents: string } }) => [release.month, release.amount.cents]),
+      [
+        ['2026-11-01', '50000'],
+        ['2026-12-01', '50000'],
+        ['2027-01-01', '50000'],
+      ],
+    )
+    assert.equal((await get('/cards?month=2026-13')).status, 422)
+    assert.equal((await get('/cards')).status, 400)
+    assert.deepEqual((await post(`/setup/card_installment/${created.body.id}/close`, {})).body, { id: created.body.id })
+    assert.equal((await send('PATCH', `/setup/account/${account.id}`, { amountCents: 0 })).status, 422)
   })
 
   test('proposes a decision and closes it once every member confirms', async () => {

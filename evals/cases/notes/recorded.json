@@ -27,7 +27,7 @@
             "description": "Mercado do mês no Atacadão Fictício",
             "direction": "expense",
             "amountCents": 68745,
-            "category": "Mercado",
+            "category": "Alimentação",
             "account": "Cartão do Marcio",
             "member": "Marcio",
             "paid": true
@@ -43,7 +43,7 @@
             "direction": "expense",
             "amountCents": 35000,
             "category": "Educação",
-            "member": "Gabi",
+            "member": "Gabriela",
             "paid": true
           }
         },
@@ -127,8 +127,26 @@
             "direction": "income",
             "amountCents": 520000,
             "category": "Salário",
-            "member": "Gabi",
+            "member": "Gabriela",
             "paid": true
+          }
+        },
+        {
+          "kind": "category",
+          "source": "L4",
+          "confidence": 0.8,
+          "payload": {
+            "name": "Educação",
+            "kind": "expense"
+          }
+        },
+        {
+          "kind": "category",
+          "source": "L7",
+          "confidence": 0.8,
+          "payload": {
+            "name": "Empréstimos",
+            "kind": "expense"
           }
         }
       ],

@@ -1,0 +1,7 @@
+{
+  "members": [{ "name": "Marcio Mastrocola", "initials": "MM" }, { "name": "Gabriela Mendes Alves", "initials": "GMA" }],
+  "categories": { "income": ["Salário"], "expense": ["Lazer", "Mercado", "Moradia", "Saúde", "Transporte"] },
+  "accounts": [{ "nickname": "Conta conjunta", "institution": "Banco Aurora", "lastFour": "•0427" }],
+  "reserves": ["Reserva de emergência"],
+  "proposed": { "income": [], "expense": [] }
+}

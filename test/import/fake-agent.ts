@@ -7,7 +7,8 @@ import { sample } from './sample.ts'
 const { values } = parseArgs({ options: { 'agent-dir': { type: 'string' } } })
 const dir = values['agent-dir'] ?? 'agents/import'
 const task = JSON.parse(await text(process.stdin))
-const mode = task.segment.source as string
+const mode = (task.segment?.source ?? 'consolidate') as string
+const merges: Record<string, string> = { 'Contas da casa': 'Moradia' }
 if (mode === 'crash') throw new Error('Invalid agent config')
 
 const config = JSON.parse(readFileSync(join(dir, 'agent.json'), 'utf8'))
@@ -29,9 +30,12 @@ if (mode === 'garbage') {
   console.log('not json')
 } else if (mode === 'hang') await new Promise((done) => setTimeout(done, 60_000))
 else if (mode === 'echo') {
-  const echo = { dir, files: readdirSync(dir).sort(), folder: config.mcpServers.ingest.args.at(-1), database: process.env.DATABASE_URL ?? null, maxRunTokens: config.maxRunTokens, maxTokens: task.maxTokens, offset: task.offset }
+  const echo = { dir, files: readdirSync(dir).sort(), folder: config.mcpServers.ingest.args.at(-1), database: process.env.DATABASE_URL ?? null, maxRunTokens: config.maxRunTokens, maxTokens: task.maxTokens, offset: task.offset, ledger: task.ledger }
   end()
   console.log(JSON.stringify({ candidates: [], questions: [], echo }))
+} else if (mode === 'consolidate') {
+  end()
+  console.log(JSON.stringify({ categories: task.categories.map(({ name, kind }: { name: string; kind: string }) => ({ name, kind, to: merges[name] ?? name })) }))
 } else {
   end()
   console.log(JSON.stringify(sample))

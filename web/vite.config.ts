@@ -1,8 +1,13 @@
+import { readFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import tailwindcss from '@tailwindcss/vite'
 import { VitePWA, type VitePWAOptions } from 'vite-plugin-pwa'
 import { defineConfig } from 'vitest/config'
+
+const root = dirname(fileURLToPath(import.meta.url))
+
+export const appVersion = JSON.parse(readFileSync(join(root, 'package.json'), 'utf8')).version as string
 
 export const apiTarget = `http://127.0.0.1:${process.env.API_PORT ?? 3200}`
 
@@ -48,8 +53,9 @@ export const pwa: Partial<VitePWAOptions> = {
 
 export default defineConfig({
   plugins: [tailwindcss(), VitePWA(pwa)],
+  define: { 'import.meta.env.VITE_APP_VERSION': JSON.stringify(appVersion) },
   resolve: {
-    alias: { '@': join(dirname(fileURLToPath(import.meta.url)), 'src') },
+    alias: { '@': join(root, 'src') },
   },
   server: {
     proxy: {

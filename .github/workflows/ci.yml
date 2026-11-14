@@ -108,6 +108,7 @@ jobs:
       DATABASE_URL: postgres://postgres:local@localhost:5432/finance
       API_IMAGE: ghcr.io/mastrocola-dev/finance-api:${{ github.sha }}
       MCP_IMAGE: ghcr.io/mastrocola-dev/finance-mcp:${{ github.sha }}
+      EXTRACT_IMAGE: ghcr.io/mastrocola-dev/finance-extract:${{ github.sha }}
     defaults:
       run:
         shell: bash
@@ -118,15 +119,23 @@ jobs:
           set -euo pipefail
           docker build --target api -t finance-api -t "$API_IMAGE" .
           docker build --target mcp -t finance-mcp -t "$MCP_IMAGE" .
+          docker build --target extract -t finance-extract -t "$EXTRACT_IMAGE" .
       - name: Smoke
         run: |
           set -euo pipefail
           test "$(docker run --rm finance-api id -u)" != 0
           test "$(docker run --rm finance-mcp id -u)" != 0
+          test "$(docker run --rm finance-extract id -u)" != 0
+          docker run --rm finance-api sh -c '! command -v uv && test ! -e /opt/python && test ! -e ingest && test ! -e agents && test ! -e /opt/service-agent'
+          docker run --rm finance-mcp sh -c 'test ! -e node_modules/@modelcontextprotocol/client && test ! -e node_modules/read-excel-file && test ! -e db && test ! -e openapi.json && test ! -e src/eval && test ! -e web'
+          EXTRACT_KEY="$(openssl rand -hex 32)"
+          export EXTRACT_KEY
           docker run --rm --network host -e DATABASE_URL finance-api node src/db/migrate.ts
-          docker run --rm -e SERVICE_AGENT_REQUIRED=true -v "$PWD/test:/app/test:ro" -v "$PWD/ingest/tests/fixtures:/app/ingest/tests/fixtures:ro" finance-api node --test test/import/service-agent-contract.test.ts
-          docker run -d --name api --network host -e DATABASE_URL -e API_HOST=127.0.0.1 finance-api
+          docker run --rm -e SERVICE_AGENT_REQUIRED=true -v "$PWD/test:/app/test:ro" -v "$PWD/ingest/tests/fixtures:/app/ingest/tests/fixtures:ro" finance-extract node --test test/import/service-agent-contract.test.ts
+          docker run -d --name extract --network host -e DATABASE_URL -e EXTRACT_KEY -e EXTRACT_HOST=127.0.0.1 finance-extract
+          docker run -d --name api --network host -e DATABASE_URL -e EXTRACT_KEY -e EXTRACT_URL=http://127.0.0.1:3300 -e API_HOST=127.0.0.1 finance-api
           docker run -d --name mcp --network host -e DATABASE_URL -e MCP_HOST=127.0.0.1 finance-mcp
+          for _ in $(seq 60); do curl -sf http://localhost:3300/health > /dev/null && break; sleep 1; done
           for _ in $(seq 60); do curl -sf http://localhost:3200/api/imports/runtime > runtime.json && break; sleep 1; done
           grep -q '"ready":true' runtime.json
           curl -sf http://localhost:3200/api/openapi.json > /dev/null
@@ -151,7 +160,8 @@ jobs:
           }
           push "$API_IMAGE"
           push "$MCP_IMAGE"
-          echo "Published \`$API_IMAGE\` and \`$MCP_IMAGE\`" >> "$GITHUB_STEP_SUMMARY"
+          push "$EXTRACT_IMAGE"
+          echo "Published \`$API_IMAGE\`, \`$MCP_IMAGE\` and \`$EXTRACT_IMAGE\`" >> "$GITHUB_STEP_SUMMARY"
       - name: Base digests
         run: |
           set -euo pipefail
@@ -162,6 +172,7 @@ jobs:
         run: |
           docker logs api || true
           docker logs mcp || true
+          docker logs extract || true
 
   infra:
     runs-on: ubuntu-24.04

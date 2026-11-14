@@ -110,6 +110,20 @@
         "amountCents": 4500,
         "paid": true
       }
+    },
+    {
+      "kind": "category",
+      "payload": {
+        "name": "Transferência",
+        "kind": "income"
+      }
+    },
+    {
+      "kind": "category",
+      "payload": {
+        "name": "Tarifas bancárias",
+        "kind": "expense"
+      }
     }
   ]
 }

@@ -1,0 +1,202 @@
+[
+  {
+    "source": "L1",
+    "offset": 0,
+    "output": {
+      "candidates": [],
+      "questions": [],
+      "totals": []
+    },
+    "usage": {
+      "inputTokens": 1700,
+      "outputTokens": 60,
+      "costUsdMicros": 6000
+    }
+  },
+  {
+    "source": "L3-L7",
+    "offset": 0,
+    "output": {
+      "candidates": [
+        {
+          "kind": "entry",
+          "source": "L3",
+          "confidence": 0.9,
+          "payload": {
+            "date": "2026-11-02",
+            "description": "Supermercado Bom Preço",
+            "direction": "expense",
+            "amountCents": 41230,
+            "category": "Mercado",
+            "member": "joint",
+            "paid": true
+          }
+        },
+        {
+          "kind": "entry",
+          "source": "L4",
+          "confidence": 0.9,
+          "payload": {
+            "date": "2026-11-04",
+            "description": "Drogaria Vida",
+            "direction": "expense",
+            "amountCents": 8990,
+            "category": "Saúde",
+            "member": "Gabriela Mendes Alves",
+            "paid": true
+          }
+        },
+        {
+          "kind": "entry",
+          "source": "L5",
+          "confidence": 0.95,
+          "payload": {
+            "date": "2026-11-05",
+            "description": "Salário",
+            "direction": "income",
+            "amountCents": 720000,
+            "category": "Salário",
+            "member": "Marcio Mastrocola",
+            "paid": true
+          }
+        },
+        {
+          "kind": "entry",
+          "source": "L6",
+          "confidence": 0.85,
+          "payload": {
+            "date": "2026-11-08",
+            "description": "Ração e banho do Thor",
+            "direction": "expense",
+            "amountCents": 18000,
+            "category": "Pets",
+            "member": "joint",
+            "paid": true
+          }
+        },
+        {
+          "kind": "entry",
+          "source": "L7",
+          "confidence": 0.9,
+          "payload": {
+            "date": "2026-11-12",
+            "description": "Uber",
+            "direction": "expense",
+            "amountCents": 3250,
+            "category": "Transporte",
+            "member": "Marcio Mastrocola",
+            "paid": true
+          }
+        },
+        {
+          "kind": "category",
+          "source": "L6",
+          "confidence": 0.85,
+          "payload": {
+            "name": "Pets",
+            "kind": "expense"
+          }
+        }
+      ],
+      "questions": [],
+      "totals": []
+    },
+    "usage": {
+      "inputTokens": 2600,
+      "outputTokens": 900,
+      "costUsdMicros": 21300
+    }
+  },
+  {
+    "source": "L9-L12",
+    "offset": 0,
+    "output": {
+      "candidates": [
+        {
+          "kind": "entry",
+          "source": "L9",
+          "confidence": 0.9,
+          "payload": {
+            "date": "2026-11-15",
+            "description": "Pet shop Amigo",
+            "direction": "expense",
+            "amountCents": 9500,
+            "category": "Pets",
+            "member": "joint",
+            "paid": true
+          }
+        },
+        {
+          "kind": "entry",
+          "source": "L10",
+          "confidence": 0.9,
+          "payload": {
+            "date": "2026-11-20",
+            "description": "Feira",
+            "direction": "expense",
+            "amountCents": 6400,
+            "category": "Mercado",
+            "member": "joint",
+            "paid": true
+          }
+        },
+        {
+          "kind": "entry",
+          "source": "L11",
+          "confidence": 0.9,
+          "payload": {
+            "date": "2026-11-25",
+            "description": "Farmácias Popular",
+            "direction": "expense",
+            "amountCents": 4520,
+            "category": "Saúde",
+            "member": "Gabriela Mendes Alves",
+            "paid": true
+          }
+        },
+        {
+          "kind": "entry",
+          "source": "L12",
+          "confidence": 0.6,
+          "payload": {
+            "date": "2026-11-28",
+            "description": "Cinema",
+            "direction": "expense",
+            "amountCents": 7000,
+            "category": "Lazer",
+            "member": "Gabriela Mendes Alves",
+            "paid": true
+          }
+        }
+      ],
+      "questions": [
+        {
+          "question": "O cinema foi R$ 70,00 ou R$ 700,00?",
+          "options": ["R$ 70,00", "R$ 700,00"],
+          "source": "L12",
+          "candidate": 3
+        }
+      ],
+      "totals": []
+    },
+    "usage": {
+      "inputTokens": 2500,
+      "outputTokens": 750,
+      "costUsdMicros": 18750
+    }
+  },
+  {
+    "source": "L14",
+    "offset": 0,
+    "output": {
+      "candidates": [],
+      "questions": [],
+      "totals": []
+    },
+    "usage": {
+      "inputTokens": 1700,
+      "outputTokens": 60,
+      "costUsdMicros": 6000
+    }
+  }
+]

@@ -8,11 +8,12 @@ import { blockingTexts, type CommitPlan, candidateRecord, titleOf, type Unstaged
 
 const card = 'flex min-w-0 flex-col gap-2.5 rounded-card border bg-surface px-4 py-3 md:px-6 md:py-4'
 
-const outcome = (plan: CommitPlan, open: number) =>
+const outcome = (plan: CommitPlan, open: number, choosing: number) =>
   [
     plan.ready.length === 0 ? 'Nenhum item aceito para gravar.' : `${plural(plan.ready.length, 'item aceito vai', 'itens aceitos vão')} para o livro.`,
     plan.left > 0 && `${plural(plan.left, 'item pendente ou rejeitado fica', 'itens pendentes ou rejeitados ficam')} de fora.`,
     open > 0 && `${plural(open, 'pergunta segue aberta', 'perguntas seguem abertas')}.`,
+    choosing > 0 && `${plural(choosing, 'pergunta sem resposta fica', 'perguntas sem resposta ficam')} com a primeira opção.`,
   ]
     .filter(Boolean)
     .join(' ')
@@ -55,14 +56,14 @@ const Confirmed = ({ label, confirm, disabled, onConfirm }: Confirm) => {
   )
 }
 
-type Props = { plan: CommitPlan; open: number; busy: boolean; hash: string; onCommit: () => void }
+type Props = { plan: CommitPlan; open: number; choosing: number; busy: boolean; hash: string; onCommit: () => void }
 
-export const CommitCard = ({ plan, open, busy, hash, onCommit }: Props) => (
+export const CommitCard = ({ plan, open, choosing, busy, hash, onCommit }: Props) => (
   <section aria-labelledby="commit-title" className={cn(card, (plan.blocked.length > 0 || plan.unstaged.length > 0) && 'border-late/40')}>
     <h2 id="commit-title" className="m-0 text-section font-semibold">
       Gravar no livro
     </h2>
-    <p className="m-0 text-meta">{outcome(plan, open)}</p>
+    <p className="m-0 text-meta">{outcome(plan, open, choosing)}</p>
     {plan.blocked.length > 0 && (
       <>
         <p className="m-0 text-meta text-late">{plan.blocked.length === 1 ? 'Um item aceito tem bloqueio. Edite, responda ou rejeite antes de gravar:' : `${plan.blocked.length} itens aceitos têm bloqueio. Edite, responda ou rejeite antes de gravar:`}</p>
@@ -97,7 +98,9 @@ export const CommitCard = ({ plan, open, busy, hash, onCommit }: Props) => (
       </>
     )}
     <div className="flex flex-wrap items-center gap-2">
-      <Confirmed label={plan.ready.length > 0 ? `Gravar ${plural(plan.ready.length, 'item', 'itens')}` : 'Gravar'} confirm="Confirmar gravação" disabled={busy || plan.ready.length === 0 || plan.blocked.length > 0 || plan.unstaged.length > 0} onConfirm={onCommit} />
+      <Button variant="primary" disabled={busy || plan.ready.length === 0 || plan.blocked.length > 0 || plan.unstaged.length > 0} onClick={onCommit}>
+        {plan.ready.length > 0 ? `Importar ${plural(plan.ready.length, 'item', 'itens')}` : 'Importar'}
+      </Button>
     </div>
   </section>
 )

@@ -1,7 +1,7 @@
 import * as z from 'zod'
 import { batchStatuses } from '../import/batches.ts'
 import { kinds } from '../import/candidate.ts'
-import { runtimeCauses } from '../import/ingest.ts'
+import { runtimeCauses } from '../import/readiness.ts'
 import { authors } from '../ledger/audit.ts'
 import { statuses } from '../ledger/decisions.ts'
 import { origins, states } from '../ledger/entries.ts'
@@ -13,6 +13,8 @@ export const memberHeader = 'x-member'
 const direction = z.enum(['income', 'expense'])
 
 export const monthPath = z.object({ month })
+export const variableQuery = z.object({ member: z.string().optional().describe('Member name or joint') })
+export const cardQuery = z.object({ month: month.describe('Month as YYYY-MM whose bill counts as the current installment') })
 export const idPath = z.object({ id })
 export const namePath = z.object({ name: z.string().describe('Reserve name, percent-encoded') })
 export const referenceQuery = z.object({ today })
@@ -48,6 +50,7 @@ export const importQuery = z.object({ status: z.enum(batchStatuses).optional() }
 export const questionPath = z.object({ id, question: id })
 export const candidatePath = z.object({ id, candidate: id })
 export const answerBody = z.object({ answer: z.string().describe('One of the options or free text; naming an existing member, account, category or reserve resolves every candidate carrying the asked name') })
+export const categoryRename = z.object({ candidate: id.describe('Id of an open category candidate of the batch'), name: z.string().describe('New name; every candidate, subtotal and merge of the batch naming the old one follows') })
 export const candidateEdit = z.object({ payload: z.record(z.string(), z.unknown()).describe('Full candidate payload in camelCase, checked against the schema of its kind') })
 const setupKind = z.enum(setupKinds)
 
@@ -186,12 +189,58 @@ const setupRecord = z.strictObject({
   kind: setupKind,
   id,
   name: z.string(),
-  detail: z.string().nullable().describe('Category direction, account institution, kind and last four, recurring installments, debt description or goal reserve'),
-  amount: money.nullable(),
+  detail: z.string().nullable().describe('Category direction, account institution, kind and last four, recurring installments, card installments and first bill, debt description or goal reserve; null for variable expenses'),
+  amount: money.nullable().describe('Credit limit of an account, monthly amount, installment, balance or target'),
   day: z.int().nullable(),
   member: z.string().nullable(),
   category: z.string().nullable(),
   account: z.string().nullable(),
+})
+
+const release = z.strictObject({ month: date.describe('Bill competence'), amount: money.describe('Limit freed when this bill is paid') })
+
+const cardInstallment = z.strictObject({
+  id,
+  description: z.string(),
+  member: z.string().nullable(),
+  category: z.string().nullable(),
+  installment: money,
+  installmentsTotal: z.int(),
+  current: z.int().nullable().describe('Installment on the bill of the month; null before the first bill'),
+  remaining: z.int().describe('Installments still to be billed, the current one included'),
+  firstBill: date,
+  lastBill: date,
+  committed: money.describe('Installment times remaining'),
+})
+
+const card = z.strictObject({
+  id,
+  nickname: z.string(),
+  institution: z.string(),
+  lastFour: z.string().describe('Last four digits only'),
+  member: z.string().nullable().describe('Owner; null means joint'),
+  limit: money.nullable(),
+  committed: money.describe('Limit held by open installments, the bill of the month included'),
+  available: money.nullable().describe('Limit minus committed; null without a limit'),
+  installments: z.array(cardInstallment),
+  releases: z.array(release).describe('Limit freed per bill, oldest first'),
+})
+
+const variableSpend = z.strictObject({
+  id,
+  description: z.string(),
+  category: z.string(),
+  member: z.string().nullable().describe('null means joint'),
+  estimate: money,
+  spent: money.describe('Expense entries of the month in its category and member, recurring and debt entries left out'),
+})
+
+const variablePlan = z.strictObject({
+  month: date,
+  estimate: money,
+  spent: money,
+  unspent: money.describe('Estimate not yet spent, summed per variable expense and never negative; the projected balance subtracts it'),
+  items: z.array(variableSpend),
 })
 
 const closed = z.strictObject({ id })
@@ -244,6 +293,14 @@ const progress = z.strictObject({
   error: z.string().nullable(),
 })
 
+const consolidation = z
+  .strictObject({
+    merges: z.array(z.strictObject({ name: z.string(), kind: z.enum(['income', 'expense']), to: z.string(), candidates: z.int().describe('Candidates whose category was rewritten') })),
+    unchecked: z.array(z.record(z.string(), z.unknown())).describe('Category subtotals left out of the reconciliation by a merge'),
+    failure: z.string().nullable().describe('Why the consolidation call failed; the extraction result was kept'),
+  })
+  .describe('New categories of the batch merged by one model call after verification')
+
 const importBatch = z.strictObject({
   id,
   fileName: z.string(),
@@ -257,6 +314,7 @@ const importBatch = z.strictObject({
   checks: z.array(check).describe('Batch checks such as total_mismatch'),
   failures: z.array(z.strictObject({ source: z.string(), offset: z.int(), reason: z.string() })).describe('Chunks whose extraction failed'),
   totals: z.array(z.record(z.string(), z.unknown())).describe('Totals printed in the source'),
+  consolidation: consolidation,
   candidates: z.int().describe('Open candidates'),
   flagged: z.int().describe('Open candidates with at least one check'),
   openQuestions: z.int(),
@@ -272,6 +330,7 @@ const importCandidate = z.strictObject({
   chunk: z.string().nullable(),
   confidence: z.string(),
   status: z.enum(['pending', 'accepted', 'rejected', 'edited']),
+  acceptedByModel: z.boolean().describe('Accepted by verification: confidence at or above the threshold and every check passing; a person deciding or editing clears it'),
   payload: z.record(z.string(), z.unknown()).describe('Candidate fields in camelCase, amounts in integer cents'),
   checks: z.array(check),
   recordId: id.nullable().describe('Ledger row created from this candidate when the batch was committed; its table is the kind'),
@@ -285,6 +344,7 @@ const importQuestion = z.strictObject({
   source: z.string().nullable(),
   chunk: z.string().nullable(),
   answer: z.string().nullable(),
+  decidedByModel: z.boolean(),
 })
 
 const importRuntime = z.strictObject({ ready: z.boolean(), cause: z.enum(runtimeCauses).nullable(), warming: z.boolean() })
@@ -311,6 +371,10 @@ export const schemas = {
   Account: account,
   Goal: goal,
   SetupRecord: setupRecord,
+  Release: release,
+  CardInstallment: cardInstallment,
+  Card: card,
+  VariablePlan: variablePlan,
   Closed: closed,
   AuditItem: auditItem,
   AuditPage: auditPage,

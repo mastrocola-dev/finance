@@ -16,7 +16,7 @@ const accounts = {
   joint: { institution: 'Banco Aurora', nickname: 'Conta conjunta', last_four: '0427', kind: 'checking', member: null },
   savings: { institution: 'Banco Aurora', nickname: 'Poupança conjunta', last_four: '0428', kind: 'savings', member: null },
   marcio: { institution: 'Banco Aurora', nickname: 'Conta Marcio', last_four: '6093', kind: 'checking', member: 'marcio' },
-  marcioCard: { institution: 'Banco Horizonte', nickname: 'Cartão Marcio', last_four: '8812', kind: 'credit_card', member: 'marcio' },
+  marcioCard: { institution: 'Banco Horizonte', nickname: 'Cartão Marcio', last_four: '8812', kind: 'credit_card', member: 'marcio', credit_limit_cents: 800000n },
   gabriela: { institution: 'Banco Horizonte', nickname: 'Conta Gabriela', last_four: '3150', kind: 'checking', member: 'gabriela' },
 } as const
 
@@ -51,6 +51,17 @@ const variable = [
   { description: 'Combustível', category: 'Transporte', account: 'marcioCard', member: 'marcio', day: 17, amount: vary(26000n, 2900, 8000) },
   { description: 'Restaurante', category: 'Lazer', account: 'gabriela', member: 'gabriela', day: 14, amount: vary(18000n, 2300, 9000) },
   { description: 'Farmácia', category: 'Saúde', account: 'marcioCard', member: null, day: 3, amount: vary(9000n, 1300, 5000) },
+] as const
+
+const variablePlans = [
+  { description: 'Supermercado', category: 'Alimentação', member: null, account: 'joint', estimate: 130000n },
+  { description: 'Combustível', category: 'Transporte', member: 'marcio', account: 'marcioCard', estimate: 40000n },
+  { description: 'Farmácia', category: 'Saúde', member: null, account: 'marcioCard', estimate: 12000n },
+] as const
+
+const cardInstallments = [
+  { description: 'Geladeira', category: 'Casa', member: null, installment: 25000n, total: 10, first_bill: '2026-08-01' },
+  { description: 'Notebook', category: 'Lazer', member: 'marcio', installment: 40000n, total: 6, first_bill: '2026-09-01' },
 ] as const
 
 const debts = [
@@ -176,6 +187,14 @@ const plant = async (ledger: Writer, clock: Clock) => {
       if (due_on < firstMonth || due_on.slice(0, 7) > seedToday.slice(0, 7)) continue
       entry({ description: debt.description, due_on, direction: 'expense', amount_cents: debt.installment, category_id: category('Dívidas'), account_id: accountIds[debt.account], member_id: memberOf(debt.member), debt_id, installment_number: index + 1 })
     }
+  }
+
+  for (const plan of variablePlans) {
+    await setup('variable_expense', { description: plan.description, category_id: category(plan.category), member_id: memberOf(plan.member), account_id: accountIds[plan.account], amount_cents: plan.estimate, starts_on: firstMonth })
+  }
+
+  for (const purchase of cardInstallments) {
+    await setup('card_installment', { description: purchase.description, account_id: accountIds.marcioCard, member_id: memberOf(purchase.member), category_id: category(purchase.category), installment_cents: purchase.installment, installments_total: purchase.total, first_bill: purchase.first_bill })
   }
 
   await setup('reserve', { name: 'Reserva de emergência', account_id: accountIds.savings, balance_cents: 1800000n, target_cents: 3000000n })

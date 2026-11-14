@@ -2,11 +2,14 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { CornerDownLeft, X } from 'lucide-react'
 import type { KeyboardEvent, ReactNode } from 'react'
 import { useForm } from 'react-hook-form'
+import type { Notice } from '../components/toast.tsx'
 import { Button } from '../components/ui/button.tsx'
 import { today } from '../lib/format.ts'
 import { cn } from '../lib/utils.ts'
 import type { Entry } from '../overview/model.ts'
 import { useMembers } from '../query/shell.ts'
+import { CategoryHelp } from '../setup/category-help.tsx'
+import { findCategory } from '../setup/model.ts'
 import { type NewEntry, useAccounts, useCategories } from './queries.ts'
 import { dueOnFor, fromEntry, lastDayOf, paidByDefault, type QuickEntry, quickEntry, toNewEntry } from './quick-add.ts'
 
@@ -30,28 +33,32 @@ const submitOnEnter = (event: KeyboardEvent<HTMLFormElement>) => {
 
 type Editing = { entry: Entry; onCancelEntry: () => void; onClose: () => void }
 
-type Props = { month: string; member: string | undefined; pending: boolean; editing?: Editing; onSubmit: (entry: NewEntry, reset: () => void) => void }
+type Props = { month: string; member: string | undefined; pending: boolean; editing?: Editing; notify: (notice: Notice) => void; onSubmit: (entry: NewEntry, reset: () => void) => void }
 
-export const QuickAddForm = ({ month, member, pending, editing, onSubmit }: Props) => {
+export const QuickAddForm = ({ month, member, pending, editing, notify, onSubmit }: Props) => {
   const categories = useCategories().data ?? []
   const accounts = useAccounts().data ?? []
   const members = useMembers().data ?? []
   const now = today()
   const date = dueOnFor(month, now)
-  const { register, handleSubmit, watch, setValue, resetField, setFocus, formState } = useForm<QuickEntry>({
+  const { register, handleSubmit, watch, setValue, setError, resetField, setFocus, formState } = useForm<QuickEntry>({
     resolver: zodResolver(quickEntry(month, now)),
     defaultValues: editing ? fromEntry(editing.entry) : { direction: 'expense', description: '', amount: '', category: '', account: '', member: member ?? 'joint', date, paid: paidByDefault(date, now) },
   })
   const direction = watch('direction')
+  const category = watch('category')
   const errors = Object.values(formState.errors).map((error) => error?.message)
   const invalid = (name: keyof QuickEntry) => ({ 'aria-invalid': formState.errors[name] ? true : undefined, 'aria-describedby': formState.errors[name] ? errorsId : undefined })
-  const submit = handleSubmit((values) =>
-    onSubmit(toNewEntry(values, month, editing?.entry.paidOn ?? undefined), () => {
+  const submit = handleSubmit((values) => {
+    const known = findCategory(categories, values.category, values.direction)
+    if (!known) return setError('category', { message: `Crie a categoria ${values.category.trim()} ou escolha uma da lista.` })
+    setValue('category', known.name)
+    onSubmit(toNewEntry({ ...values, category: known.name }, month, editing?.entry.paidOn ?? undefined), () => {
       resetField('description')
       resetField('amount')
       setFocus('description')
-    }),
-  )
+    })
+  })
   return (
     <form aria-label={editing ? `Corrigir ${editing.entry.description}` : 'Lançamento rápido'} noValidate onSubmit={submit} onKeyDown={submitOnEnter} className={cn('flex flex-col gap-2 rounded-card border bg-surface p-4', editing && 'border-accent')}>
       {editing && (
@@ -76,17 +83,18 @@ export const QuickAddForm = ({ month, member, pending, editing, onSubmit }: Prop
           <input className={cn(field, 'amount')} inputMode="decimal" autoComplete="off" placeholder="R$ 0,00" id="quick-amount" {...register('amount')} {...invalid('amount')} />
         </Field>
         <Field id="quick-category" label="Categoria" grow="flex-[1_1_150px]">
-          <select className={field} id="quick-category" {...register('category')} {...invalid('category')}>
-            <option value="">Escolher</option>
+          <input className={field} autoComplete="off" list="quick-category-names" placeholder="Escolher ou criar" id="quick-category" {...register('category')} {...invalid('category')} />
+          <datalist id="quick-category-names">
             {categories
-              .filter((category) => category.direction === direction)
+              .filter((item) => item.direction === direction)
               .map(({ id, name }) => (
-                <option key={id} value={name}>
-                  {name}
-                </option>
+                <option key={id} value={name} />
               ))}
-          </select>
+          </datalist>
         </Field>
+        <div className="flex min-w-0 max-w-full flex-[0_1_auto] flex-wrap gap-2 empty:hidden">
+          <CategoryHelp name={category} direction={direction} notify={notify} onCreated={(name) => setValue('category', name, { shouldValidate: formState.isSubmitted })} />
+        </div>
         <Field id="quick-account" label="Conta" grow="flex-[1_1_170px]">
           <select className={field} id="quick-account" {...register('account')}>
             <option value="">Sem conta</option>

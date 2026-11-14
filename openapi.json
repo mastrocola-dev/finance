@@ -129,6 +129,60 @@
         }
       }
     },
+    "/api/months/{month}/variables": {
+      "get": {
+        "operationId": "getVariablePlan",
+        "summary": "Variable expenses of a month: estimate against spent",
+        "security": [
+          {},
+          {
+            "member": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "month",
+            "in": "path",
+            "required": true,
+            "description": "Month as YYYY-MM",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "member",
+            "in": "query",
+            "required": false,
+            "description": "Member name or joint",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/VariablePlan"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/months/{month}/entries": {
       "get": {
         "operationId": "listEntries",
@@ -673,6 +727,51 @@
         }
       }
     },
+    "/api/cards": {
+      "get": {
+        "operationId": "listCards",
+        "summary": "Open credit cards with limit, installments, committed and available limit and the releases of the coming bills",
+        "security": [
+          {},
+          {
+            "member": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "month",
+            "in": "query",
+            "required": true,
+            "description": "Month as YYYY-MM whose bill counts as the current installment",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ListCardsResponse"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/months/{month}/split": {
       "get": {
         "operationId": "getMonthSplit",
@@ -1086,7 +1185,7 @@
     "/api/setup": {
       "get": {
         "operationId": "listSetup",
-        "summary": "Open categories, accounts, reserves, incomes, recurring expenses, debts and goals",
+        "summary": "Open categories, accounts, reserves, incomes, recurring expenses, variable expenses, card installments, debts and goals",
         "security": [
           {},
           {
@@ -1119,7 +1218,7 @@
       },
       "post": {
         "operationId": "registerRecord",
-        "summary": "Register a category, account, reserve, income, recurring expense, debt or goal",
+        "summary": "Register a category, account, reserve, income, recurring expense, variable expense, card installment, debt or goal",
         "security": [
           {
             "member": []
@@ -1160,6 +1259,40 @@
         }
       }
     },
+    "/api/setup/starter-categories": {
+      "post": {
+        "operationId": "createStarterCategories",
+        "summary": "Create the suggested household categories that are not open yet, in one audited write; returns the ones created",
+        "security": [
+          {
+            "member": []
+          }
+        ],
+        "parameters": [],
+        "responses": {
+          "201": {
+            "description": "Created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CreateStarterCategoriesResponse"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/setup/{kind}/{id}": {
       "patch": {
         "operationId": "editRecord",
@@ -1182,6 +1315,8 @@
                 "reserve",
                 "income",
                 "recurring_expense",
+                "variable_expense",
+                "card_installment",
                 "debt",
                 "goal"
               ]
@@ -1253,6 +1388,8 @@
                 "reserve",
                 "income",
                 "recurring_expense",
+                "variable_expense",
+                "card_installment",
                 "debt",
                 "goal"
               ]
@@ -1969,6 +2106,60 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/ImportCandidate"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/imports/{id}/categories/rename": {
+      "post": {
+        "operationId": "renameImportCategory",
+        "summary": "Rename a new category of a verified import batch and every candidate that uses it; refuses a name already open",
+        "security": [
+          {
+            "member": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^\\d+$"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RenameImportCategoryBody"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RenameImportCategoryResponse"
                 }
               }
             }
@@ -2918,6 +3109,8 @@
               "reserve",
               "income",
               "recurring_expense",
+              "variable_expense",
+              "card_installment",
               "debt",
               "goal"
             ]
@@ -2930,7 +3123,7 @@
             "type": "string"
           },
           "detail": {
-            "description": "Category direction, account institution, kind and last four, recurring installments, debt description or goal reserve",
+            "description": "Category direction, account institution, kind and last four, recurring installments, card installments and first bill, debt description or goal reserve; null for variable expenses",
             "type": [
               "string",
               "null"
@@ -2944,7 +3137,8 @@
               {
                 "type": "null"
               }
-            ]
+            ],
+            "description": "Credit limit of an account, monthly amount, installment, balance or target"
           },
           "day": {
             "anyOf": [
@@ -2987,6 +3181,246 @@
           "member",
           "category",
           "account"
+        ],
+        "additionalProperties": false
+      },
+      "Release": {
+        "type": "object",
+        "properties": {
+          "month": {
+            "type": "string",
+            "description": "Bill competence"
+          },
+          "amount": {
+            "description": "Limit freed when this bill is paid",
+            "$ref": "#/components/schemas/Money"
+          }
+        },
+        "required": [
+          "month",
+          "amount"
+        ],
+        "additionalProperties": false
+      },
+      "CardInstallment": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^\\d+$"
+          },
+          "description": {
+            "type": "string"
+          },
+          "member": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "category": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "installment": {
+            "$ref": "#/components/schemas/Money"
+          },
+          "installmentsTotal": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
+          "current": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": -9007199254740991,
+                "maximum": 9007199254740991
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Installment on the bill of the month; null before the first bill"
+          },
+          "remaining": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991,
+            "description": "Installments still to be billed, the current one included"
+          },
+          "firstBill": {
+            "type": "string",
+            "description": "Date as YYYY-MM-DD"
+          },
+          "lastBill": {
+            "type": "string",
+            "description": "Date as YYYY-MM-DD"
+          },
+          "committed": {
+            "description": "Installment times remaining",
+            "$ref": "#/components/schemas/Money"
+          }
+        },
+        "required": [
+          "id",
+          "description",
+          "member",
+          "category",
+          "installment",
+          "installmentsTotal",
+          "current",
+          "remaining",
+          "firstBill",
+          "lastBill",
+          "committed"
+        ],
+        "additionalProperties": false
+      },
+      "Card": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^\\d+$"
+          },
+          "nickname": {
+            "type": "string"
+          },
+          "institution": {
+            "type": "string"
+          },
+          "lastFour": {
+            "type": "string",
+            "description": "Last four digits only"
+          },
+          "member": {
+            "description": "Owner; null means joint",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "limit": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Money"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "committed": {
+            "description": "Limit held by open installments, the bill of the month included",
+            "$ref": "#/components/schemas/Money"
+          },
+          "available": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Money"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Limit minus committed; null without a limit"
+          },
+          "installments": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CardInstallment"
+            }
+          },
+          "releases": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Release"
+            },
+            "description": "Limit freed per bill, oldest first"
+          }
+        },
+        "required": [
+          "id",
+          "nickname",
+          "institution",
+          "lastFour",
+          "member",
+          "limit",
+          "committed",
+          "available",
+          "installments",
+          "releases"
+        ],
+        "additionalProperties": false
+      },
+      "VariablePlan": {
+        "type": "object",
+        "properties": {
+          "month": {
+            "type": "string",
+            "description": "Date as YYYY-MM-DD"
+          },
+          "estimate": {
+            "$ref": "#/components/schemas/Money"
+          },
+          "spent": {
+            "$ref": "#/components/schemas/Money"
+          },
+          "unspent": {
+            "description": "Estimate not yet spent, summed per variable expense and never negative; the projected balance subtracts it",
+            "$ref": "#/components/schemas/Money"
+          },
+          "items": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string",
+                  "pattern": "^\\d+$"
+                },
+                "description": {
+                  "type": "string"
+                },
+                "category": {
+                  "type": "string"
+                },
+                "member": {
+                  "description": "null means joint",
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "estimate": {
+                  "$ref": "#/components/schemas/Money"
+                },
+                "spent": {
+                  "description": "Expense entries of the month in its category and member, recurring and debt entries left out",
+                  "$ref": "#/components/schemas/Money"
+                }
+              },
+              "required": [
+                "id",
+                "description",
+                "category",
+                "member",
+                "estimate",
+                "spent"
+              ],
+              "additionalProperties": false
+            }
+          }
+        },
+        "required": [
+          "month",
+          "estimate",
+          "spent",
+          "unspent",
+          "items"
         ],
         "additionalProperties": false
       },
@@ -3397,6 +3831,70 @@
             },
             "description": "Totals printed in the source"
           },
+          "consolidation": {
+            "type": "object",
+            "properties": {
+              "merges": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "name": {
+                      "type": "string"
+                    },
+                    "kind": {
+                      "type": "string",
+                      "enum": [
+                        "income",
+                        "expense"
+                      ]
+                    },
+                    "to": {
+                      "type": "string"
+                    },
+                    "candidates": {
+                      "type": "integer",
+                      "minimum": -9007199254740991,
+                      "maximum": 9007199254740991,
+                      "description": "Candidates whose category was rewritten"
+                    }
+                  },
+                  "required": [
+                    "name",
+                    "kind",
+                    "to",
+                    "candidates"
+                  ],
+                  "additionalProperties": false
+                }
+              },
+              "unchecked": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "propertyNames": {
+                    "type": "string"
+                  },
+                  "additionalProperties": {}
+                },
+                "description": "Category subtotals left out of the reconciliation by a merge"
+              },
+              "failure": {
+                "description": "Why the consolidation call failed; the extraction result was kept",
+                "type": [
+                  "string",
+                  "null"
+                ]
+              }
+            },
+            "required": [
+              "merges",
+              "unchecked",
+              "failure"
+            ],
+            "additionalProperties": false,
+            "description": "New categories of the batch merged by one model call after verification"
+          },
           "candidates": {
             "type": "integer",
             "minimum": -9007199254740991,
@@ -3486,6 +3984,7 @@
           "checks",
           "failures",
           "totals",
+          "consolidation",
           "candidates",
           "flagged",
           "openQuestions",
@@ -3537,6 +4036,10 @@
               "edited"
             ]
           },
+          "acceptedByModel": {
+            "type": "boolean",
+            "description": "Accepted by verification: confidence at or above the threshold and every check passing; a person deciding or editing clears it"
+          },
           "payload": {
             "type": "object",
             "propertyNames": {
@@ -3583,6 +4086,7 @@
           "chunk",
           "confidence",
           "status",
+          "acceptedByModel",
           "payload",
           "checks",
           "recordId"
@@ -3633,6 +4137,9 @@
               "string",
               "null"
             ]
+          },
+          "decidedByModel": {
+            "type": "boolean"
           }
         },
         "required": [
@@ -3642,7 +4149,8 @@
           "options",
           "source",
           "chunk",
-          "answer"
+          "answer",
+          "decidedByModel"
         ],
         "additionalProperties": false
       },
@@ -3782,6 +4290,12 @@
           "$ref": "#/components/schemas/Goal"
         }
       },
+      "ListCardsResponse": {
+        "type": "array",
+        "items": {
+          "$ref": "#/components/schemas/Card"
+        }
+      },
       "CreateEntryBody": {
         "type": "object",
         "properties": {
@@ -3860,6 +4374,8 @@
               "reserve",
               "income",
               "recurring_expense",
+              "variable_expense",
+              "card_installment",
               "debt",
               "goal"
             ]
@@ -3878,6 +4394,12 @@
           "payload"
         ]
       },
+      "CreateStarterCategoriesResponse": {
+        "type": "array",
+        "items": {
+          "$ref": "#/components/schemas/SetupRecord"
+        }
+      },
       "EditRecordBody": {
         "type": "object",
         "properties": {
@@ -3891,7 +4413,7 @@
             "type": "integer",
             "minimum": 0,
             "maximum": 100000000000,
-            "description": "New amount: monthly amount, balance of a reserve or debt, target of a goal, integer cents of BRL"
+            "description": "New amount: monthly amount, installment of a card purchase, limit of a credit card account, balance of a reserve or debt, target of a goal, integer cents of BRL"
           },
           "dayOfMonth": {
             "type": "integer",
@@ -4034,6 +4556,30 @@
         "required": [
           "payload"
         ]
+      },
+      "RenameImportCategoryBody": {
+        "type": "object",
+        "properties": {
+          "candidate": {
+            "type": "string",
+            "pattern": "^\\d+$",
+            "description": "Id of an open category candidate of the batch"
+          },
+          "name": {
+            "type": "string",
+            "description": "New name; every candidate, subtotal and merge of the batch naming the old one follows"
+          }
+        },
+        "required": [
+          "candidate",
+          "name"
+        ]
+      },
+      "RenameImportCategoryResponse": {
+        "type": "array",
+        "items": {
+          "$ref": "#/components/schemas/ImportCandidate"
+        }
       },
       "AcceptImportCandidatesBody": {
         "type": "object",

@@ -1,5 +1,7 @@
 import { writeFile } from 'node:fs/promises'
+import * as z from 'zod'
 import { importOutputJsonSchema } from './candidate.ts'
+import { consolidationOutput } from './consolidate.ts'
 
 const limits = new Set(['minimum', 'maximum', 'exclusiveMinimum', 'exclusiveMaximum', 'multipleOf', 'minLength', 'maxLength', 'minItems', 'maxItems'])
 
@@ -42,4 +44,8 @@ export const outputSchemaPath = new URL('../../agents/import/output.schema.json'
 
 export const outputSchemaText = () => `${JSON.stringify(structured(importOutputJsonSchema()), null, 2)}\n`
 
-if (import.meta.main) await writeFile(outputSchemaPath, outputSchemaText())
+export const consolidateSchemaPath = new URL('../../agents/import-consolidate/output.schema.json', import.meta.url)
+
+export const consolidateSchemaText = () => `${JSON.stringify(structured(z.toJSONSchema(consolidationOutput, { io: 'input', target: 'draft-2020-12' })), null, 2)}\n`
+
+if (import.meta.main) await Promise.all([writeFile(outputSchemaPath, outputSchemaText()), writeFile(consolidateSchemaPath, consolidateSchemaText())])

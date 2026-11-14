@@ -46,6 +46,11 @@ const required = (name: string) => {
   return value
 }
 
+export const domainHintOf = (value: string | undefined) => {
+  const hint = value?.trim() || 'google'
+  return hint === 'none' ? undefined : hint
+}
+
 const verifiers: Record<string, (signIn: boolean) => Verifier> = {
   local: () => localVerifier,
   entra: (signIn) => {
@@ -53,7 +58,16 @@ const verifiers: Record<string, (signIn: boolean) => Verifier> = {
     const keys = jwksOf(issuer)
     const audience = required('ENTRA_AUDIENCE')
     if (!signIn) return entraVerifier({ issuer, audience, keys })
-    const signedIn = session({ issuer, clientId: required('ENTRA_CLIENT_ID'), clientSecret: process.env.ENTRA_CLIENT_SECRET?.trim() || undefined, scopes: process.env.ENTRA_SCOPES?.trim() || undefined, key: sessionKeyOf(required('SESSION_KEY')), keys, publicUrl: process.env.API_PUBLIC_URL?.trim() || undefined })
+    const signedIn = session({
+      issuer,
+      clientId: required('ENTRA_CLIENT_ID'),
+      clientSecret: process.env.ENTRA_CLIENT_SECRET?.trim() || undefined,
+      scopes: process.env.ENTRA_SCOPES?.trim() || undefined,
+      key: sessionKeyOf(required('SESSION_KEY')),
+      keys,
+      publicUrl: process.env.API_PUBLIC_URL?.trim() || undefined,
+      domainHint: domainHintOf(process.env.ENTRA_DOMAIN_HINT),
+    })
     return entraVerifier({ issuer, audience, keys }, signedIn)
   },
 }

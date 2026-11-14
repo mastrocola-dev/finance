@@ -42,7 +42,7 @@
             "direction": "income",
             "amountCents": 590000,
             "category": "Salário",
-            "member": "Gabi",
+            "member": "Gabriela",
             "paid": true
           }
         }
@@ -174,7 +174,7 @@
             "direction": "expense",
             "amountCents": 6450,
             "category": "Saúde",
-            "member": "Gabi",
+            "member": "Gabriela",
             "paid": true
           }
         },
@@ -273,7 +273,7 @@
             "direction": "income",
             "amountCents": 590000,
             "category": "Salário",
-            "member": "Gabi",
+            "member": "Gabriela",
             "paid": true
           }
         },
@@ -405,7 +405,7 @@
             "direction": "expense",
             "amountCents": 8990,
             "category": "Saúde",
-            "member": "Gabi",
+            "member": "Gabriela",
             "paid": true
           }
         },

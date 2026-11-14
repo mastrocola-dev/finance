@@ -68,6 +68,17 @@ export const useEdit = (id: string) => {
   })
 }
 
+export const useRename = (id: string) => {
+  const { api } = useIdentity()
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationKey: ['import-review', id],
+    scope: { id: `import-review-${id}` },
+    mutationFn: async ({ candidate, name }: { candidate: string; name: string }) => unwrap(await api.POST('/api/imports/{id}/categories/rename', { params: { path: { id } }, body: { candidate, name } })),
+    onSettled: () => refresh(queryClient),
+  })
+}
+
 export const useCommit = (id: string) => {
   const { api } = useIdentity()
   const queryClient = useQueryClient()

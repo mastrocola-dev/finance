@@ -6,10 +6,21 @@ import type { Database } from '../db/connection.ts'
 import type { Actor } from '../db/write.ts'
 import { RuleError } from '../ledger/rule.ts'
 import { type FileImport, finishImport, finishRetry, openImport, openRetry } from './cli.ts'
-import { type IngestReadiness, warmIngest } from './ingest.ts'
+import { warmIngest } from './ingest.ts'
+import type { IngestReadiness, RuntimeCause } from './readiness.ts'
 import { batchOfFile, maskDigits } from './staging.ts'
 
 export type Progress = { state: 'extracting' | 'done' | 'failed'; done: number; total: number; error: string | null }
+
+export type Runtime = { ready: boolean; cause: RuntimeCause | null; warming: boolean }
+
+export type Imports = {
+  start: (actor: Actor, name: string, bytes: Uint8Array) => Promise<bigint>
+  retry: (actor: Actor, batchId: bigint) => Promise<void>
+  discard: (batchId: bigint) => Promise<string[]>
+  runtime: () => Runtime | Promise<Runtime>
+  progressOf: (batchIds: bigint[]) => Map<bigint, Progress> | Promise<Map<bigint, Progress>>
+}
 
 export type Uploads = Omit<FileImport, 'onProgress'> & { folder?: string; warm?: () => Promise<IngestReadiness>; cooldownMs?: number; onWarmed?: (readiness: IngestReadiness) => void; dailyCapUsdMicros?: number }
 
@@ -79,7 +90,7 @@ export const importUploads = (pool: Database, { folder = uploadsFolder(), warm: 
     if (!readiness.ready && !warming && Date.now() - attempted >= cooldownMs) void warm()
   }
 
-  const runtime = () => {
+  const runtime = (): Runtime => {
     rewarm()
     return readiness.ready ? { ready: true, cause: null, warming: false } : { ready: false, cause: readiness.cause, warming: Boolean(warming) }
   }
@@ -176,7 +187,29 @@ export const importUploads = (pool: Database, { folder = uploadsFolder(), warm: 
 
   const sweep = async () => prune(await folders(folder))
 
-  return { start, retry, discard, sweep, runtime, warm, progressOf: (batchId: bigint) => progress.get(batchId) ?? null, settled: () => Promise.all([...running, warming]) }
+  return {
+    start,
+    retry,
+    discard,
+    sweep,
+    runtime,
+    warm,
+    progressOf: (batchIds: bigint[]) =>
+      new Map(
+        batchIds.flatMap((id) => {
+          const state = progress.get(id)
+          return state ? [[id, { ...state }] as const] : []
+        }),
+      ),
+    settled: () => Promise.all([...running, warming]),
+  }
 }
 
 export type ImportUploads = ReturnType<typeof importUploads>
+
+export const warmedUploads = async (pool: Database) => {
+  const uploads = importUploads(pool, { onWarmed: (readiness) => console.error(readiness.ready ? 'ingest runtime ready' : `ingest runtime not ready (${readiness.reason}): uploads wait until uv can sync ingest/.venv-runtime`) })
+  await uploads.sweep()
+  await uploads.warm()
+  return uploads
+}

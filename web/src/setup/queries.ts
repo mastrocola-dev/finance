@@ -3,11 +3,11 @@ import { useIdentity } from '../identity/identity-provider.tsx'
 import { unwrap } from '../query/client.ts'
 import type { SetupKind } from './model.ts'
 
-const touched = ['setup', 'categories', 'accounts', 'debts', 'savings', 'net-worth', 'audit']
+const touched = [['setup'], ['categories'], ['accounts'], ['cards'], ['debts'], ['savings'], ['net-worth'], ['audit'], ['entries', 'variables']]
 
 const useRefresh = () => {
   const queryClient = useQueryClient()
-  return () => Promise.all(touched.map((key) => queryClient.invalidateQueries({ queryKey: [key] })))
+  return () => Promise.all(touched.map((queryKey) => queryClient.invalidateQueries({ queryKey })))
 }
 
 export const useSetup = () => {
@@ -31,4 +31,9 @@ export const useEditRecord = () => {
     mutationFn: async ({ kind, id, changes }: { kind: SetupKind; id: string; changes: Record<string, unknown> }) => unwrap(await api.PATCH('/api/setup/{kind}/{id}', { params: { path: { kind, id } }, body: changes })),
     onSuccess: useRefresh(),
   })
+}
+
+export const useStarterCategories = () => {
+  const { api } = useIdentity()
+  return useMutation({ mutationFn: async () => unwrap(await api.POST('/api/setup/starter-categories')), onSuccess: useRefresh() })
 }

@@ -2,7 +2,7 @@ import { expect, test } from 'vitest'
 import { serverErrors, toPayload, toValues } from './edit-model.ts'
 import type { Candidate } from './review-model.ts'
 
-const candidate = (kind: Candidate['kind'], payload: Record<string, unknown>): Candidate => ({ id: '1', kind, source: 'A1', chunk: null, confidence: '0.9', status: 'pending', payload, checks: [], recordId: null })
+const candidate = (kind: Candidate['kind'], payload: Record<string, unknown>): Candidate => ({ id: '1', kind, source: 'A1', chunk: null, confidence: '0.9', status: 'pending', acceptedByModel: false, payload, checks: [], recordId: null })
 
 test('entry values round trip into the same payload', () => {
   const payload = { date: '2026-10-10', description: 'Aluguel', direction: 'expense', amountCents: 150000, category: 'Moradia', member: 'joint', paid: true, installment: { number: 2, total: 10 } }
