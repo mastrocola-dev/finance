@@ -348,10 +348,10 @@ export type paths = {
             path?: never;
             cookie?: never;
         };
-        /** Open categories, accounts, reserves, incomes, recurring expenses, debts and goals */
+        /** Open categories, accounts, reserves, incomes, recurring expenses, variable expenses, debts and goals */
         get: operations["listSetup"];
         put?: never;
-        /** Register a category, account, reserve, income, recurring expense, debt or goal */
+        /** Register a category, account, reserve, income, recurring expense, variable expense, debt or goal */
         post: operations["registerRecord"];
         delete?: never;
         options?: never;
@@ -874,10 +874,10 @@ export type components = {
         };
         SetupRecord: {
             /** @enum {string} */
-            kind: "category" | "account" | "reserve" | "income" | "recurring_expense" | "debt" | "goal";
+            kind: "category" | "account" | "reserve" | "income" | "recurring_expense" | "variable_expense" | "debt" | "goal";
             id: string;
             name: string;
-            /** @description Category direction, account institution, kind and last four, recurring installments, debt description or goal reserve */
+            /** @description Category direction, account institution, kind and last four, recurring installments, debt description or goal reserve; null for variable expenses */
             detail: string | null;
             amount: components["schemas"]["Money"] | null;
             day: number | null;
@@ -1101,7 +1101,7 @@ export type components = {
         ListSetupResponse: components["schemas"]["SetupRecord"][];
         RegisterRecordBody: {
             /** @enum {string} */
-            kind: "category" | "account" | "reserve" | "income" | "recurring_expense" | "debt" | "goal";
+            kind: "category" | "account" | "reserve" | "income" | "recurring_expense" | "variable_expense" | "debt" | "goal";
             /** @description Payload in camelCase, checked against the schema of its kind (same as import candidates) */
             payload: {
                 [key: string]: unknown;
@@ -2040,7 +2040,7 @@ export interface operations {
             query?: never;
             header?: never;
             path: {
-                kind: "category" | "account" | "reserve" | "income" | "recurring_expense" | "debt" | "goal";
+                kind: "category" | "account" | "reserve" | "income" | "recurring_expense" | "variable_expense" | "debt" | "goal";
                 id: string;
             };
             cookie?: never;
@@ -2076,7 +2076,7 @@ export interface operations {
             query?: never;
             header?: never;
             path: {
-                kind: "category" | "account" | "reserve" | "income" | "recurring_expense" | "debt" | "goal";
+                kind: "category" | "account" | "reserve" | "income" | "recurring_expense" | "variable_expense" | "debt" | "goal";
                 id: string;
             };
             cookie?: never;

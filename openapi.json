@@ -1086,7 +1086,7 @@
     "/api/setup": {
       "get": {
         "operationId": "listSetup",
-        "summary": "Open categories, accounts, reserves, incomes, recurring expenses, debts and goals",
+        "summary": "Open categories, accounts, reserves, incomes, recurring expenses, variable expenses, debts and goals",
         "security": [
           {},
           {
@@ -1119,7 +1119,7 @@
       },
       "post": {
         "operationId": "registerRecord",
-        "summary": "Register a category, account, reserve, income, recurring expense, debt or goal",
+        "summary": "Register a category, account, reserve, income, recurring expense, variable expense, debt or goal",
         "security": [
           {
             "member": []
@@ -1216,6 +1216,7 @@
                 "reserve",
                 "income",
                 "recurring_expense",
+                "variable_expense",
                 "debt",
                 "goal"
               ]
@@ -1287,6 +1288,7 @@
                 "reserve",
                 "income",
                 "recurring_expense",
+                "variable_expense",
                 "debt",
                 "goal"
               ]
@@ -3006,6 +3008,7 @@
               "reserve",
               "income",
               "recurring_expense",
+              "variable_expense",
               "debt",
               "goal"
             ]
@@ -3018,7 +3021,7 @@
             "type": "string"
           },
           "detail": {
-            "description": "Category direction, account institution, kind and last four, recurring installments, debt description or goal reserve",
+            "description": "Category direction, account institution, kind and last four, recurring installments, debt description or goal reserve; null for variable expenses",
             "type": [
               "string",
               "null"
@@ -4022,6 +4025,7 @@
               "reserve",
               "income",
               "recurring_expense",
+              "variable_expense",
               "debt",
               "goal"
             ]

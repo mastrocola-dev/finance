@@ -186,8 +186,8 @@ export const routes: Route[] = [
     const cancelled = await writing(input, (connection, actor) => cancelEntry(connection, actor, BigInt(input.params.id)))
     return { id: String(cancelled) }
   }),
-  route({ method: 'GET', path: '/setup', operationId: 'listSetup', summary: 'Open categories, accounts, reserves, incomes, recurring expenses, debts and goals', response: z.array(schemas.SetupRecord) }, ({ client }) => listSetup(client)),
-  route({ method: 'POST', path: '/setup', operationId: 'registerRecord', summary: 'Register a category, account, reserve, income, recurring expense, debt or goal', body: newRecord, response: schemas.SetupRecord, status: 201 }, async (input) => {
+  route({ method: 'GET', path: '/setup', operationId: 'listSetup', summary: 'Open categories, accounts, reserves, incomes, recurring expenses, variable expenses, debts and goals', response: z.array(schemas.SetupRecord) }, ({ client }) => listSetup(client)),
+  route({ method: 'POST', path: '/setup', operationId: 'registerRecord', summary: 'Register a category, account, reserve, income, recurring expense, variable expense, debt or goal', body: newRecord, response: schemas.SetupRecord, status: 201 }, async (input) => {
     const created = String(await writing(input, (connection, actor) => registerRecord(connection, actor, input.body.kind, input.body.payload)))
     return (await listSetup(input.client)).find((record) => record.kind === input.body.kind && record.id === created)
   }),

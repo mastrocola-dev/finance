@@ -218,6 +218,28 @@ describe('http api', () => {
     assert.equal((await post('/goals', { name: 'Viagem', target_cents: 1 }, {})).status, 401)
   })
 
+  test('registers, edits and closes a variable expense as the calling member, audited', async () => {
+    const payload = { description: 'Farmácia', amountCents: 30000, startsOn: '2026-11-01', category: 'Saúde', member: 'Gabriela' }
+    assert.equal((await post('/setup', { kind: 'variable_expense', payload }, {})).status, 401)
+    const created = await post('/setup', { kind: 'variable_expense', payload })
+    assert.equal(created.status, 201)
+    assert.deepEqual([created.body.kind, created.body.amount.brl, created.body.member, created.body.category, created.body.day], ['variable_expense', 'R$ 300,00', 'Gabriela', 'Saúde', null])
+    assert.equal((await post('/setup', { kind: 'variable_expense', payload: { ...payload, description: 'FARMÁCIA' } })).status, 422)
+    const edited = await send('PATCH', `/setup/variable_expense/${created.body.id}`, { amountCents: 35000, account: 'Conta Gabriela' })
+    assert.deepEqual([edited.status, edited.body.amount.cents, edited.body.account], [200, '35000', 'Conta Gabriela'])
+    assert.equal((await send('PATCH', `/setup/variable_expense/${created.body.id}`, { dayOfMonth: 3 })).status, 422)
+    assert.deepEqual((await post(`/setup/variable_expense/${created.body.id}/close`, {})).body, { id: created.body.id })
+    const { rows } = await pool.query<{ action: string; name: string }>("select a.action, m.name from audit_log a join member m on m.id = a.member_id where a.entity = 'variable_expense' and a.entity_id = $1 order by a.id", [created.body.id])
+    assert.deepEqual(
+      rows.map((row) => `${row.name}:${row.action}`),
+      ['Marcio:create', 'Marcio:update', 'Marcio:close'],
+    )
+    assert.equal(
+      (await get('/setup')).body.some((record: { kind: string }) => record.kind === 'variable_expense'),
+      false,
+    )
+  })
+
   test('proposes a decision and closes it once every member confirms', async () => {
     const proposed = await post('/decisions', { title: 'Move to a bigger flat', amount_cents: 50000000 })
     assert.equal(proposed.status, 201)

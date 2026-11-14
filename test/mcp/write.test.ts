@@ -159,6 +159,20 @@ describe('mcp write tools', () => {
     assert.notEqual(again.id, pets.id)
   })
 
+  test('register_record, edit_record and close_record handle a variable expense, audited as claude', async () => {
+    const market = (await call(member, 'register_record', { kind: 'variable_expense', payload: { description: 'Supermercado', amountCents: 150000, startsOn: '2026-11-01', category: 'Alimentação' } })).json()
+    assert.deepEqual([market.kind, market.amount.brl, market.member, market.category], ['variable_expense', 'R$ 1.500,00', null, 'Alimentação'])
+    const edited = (await call(member, 'edit_record', { kind: 'variable_expense', id: market.id, changes: { amountCents: 170000 } })).json()
+    assert.equal(edited.amount.cents, '170000')
+    assert.equal((await call(member, 'edit_record', { kind: 'variable_expense', id: market.id, changes: { dayOfMonth: 5 } })).isError, true)
+    assert.deepEqual((await call(member, 'close_record', { kind: 'variable_expense', id: market.id })).json(), { id: market.id })
+    const { rows } = await pool.query<{ author: string; action: string }>("select author, action from audit_log where entity = 'variable_expense' and entity_id = $1 order by id", [market.id])
+    assert.deepEqual(
+      rows.map((row) => `${row.author}:${row.action}`),
+      ['claude:create', 'claude:update', 'claude:close'],
+    )
+  })
+
   test('forecast_month plans a month once, audited as claude for the member', async () => {
     assert.equal((await call(anonymous, 'forecast_month', { month: '2026-11' })).isError, true)
     const forecast = (await call(member, 'forecast_month', { month: '2026-11', today: seedToday })).json()

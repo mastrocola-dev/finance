@@ -187,7 +187,7 @@ const setupRecord = z.strictObject({
   kind: setupKind,
   id,
   name: z.string(),
-  detail: z.string().nullable().describe('Category direction, account institution, kind and last four, recurring installments, debt description or goal reserve'),
+  detail: z.string().nullable().describe('Category direction, account institution, kind and last four, recurring installments, debt description or goal reserve; null for variable expenses'),
   amount: money.nullable(),
   day: z.int().nullable(),
   member: z.string().nullable(),

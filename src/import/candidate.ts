@@ -84,6 +84,18 @@ export const recurringExpensePayload = z
   })
   .refine(ordered('startsOn', 'endsOn'), 'endsOn is before startsOn')
 
+export const variableExpensePayload = z.strictObject({
+  description: text('Variable expense description, such as Supermercado'),
+  amountCents: cents('Monthly estimate'),
+  startsOn: z.iso
+    .date()
+    .refine((value) => value.endsWith('-01'), 'startsOn must be the first day of the month')
+    .describe('First competence month it applies, YYYY-MM-01'),
+  category,
+  account,
+  member,
+})
+
 export const debtPayload = z
   .strictObject({
     creditor: text('Creditor name'),

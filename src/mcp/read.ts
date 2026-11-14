@@ -15,7 +15,7 @@ export const registerReads = (server: McpServer, client: Database) => {
     'list_setup',
     {
       title: 'List registered records',
-      description: 'Open categories, accounts, reserves, incomes, recurring expenses, debts and goals with their ids, amounts and references.',
+      description: 'Open categories, accounts, reserves, incomes, recurring expenses, variable expenses, debts and goals with their ids, amounts and references.',
       inputSchema: z.object({}),
       annotations: readOnly,
     },

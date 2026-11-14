@@ -2,11 +2,13 @@ import type { Client } from 'pg'
 import * as z from 'zod'
 import type { Queryable } from '../db/connection.ts'
 import { type Actor, type Row, write } from '../db/write.ts'
-import { balance, type CandidateKind, dayOfMonth, payloads, text } from '../import/candidate.ts'
+import { balance, dayOfMonth, payloads, text, variableExpensePayload } from '../import/candidate.ts'
 import { resolver, rowOf } from '../import/commit.ts'
 import { RuleError } from './rule.ts'
 
-export const setupKinds = ['category', 'account', 'reserve', 'income', 'recurring_expense', 'debt', 'goal'] as const satisfies CandidateKind[]
+export const setupKinds = ['category', 'account', 'reserve', 'income', 'recurring_expense', 'variable_expense', 'debt', 'goal'] as const
+
+const setupPayloads = { ...payloads, variable_expense: variableExpensePayload }
 
 export type SetupKind = (typeof setupKinds)[number]
 
@@ -18,6 +20,7 @@ const columns: Record<SetupKind, { name: string; amount?: string; day?: true; ac
   reserve: { name: 'name', amount: 'balance_cents', account: true },
   income: { name: 'description', amount: 'amount_cents', day: true, account: true, category: 'income' },
   recurring_expense: { name: 'description', amount: 'amount_cents', day: true, account: true, category: 'expense' },
+  variable_expense: { name: 'description', amount: 'amount_cents', account: true, category: 'expense' },
   debt: { name: 'creditor', amount: 'balance_cents', account: true },
   goal: { name: 'name', amount: 'target_cents' },
 }
@@ -51,7 +54,7 @@ const invalid = (kind: SetupKind, issues: z.core.$ZodIssue[]) => new RuleError(`
 
 export const registerRecord = (client: Client, actor: Actor, kind: SetupKind, input: unknown) =>
   write(client, actor, async (ledger) => {
-    const parsed = payloads[kind].safeParse(input)
+    const parsed = setupPayloads[kind].safeParse(input)
     if (!parsed.success) throw invalid(kind, parsed.error.issues)
     const payload = parsed.data as Record<string, unknown>
     const name = String(payload[columns[kind].name])
@@ -103,6 +106,9 @@ const records = `
   union all
   select 'recurring_expense', r.id::text, r.description, case when r.installments_total is null then null else r.installments_total::text end, r.amount_cents, r.day_of_month, m.name, c.name, a.nickname, r.id
   from recurring_expense r join category c on c.id = r.category_id left join member m on m.id = r.member_id left join account a on a.id = r.account_id where r.closed_at is null
+  union all
+  select 'variable_expense', v.id::text, v.description, null, v.amount_cents, null, m.name, c.name, a.nickname, v.id
+  from variable_expense v join category c on c.id = v.category_id left join member m on m.id = v.member_id left join account a on a.id = v.account_id where v.closed_at is null
   union all
   select 'debt', d.id::text, d.creditor, d.description, d.balance_cents, null, m.name, null, a.nickname, d.id
   from debt d left join member m on m.id = d.member_id left join account a on a.id = d.account_id where d.closed_at is null
