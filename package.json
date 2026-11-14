@@ -15,6 +15,7 @@
     "member:add": "node --env-file-if-exists=.env src/db/add-member.ts",
     "member:link": "node --env-file-if-exists=.env src/db/link-member.ts",
     "api:http": "node --env-file-if-exists=.env src/http/api.ts",
+    "extract:http": "node --env-file-if-exists=.env src/http/extract.ts",
     "mcp:http": "node --env-file-if-exists=.env src/mcp/http.ts",
     "mcp:stdio": "node --env-file-if-exists=.env src/mcp/stdio.ts",
     "mcp:demo": "node --env-file-if-exists=.env src/mcp/demo.ts",

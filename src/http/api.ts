@@ -8,7 +8,7 @@ import { maxBytes } from '../import/cli.ts'
 import { closeBatch } from '../import/close.ts'
 import { commitBatch } from '../import/commit.ts'
 import { answerQuestion, editCandidate, renameCategory, reviewCandidates } from '../import/review.ts'
-import { Busy, type ImportUploads, importUploads, Unavailable } from '../import/uploads.ts'
+import { Busy, type Imports, importUploads, Unavailable, warmedUploads } from '../import/uploads.ts'
 import { listAudit } from '../ledger/audit.ts'
 import { listAccounts, listCategories } from '../ledger/catalog.ts'
 import { listDebts } from '../ledger/debts.ts'
@@ -59,6 +59,7 @@ import { listOf, originHostnamesOf } from './hosts.ts'
 import { identify, type Verifier, verifierFor } from './identity.ts'
 import { listen } from './node.ts'
 import { openApi } from './openapi.ts'
+import { extractKeyOf, remoteUploads } from './remote-uploads.ts'
 import { type Site, site } from './site.ts'
 
 export const apiPrefix = '/api'
@@ -66,7 +67,7 @@ export const apiPrefix = '/api'
 type Schema = z.ZodType
 type Parsed<T> = T extends Schema ? z.output<T> : undefined
 type Spec = { method: string; path: string; operationId: string; summary: string; params?: Schema; query?: Schema; headers?: Schema; body?: Schema; upload?: true; response: Schema; status?: number; identified?: true; open?: true }
-type Input<S extends Spec> = { request: Request; params: Parsed<S['params']>; query: Parsed<S['query']>; headers: Parsed<S['headers']>; body: Parsed<S['body']>; member?: Member; client: Database; imports: ImportUploads; verify: Verifier }
+type Input<S extends Spec> = { request: Request; params: Parsed<S['params']>; query: Parsed<S['query']>; headers: Parsed<S['headers']>; body: Parsed<S['body']>; member?: Member; client: Database; imports: Imports; verify: Verifier }
 export type Route = Spec & { pattern: URLPattern; handle: (input: Input<Spec>) => Promise<unknown> }
 
 const writing = async <T>({ client, member }: { client: Database; member?: Member }, work: (connection: PoolClient, actor: Actor) => Promise<T>) => {
@@ -95,10 +96,25 @@ const entryOf = (body: z.output<typeof newEntry>): NewEntry => ({
 
 const cents = (value: number | undefined) => (value === undefined ? undefined : BigInt(value))
 
-const batchView = async ({ client, imports }: { client: Database; imports: ImportUploads }, id: bigint) => {
+const progressOf = (imports: Imports, ids: bigint[]) =>
+  Promise.resolve()
+    .then(() => imports.progressOf(ids))
+    .catch(refused)
+
+const batchView = async ({ client, imports }: { client: Database; imports: Imports }, id: bigint) => {
   const batch = await findBatch(client, id)
   if (!batch) throw new HttpError(404, `import batch ${id} not found`)
-  return { ...batch, progress: imports.progressOf(id) }
+  return (await withProgress(imports, [batch]))[0]
+}
+
+const extracting = (batch: { status: string; closedAt: unknown }) => batch.closedAt === null && (batch.status === 'draft' || batch.status === 'verified')
+
+const withProgress = async (imports: Imports, batches: { id: string; status: string; closedAt: unknown }[]) => {
+  const progress = await progressOf(
+    imports,
+    batches.filter(extracting).map((batch) => BigInt(batch.id)),
+  )
+  return batches.map((batch) => ({ ...batch, progress: progress.get(BigInt(batch.id)) ?? null }))
 }
 
 const existingBatch = async (client: Database, id: string) => {
@@ -107,9 +123,9 @@ const existingBatch = async (client: Database, id: string) => {
   return BigInt(id)
 }
 
-const reviewableBatch = async ({ client, imports }: { client: Database; imports: ImportUploads }, id: string) => {
+const reviewableBatch = async ({ client, imports }: { client: Database; imports: Imports }, id: string) => {
   const batchId = await existingBatch(client, id)
-  if (imports.progressOf(batchId)?.state === 'extracting') throw new HttpError(409, `import batch ${id} is still extracting`)
+  if ((await progressOf(imports, [batchId])).get(batchId)?.state === 'extracting') throw new HttpError(409, `import batch ${id} is still extracting`)
   return batchId
 }
 
@@ -119,7 +135,7 @@ const refused = (caught: unknown): never => {
   throw caught
 }
 
-const removeUpload = (imports: ImportUploads, batchId: bigint) => imports.discard(batchId).catch(() => [])
+const removeUpload = (imports: Imports, batchId: bigint) => imports.discard(batchId).catch(() => [])
 
 const reviewSummaries = { accept: 'Accept open candidates of a verified import batch', reject: 'Reject open candidates of a verified import batch' } as const
 
@@ -220,9 +236,7 @@ export const routes: Route[] = [
     const id = await input.imports.start({ author: 'import', memberId: input.member.id }, input.headers['x-file-name'], bytes).catch(refused)
     return batchView(input, id)
   }),
-  route({ method: 'GET', path: '/imports', operationId: 'listImports', summary: 'Import batches, newest first', query: importQuery, response: z.array(schemas.ImportBatch) }, async ({ client, imports, query }) =>
-    (await listBatches(client, query.status)).map((batch) => ({ ...batch, progress: imports.progressOf(BigInt(batch.id)) })),
-  ),
+  route({ method: 'GET', path: '/imports', operationId: 'listImports', summary: 'Import batches, newest first', query: importQuery, response: z.array(schemas.ImportBatch) }, async ({ client, imports, query }) => withProgress(imports, await listBatches(client, query.status))),
   route({ method: 'GET', path: '/imports/runtime', operationId: 'getImportRuntime', summary: 'Whether the ingest runtime can read uploads, and why not', response: schemas.ImportRuntime }, async ({ imports }) => imports.runtime()),
   route({ method: 'GET', path: '/imports/:id', operationId: 'getImport', summary: 'One import batch with its extraction progress', params: idPath, response: schemas.ImportBatch }, (input) => batchView(input, BigInt(input.params.id))),
   route({ method: 'GET', path: '/imports/:id/candidates', operationId: 'listImportCandidates', summary: 'Open candidates of an import batch', params: idPath, response: z.array(schemas.ImportCandidate) }, async ({ client, params }) => listCandidates(client, await existingBatch(client, params.id))),
@@ -291,7 +305,7 @@ export const apiHosts = (env = process.env) => listOf(env.API_ALLOWED_HOSTS, loc
 export const apiOrigins = (env = process.env) => originHostnamesOf(env.API_ALLOWED_ORIGINS, localhostAllowedOrigins())
 
 export const api =
-  (client: Database, imports = importUploads(client), verify: Verifier = verifierFor(process.env.AUTH_MODE, true), hosts = apiHosts(), origins = apiOrigins(), web: Site | undefined = site(process.env.WEB_ROOT)) =>
+  (client: Database, imports: Imports = importUploads(client), verify: Verifier = verifierFor(process.env.AUTH_MODE, true), hosts = apiHosts(), origins = apiOrigins(), web: Site | undefined = site(process.env.WEB_ROOT)) =>
   async (request: Request) => {
     const rejected = hostHeaderValidationResponse(request, hosts) ?? originValidationResponse(request, origins)
     if (rejected) return rejected
@@ -325,13 +339,11 @@ export const api =
     }
   }
 
-export const serveApi = (client: Database, port = Number(process.env.API_PORT ?? 3200), host = process.env.API_HOST ?? '127.0.0.1', imports?: ImportUploads) => listen(api(client, imports), port, host)
+export const serveApi = (client: Database, port = Number(process.env.API_PORT ?? 3200), host = process.env.API_HOST ?? '127.0.0.1', imports?: Imports) => listen(api(client, imports), port, host)
 
 if (import.meta.main) {
   const pool = connectPool()
-  const imports = importUploads(pool, { onWarmed: (readiness) => console.error(readiness.ready ? 'ingest runtime ready' : `ingest runtime not ready (${readiness.reason}): uploads wait until uv can sync ingest/.venv-runtime`) })
-  await imports.sweep()
-  await imports.warm()
+  const imports = process.env.EXTRACT_URL ? remoteUploads(process.env.EXTRACT_URL, extractKeyOf()) : await warmedUploads(pool)
   const server = await serveApi(pool, undefined, undefined, imports)
   console.error(`finance api on ${server.url}${apiPrefix}`)
   const stop = async () => {
