@@ -1,0 +1,22 @@
+{
+  "members": [
+    {
+      "name": "Marcio",
+      "initials": "M"
+    },
+    {
+      "name": "Gabriela",
+      "initials": "G"
+    }
+  ],
+  "categories": {
+    "income": [],
+    "expense": []
+  },
+  "accounts": [],
+  "reserves": [],
+  "proposed": {
+    "income": [],
+    "expense": []
+  }
+}

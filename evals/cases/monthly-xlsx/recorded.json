@@ -1,0 +1,853 @@
+[
+  {
+    "source": "Set-26!A1:A1",
+    "offset": 0,
+    "output": {
+      "candidates": [],
+      "questions": [],
+      "totals": []
+    },
+    "usage": {
+      "inputTokens": 1900,
+      "outputTokens": 40,
+      "costUsdMicros": 6300
+    }
+  },
+  {
+    "source": "Set-26!A3:D11",
+    "offset": 0,
+    "output": {
+      "candidates": [
+        {
+          "kind": "category",
+          "source": "Set-26!A5",
+          "confidence": 0.9,
+          "payload": {
+            "name": "Moradia",
+            "kind": "expense"
+          }
+        },
+        {
+          "kind": "entry",
+          "source": "Set-26!A5:D5",
+          "confidence": 0.92,
+          "payload": {
+            "date": "2026-09-10",
+            "description": "Aluguel",
+            "direction": "expense",
+            "amountCents": 220000,
+            "member": "joint",
+            "paid": true,
+            "category": "Moradia"
+          }
+        },
+        {
+          "kind": "entry",
+          "source": "Set-26!A6:D6",
+          "confidence": 0.92,
+          "payload": {
+            "date": "2026-09-10",
+            "description": "Condomínio",
+            "direction": "expense",
+            "amountCents": 65000,
+            "member": "joint",
+            "paid": true,
+            "category": "Moradia"
+          }
+        },
+        {
+          "kind": "category",
+          "source": "Set-26!A7",
+          "confidence": 0.9,
+          "payload": {
+            "name": "Contas da casa",
+            "kind": "expense"
+          }
+        },
+        {
+          "kind": "entry",
+          "source": "Set-26!A7:D7",
+          "confidence": 0.92,
+          "payload": {
+            "date": "2026-09-18",
+            "description": "Luz",
+            "direction": "expense",
+            "amountCents": 21000,
+            "member": "joint",
+            "paid": true,
+            "category": "Contas da casa"
+          }
+        },
+        {
+          "kind": "entry",
+          "source": "Set-26!A8:D8",
+          "confidence": 0.92,
+          "payload": {
+            "date": "2026-09-15",
+            "description": "Internet",
+            "direction": "expense",
+            "amountCents": 12000,
+            "member": "joint",
+            "paid": true,
+            "category": "Contas da casa"
+          }
+        },
+        {
+          "kind": "category",
+          "source": "Set-26!A9",
+          "confidence": 0.9,
+          "payload": {
+            "name": "Educação",
+            "kind": "expense"
+          }
+        },
+        {
+          "kind": "entry",
+          "source": "Set-26!A9:D9",
+          "confidence": 0.92,
+          "payload": {
+            "date": "2026-09-05",
+            "description": "Inglês",
+            "direction": "expense",
+            "amountCents": 39000,
+            "member": "Gabriela",
+            "paid": true,
+            "category": "Educação"
+          }
+        },
+        {
+          "kind": "category",
+          "source": "Set-26!A10",
+          "confidence": 0.9,
+          "payload": {
+            "name": "Saúde",
+            "kind": "expense"
+          }
+        },
+        {
+          "kind": "entry",
+          "source": "Set-26!A10:D10",
+          "confidence": 0.92,
+          "payload": {
+            "date": "2026-09-07",
+            "description": "Academia",
+            "direction": "expense",
+            "amountCents": 11990,
+            "member": "Marcio",
+            "paid": true,
+            "category": "Saúde"
+          }
+        }
+      ],
+      "questions": [],
+      "totals": []
+    },
+    "usage": {
+      "inputTokens": 3200,
+      "outputTokens": 960,
+      "costUsdMicros": 24000
+    }
+  },
+  {
+    "source": "Set-26!F3:H9",
+    "offset": 0,
+    "output": {
+      "candidates": [
+        {
+          "kind": "category",
+          "source": "Set-26!F5",
+          "confidence": 0.9,
+          "payload": {
+            "name": "Supermercado",
+            "kind": "expense"
+          }
+        },
+        {
+          "kind": "entry",
+          "source": "Set-26!F5:H5",
+          "confidence": 0.92,
+          "payload": {
+            "date": "2026-09-03",
+            "description": "Supermercado Fictício",
+            "direction": "expense",
+            "amountCents": 81240,
+            "member": "Marcio",
+            "paid": true,
+            "category": "Supermercado"
+          }
+        },
+        {
+          "kind": "category",
+          "source": "Set-26!F6",
+          "confidence": 0.9,
+          "payload": {
+            "name": "Combustível",
+            "kind": "expense"
+          }
+        },
+        {
+          "kind": "entry",
+          "source": "Set-26!F6:H6",
+          "confidence": 0.92,
+          "payload": {
+            "date": "2026-09-09",
+            "description": "Posto Avenida",
+            "direction": "expense",
+            "amountCents": 26000,
+            "member": "Marcio",
+            "paid": true,
+            "category": "Combustível"
+          }
+        },
+        {
+          "kind": "category",
+          "source": "Set-26!F7",
+          "confidence": 0.9,
+          "payload": {
+            "name": "Restaurantes",
+            "kind": "expense"
+          }
+        },
+        {
+          "kind": "entry",
+          "source": "Set-26!F7:H7",
+          "confidence": 0.92,
+          "payload": {
+            "date": "2026-09-14",
+            "description": "Restaurante Sabor",
+            "direction": "expense",
+            "amountCents": 14850,
+            "member": "Marcio",
+            "paid": true,
+            "category": "Restaurantes"
+          }
+        },
+        {
+          "kind": "category",
+          "source": "Set-26!F8",
+          "confidence": 0.9,
+          "payload": {
+            "name": "Assinaturas",
+            "kind": "expense"
+          }
+        },
+        {
+          "kind": "entry",
+          "source": "Set-26!F8:H8",
+          "confidence": 0.92,
+          "payload": {
+            "date": "2026-09-20",
+            "description": "Streaming",
+            "direction": "expense",
+            "amountCents": 5590,
+            "member": "Marcio",
+            "paid": true,
+            "category": "Assinaturas"
+          }
+        }
+      ],
+      "questions": [],
+      "totals": []
+    },
+    "usage": {
+      "inputTokens": 3080,
+      "outputTokens": 780,
+      "costUsdMicros": 20940
+    }
+  },
+  {
+    "source": "Set-26!J3:L9",
+    "offset": 0,
+    "output": {
+      "candidates": [
+        {
+          "kind": "category",
+          "source": "Set-26!J5",
+          "confidence": 0.9,
+          "payload": {
+            "name": "Mercado",
+            "kind": "expense"
+          }
+        },
+        {
+          "kind": "entry",
+          "source": "Set-26!J5:L5",
+          "confidence": 0.92,
+          "payload": {
+            "date": "2026-09-06",
+            "description": "Mercadinho da Vila",
+            "direction": "expense",
+            "amountCents": 23370,
+            "member": "Gabriela",
+            "paid": true,
+            "category": "Mercado"
+          }
+        },
+        {
+          "kind": "category",
+          "source": "Set-26!J6",
+          "confidence": 0.9,
+          "payload": {
+            "name": "Drogaria",
+            "kind": "expense"
+          }
+        },
+        {
+          "kind": "entry",
+          "source": "Set-26!J6:L6",
+          "confidence": 0.92,
+          "payload": {
+            "date": "2026-09-11",
+            "description": "Drogaria Fictícia",
+            "direction": "expense",
+            "amountCents": 7430,
+            "member": "Gabriela",
+            "paid": true,
+            "category": "Drogaria"
+          }
+        },
+        {
+          "kind": "category",
+          "source": "Set-26!J7",
+          "confidence": 0.9,
+          "payload": {
+            "name": "Farmácia",
+            "kind": "expense"
+          }
+        },
+        {
+          "kind": "entry",
+          "source": "Set-26!J7:L7",
+          "confidence": 0.92,
+          "payload": {
+            "date": "2026-09-22",
+            "description": "Farmácia Central",
+            "direction": "expense",
+            "amountCents": 4190,
+            "member": "Gabriela",
+            "paid": true,
+            "category": "Farmácia"
+          }
+        },
+        {
+          "kind": "category",
+          "source": "Set-26!J8",
+          "confidence": 0.9,
+          "payload": {
+            "name": "Transporte",
+            "kind": "expense"
+          }
+        },
+        {
+          "kind": "entry",
+          "source": "Set-26!J8:L8",
+          "confidence": 0.92,
+          "payload": {
+            "date": "2026-09-25",
+            "description": "Transporte por app",
+            "direction": "expense",
+            "amountCents": 6320,
+            "member": "Gabriela",
+            "paid": true,
+            "category": "Transporte"
+          }
+        }
+      ],
+      "questions": [],
+      "totals": []
+    },
+    "usage": {
+      "inputTokens": 3080,
+      "outputTokens": 780,
+      "costUsdMicros": 20940
+    }
+  },
+  {
+    "source": "Set-26!N3:Q7",
+    "offset": 0,
+    "output": {
+      "candidates": [
+        {
+          "kind": "category",
+          "source": "Set-26!N5",
+          "confidence": 0.9,
+          "payload": {
+            "name": "Salário",
+            "kind": "income"
+          }
+        },
+        {
+          "kind": "entry",
+          "source": "Set-26!N5:Q5",
+          "confidence": 0.92,
+          "payload": {
+            "date": "2026-09-05",
+            "description": "Salário",
+            "direction": "income",
+            "amountCents": 680000,
+            "member": "Marcio",
+            "paid": true,
+            "category": "Salário"
+          }
+        },
+        {
+          "kind": "entry",
+          "source": "Set-26!N6:Q6",
+          "confidence": 0.92,
+          "payload": {
+            "date": "2026-09-05",
+            "description": "Salário",
+            "direction": "income",
+            "amountCents": 590000,
+            "member": "Gabriela",
+            "paid": true,
+            "category": "Salário"
+          }
+        }
+      ],
+      "questions": [],
+      "totals": [
+        {
+          "source": "Set-26!N7:P7",
+          "month": "2026-09-01",
+          "direction": "income",
+          "amountCents": 1270000
+        }
+      ]
+    },
+    "usage": {
+      "inputTokens": 2780,
+      "outputTokens": 330,
+      "costUsdMicros": 13290
+    }
+  },
+  {
+    "source": "Set-26!A13:E16",
+    "offset": 0,
+    "output": {
+      "candidates": [],
+      "questions": [
+        {
+          "question": "A divisão 50/50 desta planilha é a regra da casa para despesas conjuntas?",
+          "options": ["Sim, 50/50", "Não, outra divisão"],
+          "source": "Set-26!A13:E16"
+        }
+      ],
+      "totals": []
+    },
+    "usage": {
+      "inputTokens": 2300,
+      "outputTokens": 160,
+      "costUsdMicros": 9300
+    }
+  },
+  {
+    "source": "Set-26!A18:C18",
+    "offset": 0,
+    "output": {
+      "candidates": [],
+      "questions": [],
+      "totals": [
+        {
+          "source": "Set-26!A18:C18",
+          "month": "2026-09-01",
+          "direction": "net",
+          "amountCents": 732020
+        }
+      ]
+    },
+    "usage": {
+      "inputTokens": 2000,
+      "outputTokens": 110,
+      "costUsdMicros": 7650
+    }
+  },
+  {
+    "source": "Out-26!A1:A1",
+    "offset": 0,
+    "output": {
+      "candidates": [],
+      "questions": [],
+      "totals": []
+    },
+    "usage": {
+      "inputTokens": 1900,
+      "outputTokens": 40,
+      "costUsdMicros": 6300
+    }
+  },
+  {
+    "source": "Out-26!A3:D11",
+    "offset": 0,
+    "output": {
+      "candidates": [
+        {
+          "kind": "entry",
+          "source": "Out-26!A5:D5",
+          "confidence": 0.92,
+          "payload": {
+            "date": "2026-10-10",
+            "description": "Aluguel",
+            "direction": "expense",
+            "amountCents": 220000,
+            "member": "joint",
+            "paid": true,
+            "category": "Moradia"
+          }
+        },
+        {
+          "kind": "entry",
+          "source": "Out-26!A6:D6",
+          "confidence": 0.92,
+          "payload": {
+            "date": "2026-10-10",
+            "description": "Condomínio",
+            "direction": "expense",
+            "amountCents": 65000,
+            "member": "joint",
+            "paid": true,
+            "category": "Moradia"
+          }
+        },
+        {
+          "kind": "entry",
+          "source": "Out-26!A7:D7",
+          "confidence": 0.92,
+          "payload": {
+            "date": "2026-10-18",
+            "description": "Luz",
+            "direction": "expense",
+            "amountCents": 19840,
+            "member": "joint",
+            "paid": false,
+            "category": "Contas da casa"
+          }
+        },
+        {
+          "kind": "entry",
+          "source": "Out-26!A8:D8",
+          "confidence": 0.92,
+          "payload": {
+            "date": "2026-10-15",
+            "description": "Internet",
+            "direction": "expense",
+            "amountCents": 12000,
+            "member": "joint",
+            "paid": true,
+            "category": "Contas da casa"
+          }
+        },
+        {
+          "kind": "entry",
+          "source": "Out-26!A9:D9",
+          "confidence": 0.92,
+          "payload": {
+            "date": "2026-10-05",
+            "description": "Inglês",
+            "direction": "expense",
+            "amountCents": 39000,
+            "member": "Gabriela",
+            "paid": true,
+            "category": "Educação"
+          }
+        },
+        {
+          "kind": "entry",
+          "source": "Out-26!A10:D10",
+          "confidence": 0.92,
+          "payload": {
+            "date": "2026-10-07",
+            "description": "Academia",
+            "direction": "expense",
+            "amountCents": 11990,
+            "member": "Marcio",
+            "paid": true,
+            "category": "Saúde"
+          }
+        }
+      ],
+      "questions": [],
+      "totals": []
+    },
+    "usage": {
+      "inputTokens": 2960,
+      "outputTokens": 600,
+      "costUsdMicros": 17880
+    }
+  },
+  {
+    "source": "Out-26!F3:H9",
+    "offset": 0,
+    "output": {
+      "candidates": [
+        {
+          "kind": "entry",
+          "source": "Out-26!F5:H5",
+          "confidence": 0.92,
+          "payload": {
+            "date": "2026-10-02",
+            "description": "Supermercado Fictício",
+            "direction": "expense",
+            "amountCents": 90515,
+            "member": "Marcio",
+            "paid": false,
+            "category": "Supermercado"
+          }
+        },
+        {
+          "kind": "entry",
+          "source": "Out-26!F6:H6",
+          "confidence": 0.92,
+          "payload": {
+            "date": "2026-10-08",
+            "description": "Posto Avenida",
+            "direction": "expense",
+            "amountCents": 28000,
+            "member": "Marcio",
+            "paid": false,
+            "category": "Combustível"
+          }
+        },
+        {
+          "kind": "category",
+          "source": "Out-26!F7",
+          "confidence": 0.9,
+          "payload": {
+            "name": "Presentes",
+            "kind": "expense"
+          }
+        },
+        {
+          "kind": "entry",
+          "source": "Out-26!F7:H7",
+          "confidence": 0.92,
+          "payload": {
+            "date": "2026-10-16",
+            "description": "Presente aniversário",
+            "direction": "expense",
+            "amountCents": 18000,
+            "member": "Marcio",
+            "paid": false,
+            "category": "Presentes"
+          }
+        },
+        {
+          "kind": "entry",
+          "source": "Out-26!F8:H8",
+          "confidence": 0.92,
+          "payload": {
+            "date": "2026-10-20",
+            "description": "Streaming",
+            "direction": "expense",
+            "amountCents": 5590,
+            "member": "Marcio",
+            "paid": false,
+            "category": "Assinaturas"
+          }
+        }
+      ],
+      "questions": [],
+      "totals": []
+    },
+    "usage": {
+      "inputTokens": 2900,
+      "outputTokens": 510,
+      "costUsdMicros": 16350
+    }
+  },
+  {
+    "source": "Out-26!J3:L9",
+    "offset": 0,
+    "output": {
+      "candidates": [
+        {
+          "kind": "entry",
+          "source": "Out-26!J5:L5",
+          "confidence": 0.92,
+          "payload": {
+            "date": "2026-10-05",
+            "description": "Mercadinho da Vila",
+            "direction": "expense",
+            "amountCents": 19840,
+            "member": "Gabriela",
+            "paid": false,
+            "category": "Mercado"
+          }
+        },
+        {
+          "kind": "entry",
+          "source": "Out-26!J6:L6",
+          "confidence": 0.92,
+          "payload": {
+            "date": "2026-10-12",
+            "description": "Drogaria Fictícia",
+            "direction": "expense",
+            "amountCents": 5260,
+            "member": "Gabriela",
+            "paid": false,
+            "category": "Drogaria"
+          }
+        },
+        {
+          "kind": "category",
+          "source": "Out-26!J7",
+          "confidence": 0.9,
+          "payload": {
+            "name": "Pets",
+            "kind": "expense"
+          }
+        },
+        {
+          "kind": "entry",
+          "source": "Out-26!J7:L7",
+          "confidence": 0.92,
+          "payload": {
+            "date": "2026-10-19",
+            "description": "Pet shop",
+            "direction": "expense",
+            "amountCents": 14500,
+            "member": "Gabriela",
+            "paid": false,
+            "category": "Pets"
+          }
+        },
+        {
+          "kind": "entry",
+          "source": "Out-26!J8:L8",
+          "confidence": 0.92,
+          "payload": {
+            "date": "2026-10-24",
+            "description": "Transporte por app",
+            "direction": "expense",
+            "amountCents": 7180,
+            "member": "Gabriela",
+            "paid": false,
+            "category": "Transporte"
+          }
+        }
+      ],
+      "questions": [],
+      "totals": []
+    },
+    "usage": {
+      "inputTokens": 2900,
+      "outputTokens": 510,
+      "costUsdMicros": 16350
+    }
+  },
+  {
+    "source": "Out-26!N3:Q8",
+    "offset": 0,
+    "output": {
+      "candidates": [
+        {
+          "kind": "entry",
+          "source": "Out-26!N5:Q5",
+          "confidence": 0.92,
+          "payload": {
+            "date": "2026-10-05",
+            "description": "Salário",
+            "direction": "income",
+            "amountCents": 680000,
+            "member": "Marcio",
+            "paid": true,
+            "category": "Salário"
+          }
+        },
+        {
+          "kind": "entry",
+          "source": "Out-26!N6:Q6",
+          "confidence": 0.92,
+          "payload": {
+            "date": "2026-10-05",
+            "description": "Salário",
+            "direction": "income",
+            "amountCents": 590000,
+            "member": "Gabriela",
+            "paid": true,
+            "category": "Salário"
+          }
+        },
+        {
+          "kind": "category",
+          "source": "Out-26!N7",
+          "confidence": 0.9,
+          "payload": {
+            "name": "Freela",
+            "kind": "income"
+          }
+        },
+        {
+          "kind": "entry",
+          "source": "Out-26!N7:Q7",
+          "confidence": 0.92,
+          "payload": {
+            "date": "2026-10-20",
+            "description": "Freela site",
+            "direction": "income",
+            "amountCents": 120000,
+            "member": "Marcio",
+            "paid": false,
+            "category": "Freela"
+          }
+        }
+      ],
+      "questions": [
+        {
+          "question": "Freela site (R$ 1.200,00, Marcio) se repete todo mês?",
+          "options": ["Não, é avulsa", "Sim, todo mês"],
+          "source": "Out-26!N7:Q7",
+          "candidate": 3
+        }
+      ],
+      "totals": [
+        {
+          "source": "Out-26!N8:P8",
+          "month": "2026-10-01",
+          "direction": "income",
+          "amountCents": 1390000
+        }
+      ]
+    },
+    "usage": {
+      "inputTokens": 2840,
+      "outputTokens": 420,
+      "costUsdMicros": 14820
+    }
+  },
+  {
+    "source": "Out-26!A13:E16",
+    "offset": 0,
+    "output": {
+      "candidates": [],
+      "questions": [],
+      "totals": []
+    },
+    "usage": {
+      "inputTokens": 2300,
+      "outputTokens": 160,
+      "costUsdMicros": 9300
+    }
+  },
+  {
+    "source": "Out-26!A18:C18",
+    "offset": 0,
+    "output": {
+      "candidates": [],
+      "questions": [],
+      "totals": [
+        {
+          "source": "Out-26!A18:C18",
+          "month": "2026-10-01",
+          "direction": "net",
+          "amountCents": 833285
+        }
+      ]
+    },
+    "usage": {
+      "inputTokens": 2000,
+      "outputTokens": 110,
+      "costUsdMicros": 7650
+    }
+  }
+]

@@ -78,6 +78,83 @@ PLANNING = {
     ],
 }
 
+
+def monthly_sheet(title, fixed, card_mm, card_gma, income):
+    blocks = [
+        ('Fixas', ['Item', 'Dia', 'Valor', 'Quem'], fixed),
+        ('Cartão MM', ['Item', 'Dia', 'Valor'], card_mm),
+        ('Cartão GMA', ['Item', 'Dia', 'Valor'], card_gma),
+        ('Receitas', ['Item', 'Dia', 'Valor', 'Quem'], income),
+    ]
+    height = max(len(lines) for _, _, lines in blocks) + 3
+    grid = [[None] * 18 for _ in range(height)]
+    column = 0
+    for name, header, lines in blocks:
+        rows = [[name], header, *lines, ['Total', None, round(sum(line[2] for line in lines), 2)]]
+        for index, row in enumerate(rows):
+            grid[index][column : column + len(row)] = row
+        column += len(header) + 1
+    spent = round(sum(line[2] for block in (fixed, card_mm, card_gma) for line in block), 2)
+    earned = round(sum(line[2] for line in income), 2)
+    share = round(spent / 2, 2)
+    split = [['Divisão'], ['Quem', '%', 'Parte', 'Pagou', 'Acerto']]
+    for who, card in (('MM', card_mm), ('GMA', card_gma)):
+        paid = round(sum(line[2] for line in card) + sum(line[2] for line in fixed if line[3] == who), 2)
+        split.append([who, 50, share, paid, round(paid - share, 2)])
+    return [[title], [], *grid, [], *split, [], ['Saldo do mês', None, round(earned - spent, 2)]]
+
+
+MONTHLY = {
+    'Set-26': monthly_sheet(
+        'Contas da casa - setembro/2026',
+        [
+            ['Aluguel', 10, 2200, 'Casa'],
+            ['Condomínio', 10, 650, 'Casa'],
+            ['Luz', 18, 210, 'Casa'],
+            ['Internet', 15, 120, 'Casa'],
+            ['Inglês', 5, 390, 'GMA'],
+            ['Academia', 7, 119.9, 'MM'],
+        ],
+        [
+            ['Supermercado Fictício', 3, 812.4],
+            ['Posto Avenida', 9, 260],
+            ['Restaurante Sabor', 14, 148.5],
+            ['Streaming', 20, 55.9],
+        ],
+        [
+            ['Mercadinho da Vila', 6, 233.7],
+            ['Drogaria Fictícia', 11, 74.3],
+            ['Farmácia Central', 22, 41.9],
+            ['Transporte por app', 25, 63.2],
+        ],
+        [['Salário', 5, 6800, 'MM'], ['Salário', 5, 5900, 'GMA']],
+    ),
+    'Out-26': monthly_sheet(
+        'Contas da casa - outubro/2026',
+        [
+            ['Aluguel', 10, 2200, 'Casa'],
+            ['Condomínio', 10, 650, 'Casa'],
+            ['Luz', 18, 198.4, 'Casa'],
+            ['Internet', 15, 120, 'Casa'],
+            ['Inglês', 5, 390, 'GMA'],
+            ['Academia', 7, 119.9, 'MM'],
+        ],
+        [
+            ['Supermercado Fictício', 2, 905.15],
+            ['Posto Avenida', 8, 280],
+            ['Presente aniversário', 16, 180],
+            ['Streaming', 20, 55.9],
+        ],
+        [
+            ['Mercadinho da Vila', 5, 198.4],
+            ['Drogaria Fictícia', 12, 52.6],
+            ['Pet shop', 19, 145],
+            ['Transporte por app', 24, 71.8],
+        ],
+        [['Salário', 5, 6800, 'MM'], ['Salário', 5, 5900, 'GMA'], ['Freela site', 20, 1200, 'MM']],
+    ),
+}
+
 STATEMENT = [
     [
         'Extrato de conta corrente - outubro de 2026 - página 1 de 2',
@@ -144,6 +221,7 @@ def main(root):
     cases = Path(root)
     workbook(HOUSEHOLD, datetime(2026, 10, 25), cases / 'household-xlsx' / 'orcamento-casa.xlsx')
     workbook(PLANNING, datetime(2026, 10, 25), cases / 'planning-xlsx' / 'planejamento-lado-a-lado.xlsx')
+    workbook(MONTHLY, datetime(2026, 11, 1), cases / 'monthly-xlsx' / 'contas-da-casa.xlsx')
     statement(STATEMENT, cases / 'statement-pdf' / 'extrato-gabriela.pdf')
 
 

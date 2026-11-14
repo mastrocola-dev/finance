@@ -75,6 +75,7 @@ describe('evaluations', () => {
         ['context-notes', []],
         ['household-xlsx', []],
         ['loan-xml', []],
+        ['monthly-xlsx', []],
         ['notes', []],
         ['planning-xlsx', []],
         ['statement-pdf', []],
@@ -89,6 +90,7 @@ describe('evaluations', () => {
         [10, 10, 10],
         [18, 19, 19],
         [4, 4, 4],
+        [47, 49, 47],
         [8, 10, 9],
         [9, 10, 10],
         [8, 8, 8],
@@ -110,6 +112,9 @@ describe('evaluations', () => {
       stated: 4,
       mismatched: ['Set-26!A23:C23: net 2026-09 expected 747520, found 620040', 'Out-26!A26:C26: net 2026-10 expected 798960, found 810960'],
     })
+    const monthly = results.find(({ name }) => name === 'monthly-xlsx')
+    assert.deepEqual(monthly?.score.totals, { stated: 4, mismatched: [] })
+    assert.deepEqual(monthly?.context, { tokens: 66, chunks: 14 })
     const planning = results.find(({ name }) => name === 'planning-xlsx')
     assert.deepEqual(planning?.score.totals, { stated: 2, mismatched: ['Nov-26!A12:C12: net 2026-11 expected 747000, found 768000'] })
     const statement = results.find(({ name }) => name === 'statement-pdf')
@@ -129,7 +134,7 @@ describe('evaluations', () => {
     const folder = await mkdtemp(join(tmpdir(), 'finance-fixtures-'))
     try {
       execFileSync('npm', ['run', '-s', 'eval:fixtures', '--', folder], { stdio: 'ignore' })
-      for (const file of ['household-xlsx/orcamento-casa.xlsx', 'planning-xlsx/planejamento-lado-a-lado.xlsx', 'statement-pdf/extrato-gabriela.pdf']) {
+      for (const file of ['household-xlsx/orcamento-casa.xlsx', 'monthly-xlsx/contas-da-casa.xlsx', 'planning-xlsx/planejamento-lado-a-lado.xlsx', 'statement-pdf/extrato-gabriela.pdf']) {
         assert.ok((await readFile(join(folder, file))).equals(await readFile(join(casesFolder, file))), file)
       }
     } finally {
