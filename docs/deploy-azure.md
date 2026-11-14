@@ -12,7 +12,7 @@ The single order for the author to put the finance POC on Azure through the orga
 
 ## 0. Tools and accounts
 
-- Azure CLI (`az`) and `openssl`; Terraform 1.16.4 only for bootstrap and for the optional manual runs at the end
+- Azure CLI (`az`), `openssl` and bash (3.2 or later, for `scripts/job.sh`); Terraform 1.16.4 only for bootstrap and for the optional manual runs at the end
 - Owner of the subscription, to apply bootstrap and register providers
 - Admin of `mastrocola-dev/finance` on GitHub, to set repository variables, package visibility and merge to `main`
 - A Google account that may create OAuth clients in Google Cloud Console, and an Anthropic Console account for the import key
@@ -173,21 +173,18 @@ In Entra, `finance-web` → **Authentication** → **Web** → add `<api_url>/au
 
 ## 11. Members
 
-Migrations create an empty ledger; never run `db:seed` on Azure. Both members are created in one execution, because active shares must always add up to 100. The job runs any npm script with a command override, with two traps checked on 2026-11-12:
+Migrations create an empty ledger; never run `db:seed` on Azure. Both members are created in one execution, because active shares must always add up to 100. `scripts/job.sh <npm script> [word ...]` runs any npm script on `finance-migrate` from your machine (signed in with `az login`) and waits for the execution to end. It works around two traps checked on 2026-11-12:
 
-- An override built from `--image` and `--command` replaces the whole container, so the job's database settings are lost and the script reaches for localhost: pass them again with `--env-vars`, the password as `secretref:` to the job's own secret
-- `--args` takes one argument per word: a quoted string arrives as a single argument (npm answers `Unknown command`), and a bare `--` is swallowed by the CLI, so leave it out (npm passes the words to the script without it)
+- An override built from `--image` and `--command` replaces the whole container, so the job's database settings are lost and the script reaches for localhost: the script reads the job's image, container and settings with `az containerapp job show` and passes them again with `--env-vars`, the password as `secretref:finance-db-password`
+- `--args` takes one argument per word, and a bare `--` is swallowed by the CLI: the script passes each word on its own and drops a bare `--`
 
-`<api image>` is the image of the last deploy and `<database host>` the `database_host` output:
+It refuses `db:seed` and `db:reset`. `JOB_IMAGE` runs another image than the job's (the image of the last deploy), `JOB_GROUP` and `JOB_NAME` another resource group or job:
 
 ```sh
-IMG=<api image>
-DB="PGHOST=<database host> PGPORT=5432 PGUSER=finance_admin PGDATABASE=finance PGSSLMODE=require PGPASSWORD=secretref:finance-db-password"
-az containerapp job start -g rg-finance-dev -n finance-migrate --image $IMG --container-name migrate \
-  --env-vars $DB --command npm --args run member:add Marcio 50 Gabriela 50
+scripts/job.sh member:add Marcio 50 Gabriela 50
 ```
 
-The execution log prints `added Marcio, Gabriela`; it refuses a name that already exists or shares that do not add up to 100, and writes nothing then. Wait for `Succeeded` before the next step: `az containerapp job execution list -g rg-finance-dev -n finance-migrate --query "[0].properties.status" -o tsv`. The log is in Log Analytics:
+It prints `started <execution>` and ends with `<execution> Succeeded` (exit 0) or the failed status (exit 1). The execution log prints `added Marcio, Gabriela`; it refuses a name that already exists or shares that do not add up to 100, and writes nothing then. The log is in Log Analytics:
 
 ```sh
 W=$(az monitor log-analytics workspace show -g rg-finance-dev -n log-finance-<location> --query customerId -o tsv)
@@ -196,13 +193,11 @@ az monitor log-analytics query -w $W -o table --analytics-query "ContainerAppCon
 
 ## 12. Link members to their sign-in
 
-One execution at a time, each after the previous one ends `Succeeded`:
+One execution at a time; the script returns only when the previous one has ended:
 
 ```sh
-az containerapp job start -g rg-finance-dev -n finance-migrate --image $IMG --container-name migrate \
-  --env-vars $DB --command npm --args run member:link Marcio <Marcio object ID>
-az containerapp job start -g rg-finance-dev -n finance-migrate --image $IMG --container-name migrate \
-  --env-vars $DB --command npm --args run member:link Gabriela <Gabriela object ID>
+scripts/job.sh member:link Marcio <Marcio object ID>
+scripts/job.sh member:link Gabriela <Gabriela object ID>
 ```
 
 Each execution prints `linked <name>`. An unlinked person who signs in gets 403 `unknown member`.
@@ -223,6 +218,17 @@ In Claude, **Settings** → **Connectors** → **Add custom connector**: URL `<m
 ## 15. Acceptance
 
 Walk through [docs/acceptance.md](acceptance.md) section 8 against `web_url`, with an empty ledger: sign-in with Google for both members, the first accounts and categories under Cadastros, the import of `evals/cases/bank-csv/extrato-conjunta.csv` with the real model and its cost, and the Claude connector. Never type real financial data during the POC.
+
+## First day on Azure
+
+The first day, from step 11 on, in this order. Each line is done when what it names is seen; [docs/acceptance.md](acceptance.md) section 8 is the full walk.
+
+- [ ] **Cold start**: open `web_url` after a quiet hour. With `api_min_replicas` at `1` (default) Entrar shows at once; at `0` the first request waits about 30 seconds while `finance-api` starts, and `az containerapp revision list -g rg-finance-dev -n finance-api -o table` shows the revision `Running`. `finance-extract` sleeps either way and wakes on the first upload (step 13)
+- [ ] **Members**: `scripts/job.sh member:add Marcio 50 Gabriela 50` ends `Succeeded` (step 11); each person signs in once, then `scripts/job.sh member:link <name> <object ID>` for each (step 12); both see the same household, and Você é shows each one's own name
+- [ ] **Categories and accounts**: under **Cadastros** (`/cadastros`), one person registers the joint account (institution, nickname, last four digits only) and the first categories; the other sees them, and **Atividade** (`/atividade`) shows who did it. Never type real account numbers: the POC holds invented values only
+- [ ] **First import**: in **Importar** (`/importar`), upload `evals/cases/bank-csv/extrato-conjunta.csv` with the consent checked; the first upload after a sleep waits the cold start of `finance-extract`, then Extraindo and Para revisar with tokens and the cost in US$. Names the ledger lacks are matched or created by the model; review "Escolhas do Claude", answer whatever is under "Precisa de vocês", import, and see the entries in **Lançamentos** with the Importado chip
+- [ ] **Spend**: the Anthropic Console shows the import's cost, under `import_daily_usd_cap` (US$ 2 a day by default)
+- [ ] **Something failed**: the console query of step 11 with the app's container name (`api`, `extract`, `mcp`, `migrate`) shows its log; rollback is below
 
 ## Deploy a new commit
 
