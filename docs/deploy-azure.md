@@ -28,6 +28,19 @@ To rebuild it from nothing:
 4. External tenant → **External Identities** → **All identity providers** → **Google**: paste the Google client ID and secret (the Google secret stays in Entra)
 5. **User flows** → **New user flow** (sign up and sign in), identity provider **Google** only, no extra attributes
 
+### Sign-in page
+
+The API sends `domain_hint` on every sign-in (`ENTRA_DOMAIN_HINT`, default `google`; `none` sends no hint), so External ID opens Google directly and its own page never shows. These steps make that page look like the app for the times it does show (a hint the tenant ignores, `none`, or a Google error that sends the person back). Still to do on `caixafinance`:
+
+1. **User flows** → the flow of step 1.5 → **Identity providers**: under **Email accounts** select **None** (or clear **Email with password** and **Email one-time passcode**), keep **Google** checked, **Save**. If the portal keeps an email option mandatory, leave it: the hint still skips the page
+2. **Company branding** → **Default sign-in** → **Edit**. Every file is in `docs/branding/`, made by `npm run branding -w web` from `web/public/icon.svg` and the tokens of `docs/design.md`; never edit the PNGs by hand
+   - **Basics**: **Favicon**: `docs/branding/favicon.png`, **Background image**: `docs/branding/background.png`, **Page background color** `#F6F6F3` (`bg`)
+   - **Layout**: template **Full-screen background**, header and footer hidden, **Custom CSS**: `docs/branding/custom.css` (sign-in box in `surface` with a `border` hairline and no shadow, primary button in `accent`)
+   - **Sign-in form**: **Banner logo**: `docs/branding/banner-logo.png`, **Square logo (light theme)**: `docs/branding/square-logo.png`, **Square logo (dark theme)**: `docs/branding/square-logo-dark.png`, **Sign-in page text** "Acesso só para os membros da casa"
+   - **Review + save**; changes can take up to an hour to show
+3. Check the hint once the app runs (step 13): in a private window open `web_url`, press **Entrar com Google** and watch the address bar or the browser's network panel: after `…ciamlogin.com/…/authorize?…&domain_hint=google` the next page is `accounts.google.com`, with no Entra page in between. `curl -s -o /dev/null -w '%{redirect_url}\n' <api_url>/auth/login` must print an authorize URL with `domain_hint=google`
+4. To see the branded page, show it for a moment: `az containerapp update -g rg-finance-dev -n finance-api --set-env-vars ENTRA_DOMAIN_HINT=none`, sign in from a private window, then `az containerapp update -g rg-finance-dev -n finance-api --remove-env-vars ENTRA_DOMAIN_HINT` (the next deploy also removes it, since `infra/` does not set it)
+
 ## 2. App registrations
 
 All three live in the external tenant.
@@ -195,7 +208,7 @@ Each execution prints `linked <name>`. An unlinked person who signs in gets 403 
 - `curl -i <api_url>/auth/login` returns 302 to `https://<tenant ID>.ciamlogin.com/…/authorize` with `redirect_uri=<api_url>/auth/callback` (URL-encoded) and sets a `Secure` cookie. If the API app does not start, its log says `AUTH_MODE entra needs <name>` or `SESSION_KEY must be 32 bytes in base64`: check step 4.4
 - `curl -i -H 'Origin: https://example.com' <api_url>/api/members` returns 403, and with `-H 'Origin: <api_url>'` it returns 401
 - `curl <mcp_url>/.well-known/oauth-protected-resource/mcp` returns `resource` `<mcp_url>/mcp`, `authorization_servers` with the issuer and the scopes of `MCP_SCOPES`; `curl -i -X POST <mcp_url>/mcp` returns 401 with `WWW-Authenticate: Bearer resource_metadata=…`
-- `web_url` shows Entrar; Entrar com Google goes to `/auth/login`, Entra and Google, and back signed in. A return to `/?entrada=falhou` ("Não foi possível concluir a entrada") means the callback failed: check step 9 and `finance-web-secret`
+- `web_url` shows Entrar; Entrar com Google goes to `/auth/login`, straight to Google (step 1, **Sign-in page**, item 3) and back signed in. A return to `/?entrada=falhou` ("Não foi possível concluir a entrada") means the callback failed: check step 9 and `finance-web-secret`
 
 ## 14. Claude connector
 
