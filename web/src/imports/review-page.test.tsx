@@ -97,6 +97,11 @@ const fetch = vi.fn(async (input: Request) => {
       candidates = candidates.map((item) => (item.id === '2' ? { ...item, payload: { ...item.payload, member: 'Gabriela' }, checks: [{ code: 'low_confidence', detail: '0.60' }] } : item))
       return Response.json(questions[0])
     }
+    if (url.pathname.endsWith('/categories/rename')) {
+      if (refusal) return Response.json({ error: refusal }, { status: 422 })
+      candidates = candidates.map((item) => (item.id === body.candidate ? { ...item, payload: { ...item.payload, name: body.name } } : item.payload.category === 'Pets' ? { ...item, payload: { ...item.payload, category: body.name } } : item))
+      return Response.json(candidates.filter((item) => item.id === body.candidate))
+    }
     const status = url.pathname.endsWith('/accept') ? 'accepted' : 'rejected'
     candidates = candidates.map((item) => (body.ids.includes(item.id) ? { ...item, status } : item))
     return Response.json(candidates.filter((item) => body.ids.includes(item.id)))
@@ -394,4 +399,33 @@ test('review leads with a summary of the consolidation and what still blocks', a
   expect(within(summary).getByRole('list', { name: 'Categorias juntadas' }).textContent).toBe('FarmáciaparaSaúde1 item')
   expect(within(summary).getByText('Subtotal de Farmácia em outubro de 2026 (R$ 89,90) ficou sem conferência')).toBeTruthy()
   expect(screen.getAllByRole('region')[0]).toBe(summary)
+})
+
+test('renames a new category from the summary and keeps refused names in the form', async () => {
+  candidates = [...candidates, candidate('4', { name: 'Pets', kind: 'expense' }, { kind: 'category' })]
+  start()
+  const summary = await screen.findByRole('region', { name: 'Resumo' })
+  await userEvent.click(within(summary).getByRole('button', { name: 'Renomear Pets' }))
+  const field = within(summary).getByRole('textbox', { name: 'Novo nome de Pets' })
+  expect(document.activeElement).toBe(field)
+  refusal = 'category Lazer is already open; answer or edit the items to use it'
+  await userEvent.clear(field)
+  await userEvent.type(field, 'Lazer{Enter}')
+  expect((await within(summary).findByRole('alert')).textContent).toBe('Já existe uma categoria com esse nome. Escolha outro.')
+  expect(field.getAttribute('aria-invalid')).toBe('true')
+  refusal = undefined
+  await userEvent.clear(field)
+  await userEvent.type(field, ' Animais ')
+  await userEvent.click(within(summary).getByRole('button', { name: 'Salvar' }))
+  expect(await screen.findByText('Categoria renomeada: Animais')).toBeTruthy()
+  expect(calls.filter((call) => call.path.endsWith('/rename'))).toEqual([
+    { path: '/api/imports/7/categories/rename', body: { candidate: '4', name: 'Lazer' }, member: 'Marcio' },
+    { path: '/api/imports/7/categories/rename', body: { candidate: '4', name: 'Animais' }, member: 'Marcio' },
+  ])
+  const renamed = await within(summary).findByRole('button', { name: 'Renomear Animais' })
+  await waitFor(() => expect(document.activeElement).toBe(renamed))
+  await userEvent.click(renamed)
+  await userEvent.click(within(summary).getByRole('button', { name: 'Cancelar' }))
+  expect(within(summary).queryByRole('textbox')).toBeNull()
+  expect(document.activeElement).toBe(within(summary).getByRole('button', { name: 'Renomear Animais' }))
 })

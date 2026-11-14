@@ -2,6 +2,7 @@ import { ArrowRight } from 'lucide-react'
 import type { ReactNode } from 'react'
 import { chip } from '../decisions/decision-card.tsx'
 import { cn } from '../lib/utils.ts'
+import { CategoryChip, type Rename } from './category-chip.tsx'
 import { plural } from './model.ts'
 import type { ReviewSummary as Summary } from './summary-model.ts'
 
@@ -14,7 +15,7 @@ const Part = ({ title, children }: { title: string; children: ReactNode }) => (
 
 const list = 'm-0 flex list-none flex-col gap-1 p-0 text-meta'
 
-export const ReviewSummary = ({ summary }: { summary: Summary }) => (
+export const ReviewSummary = ({ summary, busy = false, onRename }: { summary: Summary; busy?: boolean; onRename?: (id: string) => Rename }) => (
   <section aria-labelledby="summary-title" className="flex min-w-0 flex-col gap-3 rounded-card border bg-surface px-4 py-3 md:px-6 md:py-4">
     <h2 id="summary-title" className="m-0 text-section font-semibold">
       Resumo
@@ -39,12 +40,9 @@ export const ReviewSummary = ({ summary }: { summary: Summary }) => (
     )}
     {summary.categories.length > 0 && (
       <Part title={`Categorias novas (${summary.categories.length})`}>
-        <ul aria-label="Categorias novas" className="m-0 flex list-none flex-wrap gap-1.5 p-0">
+        <ul aria-label="Categorias novas" className="m-0 flex list-none flex-wrap items-center gap-1.5 p-0">
           {summary.categories.map((category) => (
-            <li key={category.id} className={cn(chip, 'bg-accent-soft text-accent')}>
-              {category.name}
-              <span className="sr-only">, {category.direction}</span>
-            </li>
+            <CategoryChip key={category.id} category={category} busy={busy} onRename={onRename?.(category.id)} />
           ))}
         </ul>
       </Part>

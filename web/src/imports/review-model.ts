@@ -184,6 +184,12 @@ export const reviewFailure = (error: Error) => {
   return 'Não foi possível salvar. Tente de novo.'
 }
 
+export const renameFailure = (error: Error) => {
+  if (error instanceof ApiFailure && /is already open/.test(error.message)) return 'Já existe uma categoria com esse nome. Escolha outro.'
+  if (error instanceof ApiFailure && /invalid category name/.test(error.message)) return 'O nome precisa ter de 1 a 200 caracteres.'
+  return undefined
+}
+
 const chosen = (candidate: Candidate) => candidate.status === 'accepted' || candidate.status === 'edited'
 
 export type Ledger = { accounts: string[]; categories: { name: string; direction: string }[]; reserves: string[] }

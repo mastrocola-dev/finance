@@ -7,7 +7,7 @@ import { findBatch, listBatches, listCandidates, listQuestions } from '../import
 import { maxBytes } from '../import/cli.ts'
 import { closeBatch } from '../import/close.ts'
 import { commitBatch } from '../import/commit.ts'
-import { answerQuestion, editCandidate, reviewCandidates } from '../import/review.ts'
+import { answerQuestion, editCandidate, renameCategory, reviewCandidates } from '../import/review.ts'
 import { Busy, type ImportUploads, importUploads, Unavailable } from '../import/uploads.ts'
 import { listAudit } from '../ledger/audit.ts'
 import { listAccounts, listCategories } from '../ledger/catalog.ts'
@@ -33,6 +33,7 @@ import {
   candidateIds,
   candidatePath,
   categoryQuery,
+  categoryRename,
   decisionQuery,
   entryQuery,
   idPath,
@@ -242,6 +243,15 @@ export const routes: Route[] = [
     await writing(input, (connection, actor) => editCandidate(connection, actor, batchId, BigInt(input.params.candidate), input.body.payload))
     return (await listCandidates(input.client, batchId)).find((item) => item.id === input.params.candidate)
   }),
+  route(
+    { method: 'POST', path: '/imports/:id/categories/rename', operationId: 'renameImportCategory', summary: 'Rename a new category of a verified import batch and every candidate that uses it; refuses a name already open', params: idPath, body: categoryRename, response: z.array(schemas.ImportCandidate) },
+    async (input) => {
+      const batchId = await reviewableBatch(input, input.params.id)
+      const ids = await writing(input, (connection, actor) => renameCategory(connection, actor, batchId, BigInt(input.body.candidate), input.body.name))
+      const changed = new Set(ids.map(String))
+      return (await listCandidates(input.client, batchId)).filter((item) => changed.has(item.id))
+    },
+  ),
   ...(['accept', 'reject'] as const).map((decision) =>
     route({ method: 'POST', path: `/imports/:id/candidates/${decision}`, operationId: `${decision}ImportCandidates`, summary: reviewSummaries[decision], params: idPath, body: candidateIds, response: z.array(schemas.ImportCandidate) }, async (input) => {
       const batchId = await reviewableBatch(input, input.params.id)

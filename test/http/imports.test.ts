@@ -122,6 +122,11 @@ describe('import api', () => {
       chosen.body.map(({ acceptedByModel }: { acceptedByModel: boolean }) => acceptedByModel),
       [false, false],
     )
+    const pets = (await get(`/imports/${batch}/candidates`)).body.find((item: { kind: string }) => item.kind === 'category')
+    const renamed = await send('POST', '/categories/rename', { candidate: pets.id, name: 'Bichos' })
+    assert.deepEqual([renamed.status, renamed.body.map((item: { payload: { name: string } }) => item.payload.name)], [200, ['Bichos']])
+    const taken = await send('POST', '/categories/rename', { candidate: pets.id, name: 'Lazer' })
+    assert.deepEqual([taken.status, taken.body.error], [422, 'category Lazer is already open; answer or edit the items to use it'])
     assert.equal((await send('POST', '/candidates/reject', { ids: [] })).status, 400)
     assert.equal((await send('POST', '/candidates/reject', { ids: ['999999'] })).status, 422)
     const audit = await pool.query<{ author: string; name: string }>("select distinct a.author, m.name from audit_log a join member m on m.id = a.member_id where a.entity in ('import_candidate', 'import_question') and a.action = 'update' and a.author = 'member'")

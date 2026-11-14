@@ -48,6 +48,7 @@ export const importQuery = z.object({ status: z.enum(batchStatuses).optional() }
 export const questionPath = z.object({ id, question: id })
 export const candidatePath = z.object({ id, candidate: id })
 export const answerBody = z.object({ answer: z.string().describe('One of the options or free text; naming an existing member, account, category or reserve resolves every candidate carrying the asked name') })
+export const categoryRename = z.object({ candidate: id.describe('Id of an open category candidate of the batch'), name: z.string().describe('New name; every candidate, subtotal and merge of the batch naming the old one follows') })
 export const candidateEdit = z.object({ payload: z.record(z.string(), z.unknown()).describe('Full candidate payload in camelCase, checked against the schema of its kind') })
 const setupKind = z.enum(setupKinds)
 

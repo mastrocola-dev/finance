@@ -2020,6 +2020,60 @@
         }
       }
     },
+    "/api/imports/{id}/categories/rename": {
+      "post": {
+        "operationId": "renameImportCategory",
+        "summary": "Rename a new category of a verified import batch and every candidate that uses it; refuses a name already open",
+        "security": [
+          {
+            "member": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^\\d+$"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RenameImportCategoryBody"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RenameImportCategoryResponse"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/imports/{id}/candidates/accept": {
       "post": {
         "operationId": "acceptImportCandidates",
@@ -4148,6 +4202,30 @@
         "required": [
           "payload"
         ]
+      },
+      "RenameImportCategoryBody": {
+        "type": "object",
+        "properties": {
+          "candidate": {
+            "type": "string",
+            "pattern": "^\\d+$",
+            "description": "Id of an open category candidate of the batch"
+          },
+          "name": {
+            "type": "string",
+            "description": "New name; every candidate, subtotal and merge of the batch naming the old one follows"
+          }
+        },
+        "required": [
+          "candidate",
+          "name"
+        ]
+      },
+      "RenameImportCategoryResponse": {
+        "type": "array",
+        "items": {
+          "$ref": "#/components/schemas/ImportCandidate"
+        }
       },
       "AcceptImportCandidatesBody": {
         "type": "object",

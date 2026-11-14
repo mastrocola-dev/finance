@@ -13,14 +13,15 @@ import { cn } from '../lib/utils.ts'
 import { ApiFailure } from '../query/client.ts'
 import { useLedger, useNames } from './candidate-form.tsx'
 import { CandidateRow, type EditForm } from './candidate-row.tsx'
+import type { Rename } from './category-chip.tsx'
 import { CommitCard, CommittedCard } from './commit-card.tsx'
 import { DecidedQuestions } from './decided-questions.tsx'
 import { type Names, serverErrors } from './edit-model.ts'
 import { type Batch, canRetry, closeFailure, formatStamp, phaseLabels, phaseOf, phaseTones, plural, progressText, retryFailure, retryText, type Unavailable, unavailableNotice } from './model.ts'
 import { useClose, useRetry, useRuntime } from './queries.ts'
 import { QuestionCard } from './question-card.tsx'
-import { acceptable, type Candidate, checkText, commitFailure, commitPlan, type Decision, type Group, groupCandidates, pendingChoice, type Question, reviewCounts, reviewFailure, titleOf, withModelChoices } from './review-model.ts'
-import { useAnswer, useBatch, useCandidates, useCommit, useDecide, useEdit, useQuestions } from './review-queries.ts'
+import { acceptable, type Candidate, checkText, commitFailure, commitPlan, type Decision, type Group, groupCandidates, pendingChoice, type Question, renameFailure, reviewCounts, reviewFailure, titleOf, withModelChoices } from './review-model.ts'
+import { useAnswer, useBatch, useCandidates, useCommit, useDecide, useEdit, useQuestions, useRename } from './review-queries.ts'
 import { ReviewSummary } from './review-summary.tsx'
 import { reviewSummary } from './summary-model.ts'
 import { UnavailableNotice } from './unavailable-notice.tsx'
@@ -116,6 +117,7 @@ const Review = ({ batch, notify, onCommit }: { batch: Batch; notify: (notice: No
   const answer = useAnswer(batch.id)
   const decide = useDecide(batch.id)
   const edit = useEdit(batch.id)
+  const rename = useRename(batch.id)
   const names = useNames(candidates.data ?? [])
   const ledger = useLedger()
   const hash = useRecordHash()
@@ -132,6 +134,22 @@ const Review = ({ batch, notify, onCommit }: { batch: Batch; notify: (notice: No
         onError: (error) => (error instanceof ApiFailure && /^invalid \w+ payload/.test(error.message) ? form.refuse(serverErrors(candidate.kind, error.message)) : onError(error)),
       },
     )
+  const onRename =
+    (candidate: string): Rename =>
+    (name, form) =>
+      rename.mutate(
+        { candidate, name },
+        {
+          onSuccess: () => {
+            form.close()
+            notify({ message: `Categoria renomeada: ${name}` })
+          },
+          onError: (error) => {
+            const refused = renameFailure(error)
+            return refused ? form.refuse(refused) : onError(error)
+          },
+        },
+      )
 
   return (
     <QueryView query={candidates} skeleton={<Rows />}>
@@ -146,7 +164,7 @@ const Review = ({ batch, notify, onCommit }: { batch: Batch; notify: (notice: No
             return (
               <div className="flex w-full max-w-4xl flex-col gap-5">
                 <Summary candidates={items} questions={asked} />
-                {items.length > 0 && <ReviewSummary summary={reviewSummary(batch, items, open, plan)} />}
+                {items.length > 0 && <ReviewSummary summary={reviewSummary(batch, items, open, plan)} busy={busy} onRename={onRename} />}
                 {(open.length > 0 || batch.checks.length > 0) && (
                   <section aria-labelledby="attention-title" className={cn(card, 'border-accent/40')}>
                     <h2 id="attention-title" className="m-0 text-section font-semibold">

@@ -1,5 +1,6 @@
 import { cleanup, render, screen, within } from '@testing-library/react'
-import { afterEach, expect, test } from 'vitest'
+import userEvent from '@testing-library/user-event'
+import { afterEach, expect, test, vi } from 'vitest'
 import { ReviewSummary } from './review-summary.tsx'
 import type { ReviewSummary as Summary } from './summary-model.ts'
 
@@ -68,4 +69,23 @@ test('warns about subtotals a merge left unchecked', () => {
 test('explains a consolidation failure', () => {
   render(<ReviewSummary summary={summary({ failure: 'Não foi possível juntar as categorias novas. Elas ficaram como foram lidas.' })} />)
   expect(within(region()).getByRole('alert').textContent).toBe('Não foi possível juntar as categorias novas. Elas ficaram como foram lidas.')
+})
+
+test('offers a rename only when the review can rename, and leaves an unchanged name alone', async () => {
+  const categories = [{ id: '2', name: 'Pets', direction: 'despesa' }]
+  const rename = vi.fn()
+  const { rerender } = render(<ReviewSummary summary={summary({ categories })} />)
+  expect(within(region()).queryByRole('button')).toBeNull()
+  rerender(<ReviewSummary summary={summary({ categories })} busy onRename={() => rename} />)
+  expect((within(region()).getByRole('button', { name: 'Renomear Pets' }) as HTMLButtonElement).disabled).toBe(true)
+  rerender(<ReviewSummary summary={summary({ categories })} onRename={(id) => (id === '2' ? rename : vi.fn())} />)
+  await userEvent.click(within(region()).getByRole('button', { name: 'Renomear Pets' }))
+  await userEvent.type(within(region()).getByRole('textbox', { name: 'Novo nome de Pets' }), ' {Enter}')
+  expect(rename).not.toHaveBeenCalled()
+  expect(within(region()).queryByRole('textbox')).toBeNull()
+  await userEvent.click(within(region()).getByRole('button', { name: 'Renomear Pets' }))
+  await userEvent.clear(within(region()).getByRole('textbox', { name: 'Novo nome de Pets' }))
+  expect((within(region()).getByRole('button', { name: 'Salvar' }) as HTMLButtonElement).disabled).toBe(true)
+  await userEvent.type(within(region()).getByRole('textbox', { name: 'Novo nome de Pets' }), 'Bichos{Enter}')
+  expect(rename).toHaveBeenCalledWith('Bichos', expect.objectContaining({ close: expect.any(Function), refuse: expect.any(Function) }))
 })

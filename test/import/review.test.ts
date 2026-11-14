@@ -4,7 +4,7 @@ import type { Client } from 'pg'
 import { seed } from '../../src/db/seed.ts'
 import type { Actor } from '../../src/db/write.ts'
 import { retryTargets } from '../../src/import/agent.ts'
-import { answerQuestion, askedNames, editCandidate, reviewCandidates } from '../../src/import/review.ts'
+import { answerQuestion, askedNames, editCandidate, renameCategory, reviewCandidates } from '../../src/import/review.ts'
 import { openBatch, stageOutput } from '../../src/import/staging.ts'
 import { verifyBatch } from '../../src/import/verify.ts'
 import { testDatabase } from '../db/database.ts'
@@ -108,6 +108,45 @@ describe('import review', () => {
     const { questions: others } = await staged()
     await assert.rejects(answerQuestion(client, member, batch, others[0] as bigint, 'Sim'), /is not open in import batch/)
     await assert.rejects(answerQuestion(client, member, batch, 1n << 40n, ' '), /1 to 200/)
+  })
+
+  test('renames a new category everywhere the batch uses it', async () => {
+    const { batch, candidates } = await staged()
+    const [, farmacia, , pets, , internet] = candidates
+    await client.query(`update import_candidate set payload = jsonb_set(payload, '{category}', '"pets"') where id = any($1)`, [[farmacia, internet]])
+    const totals = [
+      { direction: 'expense', category: 'Pets', month: '2026-10-01', amountCents: 8990, source: 'A9' },
+      { direction: 'income', category: 'Pets', month: '2026-10-01', amountCents: 1, source: 'A10' },
+    ]
+    const consolidation = { merges: [{ name: 'Gatos', kind: 'expense', to: 'Pets', candidates: 1 }], unchecked: [{ direction: 'expense', category: 'PETS', amountCents: 5 }], failure: null }
+    await client.query('update import_batch set totals = $2, consolidation = $3 where id = $1', [batch, JSON.stringify(totals), JSON.stringify(consolidation)])
+    assert.deepEqual(await renameCategory(client, member, batch, pets as bigint, ' Animais '), [pets, farmacia, internet])
+    assert.deepEqual((await candidate(pets)).payload, { name: 'Animais', kind: 'expense' })
+    assert.equal((await candidate(farmacia)).payload.category, 'Animais')
+    assert.equal((await candidate(internet)).payload.category, 'Animais')
+    const after = (await client.query('select totals, consolidation from import_batch where id = $1', [batch])).rows[0]
+    assert.deepEqual(
+      after.totals.map((item: { category: string }) => item.category),
+      ['Animais', 'Pets'],
+    )
+    assert.equal(after.consolidation.merges[0].to, 'Animais')
+    assert.equal(after.consolidation.unchecked[0].category, 'Animais')
+    const audit = await client.query("select author, entity from audit_log where entity_id = any($1) and action = 'update' and after->'payload' is distinct from before->'payload' and (after->'payload')::text like '%Animais%'", [[pets, farmacia, internet]])
+    assert.equal(audit.rowCount, 3)
+    assert.ok(audit.rows.every((row) => row.author === 'member'))
+    assert.deepEqual(await renameCategory(client, member, batch, pets as bigint, 'Animais'), [])
+    assert.deepEqual(await renameCategory(client, member, batch, pets as bigint, 'animais'), [pets, farmacia, internet])
+  })
+
+  test('refuses renames to an open name or of something else', async () => {
+    const { batch, candidates } = await staged()
+    const [entry, , , pets] = candidates
+    await assert.rejects(renameCategory(client, member, batch, pets as bigint, 'saude'), /category saude is already open/)
+    await assert.rejects(renameCategory(client, member, batch, pets as bigint, ' '), /invalid category name/)
+    await assert.rejects(renameCategory(client, member, batch, entry as bigint, 'Animais'), /is not a new category/)
+    await client.query("update import_candidate set status = 'rejected' where id = $1", [pets])
+    await assert.rejects(renameCategory(client, member, batch, pets as bigint, 'Animais'), /is not a new category/)
+    assert.equal((await candidate(pets)).payload.name, 'Pets')
   })
 
   test('finds asked names by whole words only', () => {

@@ -1,9 +1,9 @@
 import type { Client } from 'pg'
 import { type Actor, type Writer, write } from '../db/write.ts'
 import { RuleError } from '../ledger/rule.ts'
-import { payloads } from './candidate.ts'
+import { type CandidateKind, categoryPayload, payloads } from './candidate.ts'
 import { maskDigits } from './staging.ts'
-import { loadReferences, normalize, type References, type Staged, same, verifyWithin } from './verify.ts'
+import { categoryKind, loadReferences, normalize, type References, type Staged, same, verifyWithin } from './verify.ts'
 
 export const reviewDecisions = { accept: 'accepted', reject: 'rejected' } as const
 
@@ -50,6 +50,39 @@ export const editCandidate = (client: Client, actor: Actor, batchId: bigint, can
     if (!parsed.success) throw new RuleError(`invalid ${item.kind} payload: ${issues(parsed.error)}`)
     await ledger.update('import_candidate', item.id, { payload: parsed.data, status: 'edited', accepted_by_model: false })
     return item.id
+  })
+
+type Renamable = { category?: unknown; direction?: unknown; kind?: unknown; to?: unknown }
+
+const renamed = <T extends Renamable>(items: T[], field: 'category' | 'to', from: string, to: string, kind: string) =>
+  items.map((item) => {
+    const of = field === 'to' ? item.kind : item.direction
+    const value = item[field]
+    return typeof value === 'string' && of === kind && normalize(value) === normalize(from) ? { ...item, [field]: to } : item
+  })
+
+export const renameCategory = (client: Client, actor: Actor, batchId: bigint, candidateId: bigint, name: string) =>
+  reviewing(client, actor, batchId, async (ledger, candidates) => {
+    const item = candidateOf(candidates, candidateId)
+    if (item.kind !== 'category' || item.status === 'rejected') throw new RuleError(`candidate ${candidateId} is not a new category of import batch ${batchId}`)
+    const parsed = categoryPayload.safeParse({ ...item.payload, name: maskDigits(name) })
+    if (!parsed.success) throw new RuleError(`invalid category name: ${issues(parsed.error)}`)
+    const { name: to, kind } = parsed.data
+    const from = String(item.payload.name)
+    if (to === from) return []
+    const open = (await client.query<{ name: string }>('select name from category where closed_at is null and kind = $1', [kind])).rows.map((row) => row.name)
+    const staged = candidates.filter((other) => other.id !== item.id && other.kind === 'category' && other.status !== 'rejected' && other.payload.kind === kind).map((other) => String(other.payload.name))
+    if (normalize(to) !== normalize(from) && [...open, ...staged].some((taken) => normalize(taken) === normalize(to))) throw new RuleError(`category ${to} is already open; answer or edit the items to use it`)
+    await ledger.update('import_candidate', item.id, { payload: parsed.data })
+    const users = candidates.filter((other) => other.kind !== 'category' && typeof other.payload.category === 'string' && categoryKind(other.kind as CandidateKind, other.payload) === kind && normalize(other.payload.category) === normalize(from))
+    for (const other of users) await ledger.update('import_candidate', other.id, { payload: { ...other.payload, category: to } })
+    const batch = (await client.query<{ totals: Renamable[]; consolidation: { merges: Renamable[]; unchecked: Renamable[] } }>('select totals, consolidation from import_batch where id = $1', [batchId])).rows[0]
+    if (batch) {
+      const totals = renamed(batch.totals, 'category', from, to, kind)
+      const consolidation = { ...batch.consolidation, merges: renamed(batch.consolidation.merges, 'to', from, to, kind), unchecked: renamed(batch.consolidation.unchecked, 'category', from, to, kind) }
+      if (JSON.stringify({ totals, consolidation }) !== JSON.stringify(batch)) await ledger.update('import_batch', batchId, { totals: JSON.stringify(totals), consolidation: JSON.stringify(consolidation) })
+    }
+    return [item.id, ...users.map((other) => other.id)]
   })
 
 const namedCheck = /^(?:unknown|matched)_(member|account|category|reserve)$|^(member|account)_unmatched$/

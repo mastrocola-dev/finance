@@ -632,6 +632,23 @@ export type paths = {
         patch: operations["editImportCandidate"];
         trace?: never;
     };
+    "/api/imports/{id}/categories/rename": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Rename a new category of a verified import batch and every candidate that uses it; refuses a name already open */
+        post: operations["renameImportCategory"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/imports/{id}/candidates/accept": {
         parameters: {
             query?: never;
@@ -1133,6 +1150,13 @@ export type components = {
                 [key: string]: unknown;
             };
         };
+        RenameImportCategoryBody: {
+            /** @description Id of an open category candidate of the batch */
+            candidate: string;
+            /** @description New name; every candidate, subtotal and merge of the batch naming the old one follows */
+            name: string;
+        };
+        RenameImportCategoryResponse: components["schemas"]["ImportCandidate"][];
         AcceptImportCandidatesBody: {
             ids: string[];
         };
@@ -1197,6 +1221,8 @@ export type ListImportCandidatesResponse = components['schemas']['ListImportCand
 export type ListImportQuestionsResponse = components['schemas']['ListImportQuestionsResponse'];
 export type AnswerImportQuestionBody = components['schemas']['AnswerImportQuestionBody'];
 export type EditImportCandidateBody = components['schemas']['EditImportCandidateBody'];
+export type RenameImportCategoryBody = components['schemas']['RenameImportCategoryBody'];
+export type RenameImportCategoryResponse = components['schemas']['RenameImportCategoryResponse'];
 export type AcceptImportCandidatesBody = components['schemas']['AcceptImportCandidatesBody'];
 export type AcceptImportCandidatesResponse = components['schemas']['AcceptImportCandidatesResponse'];
 export type RejectImportCandidatesResponse = components['schemas']['RejectImportCandidatesResponse'];
@@ -2523,6 +2549,41 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ImportCandidate"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+        };
+    };
+    renameImportCategory: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RenameImportCategoryBody"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RenameImportCategoryResponse"];
                 };
             };
             /** @description Error */
