@@ -22,7 +22,7 @@ export const SetupPage = () => {
     <>
       <div className="flex flex-col gap-1">
         <PageHeader screen={screenOf('/cadastros')} />
-        <p className="m-0 text-meta text-muted">Contas, categorias, receitas e despesas fixas, dívidas, reservas e metas da casa. Encerrar tira da lista, mas o histórico fica.</p>
+        <p className="m-0 text-meta text-muted">Contas, categorias, receitas e despesas fixas, despesas variáveis previstas, dívidas, reservas e metas da casa. Encerrar tira da lista, mas o histórico fica.</p>
       </div>
       <QueryView query={setup} skeleton={<SetupSkeleton />}>
         {(records) => <RecordList records={records} notify={setNotice} />}

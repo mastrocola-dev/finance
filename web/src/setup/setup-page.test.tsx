@@ -59,7 +59,7 @@ test('lists records by kind and registers a category, explaining a duplicate', a
   expect(within(categories).getByText('Moradia')).toBeTruthy()
   expect(within(screen.getByRole('region', { name: /Contas/ })).getByText('Banco · Conta corrente · final 1234 · Conjunto')).toBeTruthy()
   const order = screen.getAllByRole('heading', { level: 2 }).map((heading) => heading.firstChild?.textContent)
-  expect(order).toEqual(['Contas', 'Categorias', 'Receitas fixas', 'Despesas fixas', 'Dívidas', 'Reservas', 'Metas'])
+  expect(order).toEqual(['Contas', 'Categorias', 'Receitas fixas', 'Despesas fixas', 'Despesas variáveis', 'Dívidas', 'Reservas', 'Metas'])
   expect(within(screen.getByRole('region', { name: /Dívidas/ })).getByText('Nada cadastrado.')).toBeTruthy()
   expect(screen.queryByRole('button', { name: 'Criar categorias sugeridas' })).toBeNull()
   await userEvent.click(within(categories).getByRole('button', { name: 'Novo cadastro em Categorias' }))
@@ -139,7 +139,7 @@ test('a recurring expense form offers the suggested categories and creates a typ
   expect(form.getByLabelText('Categoria')).toHaveProperty('value', 'Pets')
 })
 
-test('only income and recurring expense forms get the category help', async () => {
+test('only income and expense forms get the category help', async () => {
   localStorage.setItem('finance.member', 'Marcio')
   render(<App history={createMemoryHistory({ initialEntries: ['/cadastros'] })} fetch={fetch} />)
   const incomes = await screen.findByRole('region', { name: /Receitas fixas/ })

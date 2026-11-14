@@ -6,7 +6,7 @@ import { CandidateForm, useNames } from '../imports/candidate-form.tsx'
 import { type Errors, serverErrors } from '../imports/edit-model.ts'
 import { ApiFailure } from '../query/client.ts'
 import { changesOf, editFields, editPayload } from './edit-model.ts'
-import { type ApiRecord, closeFailure, describeRecord, groupRecords, registerFailure, type SetupKind, type SetupRecord, setupLabels } from './model.ts'
+import { closeFailure, describeRecord, groupRecords, registerFailure, type SetupKind, type SetupRecord, setupLabels } from './model.ts'
 import { NewRecord } from './new-record.tsx'
 import { useCloseRecord, useEditRecord } from './queries.ts'
 import { StarterCategories } from './starter-categories.tsx'
@@ -35,7 +35,7 @@ const EditRecord = ({ record, onDone, notify }: { record: SetupRecord; onDone: (
   return <CandidateForm candidate={{ id: `setup-${record.kind}-${record.id}`, kind: record.kind, payload: editPayload(record) }} fields={fields} title={record.name} label={`Editar ${record.name}`} names={names} busy={edit.isPending} serverErrors={errors} onSave={save} onCancel={onDone} />
 }
 
-export const RecordList = ({ records, notify }: { records: ApiRecord[]; notify: Notify }) => {
+export const RecordList = ({ records, notify }: { records: SetupRecord[]; notify: Notify }) => {
   const close = useCloseRecord()
   const [editing, setEditing] = useState<string>()
   const [adding, setAdding] = useState<SetupKind>()

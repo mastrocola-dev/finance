@@ -4,7 +4,7 @@ import { useAccounts, useCategories } from '../entries/queries.ts'
 import { cn } from '../lib/utils.ts'
 import { useMembers } from '../query/shell.ts'
 import { useSavings } from '../worth/queries.ts'
-import { type Errors, type Field, fieldsOf, type Names, toPayload, toValues, type Values } from './edit-model.ts'
+import { type Errors, type Field, type FormKind, fieldsOf, type Names, toPayload, toValues, type Values } from './edit-model.ts'
 import type { Candidate, Ledger } from './review-model.ts'
 
 const input = 'min-h-11 w-full rounded-control border bg-bg px-3 text-body text-text focus-visible:border-accent focus-visible:outline-2 focus-visible:outline-accent-soft aria-invalid:border-late md:min-h-10'
@@ -53,7 +53,7 @@ const Control = ({ id, field, value, error, onChange }: FieldProps) => {
 }
 
 type Props = {
-  candidate: Pick<Candidate, 'id' | 'kind' | 'payload'>
+  candidate: Pick<Candidate, 'id' | 'payload'> & { kind: FormKind }
   fields?: Field[]
   title: string
   label?: string

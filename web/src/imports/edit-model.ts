@@ -2,6 +2,8 @@ import { parseBrl } from '../entries/quick-add.ts'
 import { formatBrl } from '../lib/format.ts'
 import type { Candidate, Kind } from './review-model.ts'
 
+export type FormKind = Kind | 'variable_expense'
+
 export type Names = 'members' | 'accounts' | 'categories' | 'reserves'
 
 type Type = 'text' | 'money' | 'balance' | 'date' | 'day' | 'count' | 'paid' | 'percent' | 'flag' | 'lastFour' | 'choice'
@@ -20,7 +22,7 @@ const startsOn: Field = { key: 'startsOn', label: 'Início', type: 'date' }
 const endsOn: Field = { key: 'endsOn', label: 'Fim', type: 'date', optional: true }
 const dayOfMonth: Field = { key: 'dayOfMonth', label: 'Dia do mês', type: 'day' }
 
-export const fieldsOf: Record<Kind, Field[]> = {
+export const fieldsOf: Record<FormKind, Field[]> = {
   entry: [
     { key: 'description', label: 'Descrição', type: 'text' },
     { key: 'direction', label: 'Tipo', type: 'choice', options: directions },
@@ -35,6 +37,7 @@ export const fieldsOf: Record<Kind, Field[]> = {
   ],
   income: [{ key: 'description', label: 'Descrição', type: 'text' }, { key: 'amountCents', label: 'Valor mensal', type: 'money' }, dayOfMonth, startsOn, endsOn, { ...category, optional: true }, account, member],
   recurring_expense: [{ key: 'description', label: 'Descrição', type: 'text' }, { key: 'amountCents', label: 'Valor mensal', type: 'money' }, dayOfMonth, startsOn, endsOn, { key: 'installmentsTotal', label: 'Parcelas', type: 'count', optional: true }, category, account, member],
+  variable_expense: [{ key: 'description', label: 'Descrição', type: 'text' }, { key: 'amountCents', label: 'Valor estimado por mês', type: 'money' }, category, member, account],
   debt: [
     { key: 'creditor', label: 'Credor', type: 'text' },
     { key: 'description', label: 'Descrição', type: 'text' },
@@ -73,7 +76,7 @@ const shown = (field: Field, value: unknown) => {
   return String(value)
 }
 
-export const toValues = ({ kind, payload }: Pick<Candidate, 'kind' | 'payload'>, fields = fieldsOf[kind]): Values => {
+export const toValues = ({ kind, payload }: { kind: FormKind; payload: Candidate['payload'] }, fields = fieldsOf[kind]): Values => {
   const installment = (payload.installment ?? {}) as Record<string, unknown>
   const flat: Record<string, unknown> = { ...payload, installmentNumber: installment.number, installmentTotal: installment.total }
   return Object.fromEntries(fields.map((field) => [field.key, shown(field, flat[field.key])]))
@@ -136,7 +139,7 @@ const parse = (field: Field, raw: string): Parsed => {
 
 export type Errors = Record<string, string>
 
-const crossChecks = (kind: Kind, payload: Record<string, unknown>, parts: Record<string, unknown>): Errors => {
+const crossChecks = (kind: FormKind, payload: Record<string, unknown>, parts: Record<string, unknown>): Errors => {
   const errors: Errors = {}
   if (typeof payload.startsOn === 'string' && typeof payload.endsOn === 'string' && payload.endsOn < payload.startsOn) errors.endsOn = 'O fim vem antes do início.'
   if (kind === 'debt' && typeof payload.installmentsPaid === 'number' && typeof payload.installmentsTotal === 'number' && payload.installmentsPaid > payload.installmentsTotal) errors.installmentsPaid = 'Mais parcelas pagas do que o total.'
@@ -146,7 +149,7 @@ const crossChecks = (kind: Kind, payload: Record<string, unknown>, parts: Record
   return errors
 }
 
-export const toPayload = (kind: Kind, values: Values, fields = fieldsOf[kind]) => {
+export const toPayload = (kind: FormKind, values: Values, fields = fieldsOf[kind]) => {
   const payload: Record<string, unknown> = {}
   const parts: Record<string, unknown> = {}
   const errors: Errors = {}
@@ -176,7 +179,7 @@ const fieldOf = (fields: Field[], path: string, message: string) => {
   return fields.some((field) => field.key === path) ? path : 'form'
 }
 
-export const serverErrors = (kind: Kind, message: string, fields = fieldsOf[kind]): Errors => {
+export const serverErrors = (kind: FormKind, message: string, fields = fieldsOf[kind]): Errors => {
   const list = message.replace(/^invalid \w+ payload: /, '')
   if (list === message) return { form: 'Não foi possível salvar. Tente de novo.' }
   const errors: Errors = {}

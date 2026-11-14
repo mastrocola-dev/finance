@@ -2,15 +2,15 @@ import type { components } from '../api/schema.ts'
 import { formatBrl } from '../lib/format.ts'
 import { ApiFailure } from '../query/client.ts'
 
-export type ApiRecord = components['schemas']['SetupRecord']
-export type SetupKind = Exclude<ApiRecord['kind'], 'variable_expense'>
-export type SetupRecord = ApiRecord & { kind: SetupKind }
+export type SetupRecord = components['schemas']['SetupRecord']
+export type SetupKind = SetupRecord['kind']
 
-export const setupOrder: SetupKind[] = ['account', 'category', 'income', 'recurring_expense', 'debt', 'reserve', 'goal']
+export const setupOrder: SetupKind[] = ['account', 'category', 'income', 'recurring_expense', 'variable_expense', 'debt', 'reserve', 'goal']
 
 export const setupLabels: Record<SetupKind, { one: string; many: string }> = {
   income: { one: 'Receita fixa', many: 'Receitas fixas' },
   recurring_expense: { one: 'Despesa fixa', many: 'Despesas fixas' },
+  variable_expense: { one: 'Despesa variável', many: 'Despesas variáveis' },
   debt: { one: 'Dívida', many: 'Dívidas' },
   account: { one: 'Conta', many: 'Contas' },
   category: { one: 'Categoria', many: 'Categorias' },
@@ -35,13 +35,14 @@ const parts = (record: SetupRecord): (string | null | undefined)[] => {
   if (record.kind === 'reserve') return [`Saldo ${money(record)}`, record.account]
   if (record.kind === 'income') return [`${money(record)} por mês`, `dia ${record.day}`, record.member, record.category]
   if (record.kind === 'recurring_expense') return [`${money(record)} por mês`, `dia ${record.day}`, record.category, who(record), record.detail && `${record.detail} parcelas`]
+  if (record.kind === 'variable_expense') return [`${money(record)} por mês`, record.category, who(record)]
   if (record.kind === 'debt') return [record.detail, `saldo ${money(record)}`, who(record)]
   return [`Meta ${money(record)}`, record.detail && `reserva ${record.detail}`]
 }
 
 export const describeRecord = (record: SetupRecord) => parts(record).filter(Boolean).join(' · ')
 
-export const groupRecords = (records: ApiRecord[]) => setupOrder.map((kind) => ({ kind, records: records.filter((record): record is SetupRecord => record.kind === kind) }))
+export const groupRecords = (records: SetupRecord[]) => setupOrder.map((kind) => ({ kind, records: records.filter((record) => record.kind === kind) }))
 
 const refusals: [RegExp, (match: RegExpMatchArray) => string][] = [
   [/already exists/, () => 'Já existe um cadastro com esse nome.'],

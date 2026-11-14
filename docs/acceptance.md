@@ -30,6 +30,7 @@ Compare with the mockups in `docs/mockups/` (layout, spacing, copy, palette) and
 - [ ] **Decisões** (`/decisoes`), mockup `MobileDecisions.dc.html`: Marcio proposes a decision; it stays proposta; Gabriela confirms it and only then it is confirmed; another one is rejected or withdrawn
 - [ ] **Atividade** (`/atividade`), mockup `Audit.dc.html`: every change above appears with author, before and after; the filter by author works
 - [ ] **Cadastros** (`/cadastros`): register a category, edit it (Editar), close it (Encerrar) and register the same name again
+- [ ] **Cadastros**: under Despesas variáveis, register Supermercado with an estimate per month for Conjunto, edit the estimate, and see that Visão do mês and Contas do mês do not gain an entry from it
 - [ ] **Importar** (`/importar`): see section 4
 - [ ] **Revisar importação** (`/importar/<id>`): see section 4
 - [ ] An unknown address shows the not-found page with a way back
