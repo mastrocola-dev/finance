@@ -31,6 +31,7 @@ Compare with the mockups in `docs/mockups/` (layout, spacing, copy, palette) and
 - [ ] **Atividade** (`/atividade`), mockup `Audit.dc.html`: every change above appears with author, before and after; the filter by author works
 - [ ] **Cadastros** (`/cadastros`): register a category, edit it (Editar), close it (Encerrar) and register the same name again
 - [ ] **Cadastros**: under Despesas variáveis, register Supermercado with an estimate per month for Conjunto, edit the estimate, and see that Visão do mês and Contas do mês do not gain an entry from it
+- [ ] **Cadastros**: Cartão Marcio shows its limit; under Parcelamentos · Cartão Marcio, register a purchase as "parcela 1 de 5", edit its description, close it; Contas do mês and Visão do mês do not gain an entry from it
 - [ ] **Importar** (`/importar`): see section 4
 - [ ] **Revisar importação** (`/importar/<id>`): see section 4
 - [ ] An unknown address shows the not-found page with a way back

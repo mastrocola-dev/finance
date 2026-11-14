@@ -6,6 +6,7 @@ import { seed, seedToday } from '../../src/db/seed.ts'
 import { api, apiHosts, apiOrigins, serveApi } from '../../src/http/api.ts'
 import { bodyLimit } from '../../src/http/body.ts'
 import type { Verifier } from '../../src/http/identity.ts'
+import { bareSeedCard } from '../db/bare-card.ts'
 import { testDatabase } from '../db/database.ts'
 
 const groceries = { month: '2026-10', due_on: '2026-10-25', description: 'Farmers market', direction: 'expense', amount_cents: 12345, category: 'alimentação', member: 'joint' }
@@ -32,6 +33,7 @@ describe('http api', () => {
   before(async () => {
     db = await testDatabase()
     await seed(db.client)
+    await bareSeedCard(db.client)
     pool = connectPool(db.url)
     server = await serveApi(pool, 0, '127.0.0.1')
   })

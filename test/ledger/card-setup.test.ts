@@ -6,6 +6,7 @@ import { cardLimits } from '../../src/ledger/cards.ts'
 import { findMember } from '../../src/ledger/members.ts'
 import { RuleError } from '../../src/ledger/rule.ts'
 import { closeRecord, editRecord, listSetup, registerRecord } from '../../src/ledger/setup.ts'
+import { bareSeedCard } from '../db/bare-card.ts'
 import { testDatabase } from '../db/database.ts'
 
 describe('card installments and limits as setup records', () => {
@@ -23,6 +24,7 @@ describe('card installments and limits as setup records', () => {
     db = await testDatabase()
     client = db.client
     await seed(client)
+    await bareSeedCard(client)
     const marcio = await findMember(client, 'Marcio')
     assert.ok(marcio)
     actor = { author: 'member', memberId: marcio.id }

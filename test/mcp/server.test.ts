@@ -5,6 +5,7 @@ import { connectPool } from '../../src/db/connection.ts'
 import { seed, seedToday } from '../../src/db/seed.ts'
 import { write } from '../../src/db/write.ts'
 import { createServer } from '../../src/mcp/server.ts'
+import { bareSeedCard } from '../db/bare-card.ts'
 import { testDatabase } from '../db/database.ts'
 
 type Money = { cents: string; brl: string }
@@ -24,6 +25,7 @@ describe('mcp read tools', () => {
   before(async () => {
     db = await testDatabase()
     await seed(db.client)
+    await bareSeedCard(db.client)
     pool = connectPool(db.url)
     const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair()
     await createServer(pool).connect(serverTransport)

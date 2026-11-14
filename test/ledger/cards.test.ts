@@ -9,6 +9,7 @@ import { findMember } from '../../src/ledger/members.ts'
 import { monthSplit } from '../../src/ledger/split.ts'
 import { monthSummary } from '../../src/ledger/summary.ts'
 import { netWorth } from '../../src/ledger/worth.ts'
+import { bareSeedCard } from '../db/bare-card.ts'
 import { testDatabase } from '../db/database.ts'
 
 describe('card installments and limits', () => {
@@ -39,6 +40,7 @@ describe('card installments and limits', () => {
     db = await testDatabase()
     client = db.client
     await seed(client)
+    await bareSeedCard(client)
     const marcio = await findMember(client, 'Marcio')
     assert.ok(marcio)
     actor = { author: 'member', memberId: marcio.id }
@@ -140,8 +142,8 @@ describe('card installments and limits', () => {
   test('every installment write is audited', async () => {
     const { rows } = await client.query<{ action: string; count: number }>("select action, count(*)::int as count from audit_log where entity = 'card_installment' group by action order by action")
     assert.deepEqual(rows, [
-      { action: 'close', count: 1 },
-      { action: 'create', count: 6 },
+      { action: 'close', count: 3 },
+      { action: 'create', count: 8 },
     ])
   })
 })

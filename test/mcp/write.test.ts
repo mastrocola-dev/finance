@@ -5,6 +5,7 @@ import { connectPool } from '../../src/db/connection.ts'
 import { seed, seedToday } from '../../src/db/seed.ts'
 import { findMember, type Member } from '../../src/ledger/members.ts'
 import { createServer } from '../../src/mcp/server.ts'
+import { bareSeedCard } from '../db/bare-card.ts'
 import { testDatabase } from '../db/database.ts'
 
 const groceries = { month: '2026-10', due_on: '2026-10-25', description: 'Farmers market', direction: 'expense', amount_cents: 12345, category: 'alimentação', member: 'joint', today: seedToday }
@@ -36,6 +37,7 @@ describe('mcp write tools', () => {
   before(async () => {
     db = await testDatabase()
     await seed(db.client)
+    await bareSeedCard(db.client)
     pool = connectPool(db.url)
     const found = await findMember(pool, 'Marcio')
     assert.ok(found)

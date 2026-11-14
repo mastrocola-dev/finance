@@ -1,0 +1,30 @@
+import { expect, test } from '@playwright/test'
+import { memberContext, reseed } from './context.ts'
+
+test.describe.configure({ mode: 'serial' })
+test.afterAll(reseed)
+
+test('the seeded card shows its limit and installments, takes a new one and closes it', async ({ browser }) => {
+  const context = await memberContext(browser, { viewport: { width: 1440, height: 1000 } })
+  const page = await context.newPage()
+  page.on('dialog', (dialog) => dialog.accept())
+  await page.goto('/cadastros')
+  const card = page.getByRole('region', { name: /^Parcelamentos · Cartão Marcio/ })
+  await expect(card).toContainText('Limite R$ 8.000,00. As parcelas já estão na fatura do cartão')
+  await expect(card.getByRole('listitem').filter({ hasText: 'Geladeira' })).toContainText('R$ 250,00 · parcela 3 de 10 · termina mai/2027 · Casa · Conjunto')
+  await expect(card.getByRole('listitem').filter({ hasText: 'Notebook' })).toContainText('R$ 400,00 · parcela 2 de 6 · termina fev/2027 · Lazer · Marcio')
+  await card.getByRole('button', { name: 'Novo cadastro em Parcelamentos · Cartão Marcio' }).click()
+  const form = card.getByRole('form', { name: 'Cadastrar parcelamento' })
+  await expect(form.getByLabel('Cartão')).toHaveValue('Cartão Marcio')
+  await form.getByLabel('Descrição').fill('Bicicleta')
+  await form.getByLabel('Valor da parcela').fill('300,00')
+  await form.getByLabel('Parcelas', { exact: true }).fill('5')
+  await form.getByLabel('Parcela na fatura deste mês').fill('1')
+  await form.getByRole('button', { name: 'Cadastrar' }).click()
+  await expect(page.getByRole('status')).toContainText('Cadastrado: Bicicleta')
+  await expect(card.getByRole('listitem').filter({ hasText: 'Bicicleta' })).toContainText('R$ 300,00 · parcela 1 de 5 · termina fev/2027')
+  await card.getByRole('button', { name: 'Encerrar Bicicleta' }).click()
+  await expect(page.getByRole('status')).toContainText('Encerrado: Bicicleta')
+  await expect(card.getByRole('heading')).toContainText('2')
+  await context.close()
+})

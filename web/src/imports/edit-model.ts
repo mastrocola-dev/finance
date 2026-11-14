@@ -2,7 +2,7 @@ import { parseBrl } from '../entries/quick-add.ts'
 import { formatBrl } from '../lib/format.ts'
 import type { Candidate, Kind } from './review-model.ts'
 
-export type FormKind = Kind | 'variable_expense'
+export type FormKind = Kind | 'variable_expense' | 'card_installment'
 
 export type Names = 'members' | 'accounts' | 'categories' | 'reserves'
 
@@ -38,6 +38,15 @@ export const fieldsOf: Record<FormKind, Field[]> = {
   income: [{ key: 'description', label: 'Descrição', type: 'text' }, { key: 'amountCents', label: 'Valor mensal', type: 'money' }, dayOfMonth, startsOn, endsOn, { ...category, optional: true }, account, member],
   recurring_expense: [{ key: 'description', label: 'Descrição', type: 'text' }, { key: 'amountCents', label: 'Valor mensal', type: 'money' }, dayOfMonth, startsOn, endsOn, { key: 'installmentsTotal', label: 'Parcelas', type: 'count', optional: true }, category, account, member],
   variable_expense: [{ key: 'description', label: 'Descrição', type: 'text' }, { key: 'amountCents', label: 'Valor estimado por mês', type: 'money' }, category, member, account],
+  card_installment: [
+    { key: 'description', label: 'Descrição', type: 'text' },
+    { key: 'amountCents', label: 'Valor da parcela', type: 'money' },
+    { key: 'installmentsTotal', label: 'Parcelas', type: 'count' },
+    { key: 'currentInstallment', label: 'Parcela na fatura deste mês', type: 'count' },
+    { ...account, label: 'Cartão', optional: false },
+    { ...category, optional: true },
+    member,
+  ],
   debt: [
     { key: 'creditor', label: 'Credor', type: 'text' },
     { key: 'description', label: 'Descrição', type: 'text' },
@@ -143,6 +152,7 @@ const crossChecks = (kind: FormKind, payload: Record<string, unknown>, parts: Re
   const errors: Errors = {}
   if (typeof payload.startsOn === 'string' && typeof payload.endsOn === 'string' && payload.endsOn < payload.startsOn) errors.endsOn = 'O fim vem antes do início.'
   if (kind === 'debt' && typeof payload.installmentsPaid === 'number' && typeof payload.installmentsTotal === 'number' && payload.installmentsPaid > payload.installmentsTotal) errors.installmentsPaid = 'Mais parcelas pagas do que o total.'
+  if (kind === 'card_installment' && typeof payload.currentInstallment === 'number' && typeof payload.installmentsTotal === 'number' && payload.currentInstallment > payload.installmentsTotal) errors.currentInstallment = 'A parcela passa do total.'
   const { installmentNumber: number, installmentTotal: total } = parts
   if ((number === undefined) !== (total === undefined)) errors[number === undefined ? 'installmentNumber' : 'installmentTotal'] = 'Preencha a parcela e o total juntos.'
   else if (typeof number === 'number' && typeof total === 'number' && number > total) errors.installmentNumber = 'A parcela passa do total.'
@@ -169,6 +179,7 @@ const serverMessages: [RegExp, string][] = [
   [/endsOn is before startsOn/, 'O fim vem antes do início.'],
   [/installmentsPaid exceeds/, 'Mais parcelas pagas do que o total.'],
   [/installment number exceeds/, 'A parcela passa do total.'],
+  [/currentInstallment exceeds/, 'A parcela passa do total.'],
 ]
 
 const fieldOf = (fields: Field[], path: string, message: string) => {
@@ -176,6 +187,7 @@ const fieldOf = (fields: Field[], path: string, message: string) => {
   if (path.startsWith('installment')) return 'installmentNumber'
   if (/endsOn is before/.test(message)) return 'endsOn'
   if (/installmentsPaid exceeds/.test(message)) return 'installmentsPaid'
+  if (/currentInstallment exceeds/.test(message)) return 'currentInstallment'
   return fields.some((field) => field.key === path) ? path : 'form'
 }
 
